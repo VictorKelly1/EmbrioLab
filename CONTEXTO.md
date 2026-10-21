@@ -45,7 +45,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 
 ### Citas
 - Cada cita dura **30 minutos fijos**.
-- **No puede haber dos citas empalmadas** (hay un solo horario de atención). Valídalo en el servicio **y** en la BD, por ejemplo con un `ExclusionConstraint` (btree_gist) sobre el rango `[fecha_hora, fecha_hora + 30 min)`, para que sea seguro aunque haya concurrencia.
+- **No puede haber dos citas empalmadas** (hay un solo horario de atención). Valídalo en el servicio **y** en la BD con un `ExclusionConstraint` sobre el rango `[fecha_hora, fecha_fin)`, para que sea seguro aunque haya concurrencia. `fecha_fin` se guarda porque `timestamptz + interval` no es inmutable en PostgreSQL y no puede ir en el índice; un `CHECK` garantiza que sea `fecha_hora + 30 min`.
 - **Estados:** `programada`, `atendida`, `no_atendida`. Reprogramar = cambiar `fecha_hora`.
 - **Las canceladas se BORRAN** (no se guardan).
 - Se puede atender a alguien **sin cita**: se crea una cita con `origen = espontanea`.
@@ -122,7 +122,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 ### Citas y formularios
 | Tabla | Campos |
 |---|---|
-| **Citas** | Id, IdRecepcionista, IdPaciente, FechaHora, Asunto, Estado, Origen (agendada/espontanea), NumeroFolio, TokenQR (**hash**), TokenExpiracion, RecordatorioEnviado |
+| **Citas** | Id, IdRecepcionista, IdPaciente, FechaHora, FechaFin (= FechaHora + 30 min, la calcula el modelo), Asunto, Estado, Origen (agendada/espontanea), NumeroFolio, TokenQR (**hash**), TokenExpiracion, RecordatorioEnviado |
 | **Formularios** | Id, Nombre, Descripcion, GeneroAplicable (null = todos), Activo, FechaCreacion, IdUsuarioCreador (null) |
 | **VersionesFormulario** | Id, IdFormulario, NumeroVersion, Esquema (JSON), Publicada, FechaPublicacion. *Índice único parcial: solo una versión publicada por formulario.* |
 | **FormulariosLlenados** | Id, IdCita, **IdVersionFormulario**, Respuestas (JSON), FechaLlenado |
@@ -280,3 +280,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 ### Registro de cambios
 - 2026-09-27: versión inicial (reglas, BD v2 + catálogos, arquitectura y plan de 10 semanas).
 - 2026-10-21: semana 1 — `Persona` y `Direccion` se adelantan a la semana 1; el servicio `worker` de Docker Compose pasa a la semana 8 (su backend en BD necesita migraciones y aún no hay tareas); HSTS preload y HTTPS en nginx quedan para la semana 9, cuando haya dominio.
+- 2026-10-21: semana 3 — `Citas` agrega `FechaFin` para la restricción contra empalmes (no hace falta `btree_gist`).
