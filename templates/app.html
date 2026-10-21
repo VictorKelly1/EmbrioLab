@@ -1,24 +1,29 @@
 {% extends 'base.html' %}
-{% comment %}Layout de las pantallas con sesión iniciada.{% endcomment %}
+{% comment %}Layout de las pantallas con sesión iniciada: barra superior + menú lateral por rol.{% endcomment %}
 
 {% block clase_body %}app{% endblock %}
 
+{% block cabeza %}
+<script>
+  // Antes de pintar, para que el menú plegado no "salte" al cargar la página.
+  try {
+    if (localStorage.getItem('menu-lateral') === 'plegado') {
+      document.documentElement.dataset.menu = 'plegado';
+    }
+  } catch (e) {}
+</script>
+{% endblock %}
+
 {% block cuerpo %}
+{% include 'includes/iconos.html' %}
+<a class="saltar" href="#contenido">Ir al contenido</a>
 <header class="barra">
-  <a class="marca" href="{% url 'inicio' %}">Embrio<span>Lab</span></a>
-  {% with roles=request.user.roles ruta=request.resolver_match %}
-  <nav class="menu" aria-label="Principal">
-    {% if 'recepcionista' in roles or 'quimico' in roles %}
-      <a href="{% url 'pacientes:lista' %}"{% if ruta.namespace == 'pacientes' and 'doctor' not in ruta.url_name %} aria-current="page"{% endif %}>Pacientes</a>
-    {% endif %}
-    {% if 'recepcionista' in roles %}
-      <a href="{% url 'pacientes:doctores' %}"{% if 'doctor' in ruta.url_name %} aria-current="page"{% endif %}>Doctores</a>
-    {% endif %}
-    {% if 'admin' in roles %}
-      <a href="{% url 'cuentas:usuarios' %}"{% if 'usuario' in ruta.url_name %} aria-current="page"{% endif %}>Usuarios</a>
-    {% endif %}
-  </nav>
-  {% endwith %}
+  <div class="barra__inicio">
+    <button type="button" class="boton-icono" data-alternar-menu aria-controls="menu-lateral" aria-expanded="true" aria-label="Mostrar u ocultar el menú">
+      <svg class="icono" aria-hidden="true"><use href="#icono-menu"/></svg>
+    </button>
+    <a class="marca" href="{% url 'inicio' %}">Embrio<span>Lab</span></a>
+  </div>
   <div class="barra__usuario">
     <span class="usuario">
       <span class="usuario__color" style="--color-usuario: {{ request.user.color }}" aria-hidden="true"></span>
@@ -30,12 +35,76 @@
     </form>
   </div>
 </header>
-<main class="contenido" id="contenido">
-  {% if messages %}
-    <div class="mensajes" role="status">
-      {% for mensaje in messages %}<p class="aviso aviso--{{ mensaje.tags }}">{{ mensaje }}</p>{% endfor %}
-    </div>
-  {% endif %}
-  {% block contenido %}{% endblock %}
-</main>
+
+<div class="marco">
+  <nav class="lateral" id="menu-lateral" aria-label="Principal">
+    <ul class="lateral__lista">
+      {% for opcion in menu_lateral %}
+      <li>
+        {% if opcion.url %}
+          <a class="lateral__opcion" href="{{ opcion.url }}" title="{{ opcion.etiqueta }}"{% if opcion.activa %} aria-current="page"{% endif %}>
+            <svg class="icono" aria-hidden="true"><use href="#icono-{{ opcion.icono }}"/></svg>
+            <span class="lateral__texto">{{ opcion.etiqueta }}</span>
+          </a>
+        {% else %}
+          <span class="lateral__opcion lateral__opcion--pronto" aria-disabled="true" title="{{ opcion.etiqueta }}: disponible próximamente">
+            <svg class="icono" aria-hidden="true"><use href="#icono-{{ opcion.icono }}"/></svg>
+            <span class="lateral__texto">{{ opcion.etiqueta }} <span class="lateral__pronto">Pronto</span></span>
+          </span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+  <div class="lateral__velo" data-cerrar-menu hidden></div>
+
+  <main class="contenido" id="contenido" tabindex="-1">
+    {% if messages %}
+      <div class="mensajes" role="status">
+        {% for mensaje in messages %}<p class="aviso aviso--{{ mensaje.tags }}">{{ mensaje }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% block contenido %}{% endblock %}
+  </main>
+</div>
+
+<script>
+  (() => {
+    const raiz = document.documentElement;
+    const boton = document.querySelector('[data-alternar-menu]');
+    const velo = document.querySelector('[data-cerrar-menu]');
+    const movil = window.matchMedia('(max-width: 52rem)');
+
+    // En escritorio el botón pliega el menú a solo iconos (y se recuerda);
+    // en celular lo abre encima del contenido.
+    const abierto = () => movil.matches ? raiz.dataset.menu === 'abierto' : raiz.dataset.menu !== 'plegado';
+    const sincronizar = () => {
+      boton.setAttribute('aria-expanded', String(abierto()));
+      velo.hidden = !(movil.matches && raiz.dataset.menu === 'abierto');
+    };
+    const guardar = (valor) => { try { localStorage.setItem('menu-lateral', valor); } catch (e) {} };
+    const plegadoGuardado = () => { try { return localStorage.getItem('menu-lateral') === 'plegado'; } catch (e) { return false; } };
+
+    boton.addEventListener('click', () => {
+      if (movil.matches) {
+        raiz.dataset.menu = raiz.dataset.menu === 'abierto' ? '' : 'abierto';
+      } else {
+        raiz.dataset.menu = raiz.dataset.menu === 'plegado' ? '' : 'plegado';
+        guardar(raiz.dataset.menu || 'desplegado');
+      }
+      sincronizar();
+    });
+    const cerrar = () => { raiz.dataset.menu = ''; sincronizar(); boton.focus(); };
+    velo.addEventListener('click', cerrar);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && movil.matches && raiz.dataset.menu === 'abierto') cerrar();
+    });
+    movil.addEventListener('change', () => {
+      raiz.dataset.menu = !movil.matches && plegadoGuardado() ? 'plegado' : '';
+      sincronizar();
+    });
+    if (movil.matches) raiz.dataset.menu = '';
+    sincronizar();
+  })();
+</script>
 {% endblock %}
