@@ -1,12 +1,14 @@
-{% load static %}<!doctype html>
+{% load estaticos %}<!doctype html>
 <html lang="es-MX">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>{% block titulo %}EmbrioLab{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/embriolab.css' %}">
-  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  <link rel="preload" href="{% estatico 'fonts/figtree-latin-wght.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% estatico 'css/embriolab.css' %}">
+  <script src="{% estatico 'vendor/htmx.min.js' %}" defer></script>
+  {% block cabeza %}{% endblock %}
 </head>
 <body class="{% block clase_body %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   {% block cuerpo %}{% endblock %}

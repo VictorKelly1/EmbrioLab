@@ -4,15 +4,19 @@
 
 {% block contenido %}
 <div class="encabezado">
-  <h1>Doctores</h1>
-  <a class="boton boton--principal" href="{% url 'pacientes:doctor_crear' %}">Registrar doctor</a>
+  <div>
+    <h1>Doctores</h1>
+    <p class="encabezado__descripcion">Médicos que envían órdenes de estudios al laboratorio.</p>
+  </div>
+  <a class="boton boton--principal" href="{% url 'pacientes:doctor_crear' %}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Registrar doctor</a>
 </div>
 
 <form class="buscador" method="get" role="search"
       hx-get="{% url 'pacientes:doctores' %}" hx-target="#resultados" hx-push-url="true"
       hx-trigger="input changed delay:300ms from:input[name=q], submit">
-  <div class="campo">
+  <div class="campo campo--buscar">
     <label for="buscar">Buscar por nombre</label>
+    <svg class="icono" aria-hidden="true"><use href="#icono-buscar"/></svg>
     <input type="search" id="buscar" name="q" value="{{ termino }}" autocomplete="off">
   </div>
 </form>
