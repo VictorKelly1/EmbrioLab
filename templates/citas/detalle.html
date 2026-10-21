@@ -47,7 +47,7 @@
       <dt>Asunto</dt><dd>{{ cita.asunto|default:"—" }}</dd>
       <dt>Origen</dt><dd>{{ cita.get_origen_display }}</dd>
       <dt>Registró</dt><dd>{{ cita.recepcionista.usuario.persona.nombre_completo }}</dd>
-      <dt>Formulario</dt><dd>{% if cita.token_qr %}Link vigente hasta el {{ cita.token_expiracion|date:'j/m/Y H:i' }}{% else %}Sin link vigente{% endif %}</dd>
+      <dt>Formulario</dt><dd>{% if llenado %}Respondido el {{ llenado.fecha_llenado|date:'j/m/Y H:i' }}{% elif cita.token_qr %}Link vigente hasta el {{ cita.token_expiracion|date:'j/m/Y H:i' }}{% else %}Sin link vigente{% endif %}</dd>
     </dl>
   </section>
 
@@ -60,15 +60,34 @@
       {% if ya_empezo %}<button type="submit" name="accion" value="no_atendida" class="boton boton--secundario">No asistió</button>{% endif %}
     </form>
     {% endif %}
-    {% if cita.estado != 'no_atendida' %}
+    {% if cita.estado != 'no_atendida' and not llenado %}
     <form method="post" action="{% url 'citas:generar_qr' cita.pk %}">
       {% csrf_token %}
       <button type="submit" class="boton boton--secundario">{% if cita.token_qr %}Generar un link nuevo{% else %}Generar link del formulario{% endif %}</button>
     </form>
     {% endif %}
-    {% if not programada and cita.estado == 'no_atendida' %}<p class="tenue">El paciente no asistió. Para una nueva visita, agende otra cita.</p>{% endif %}
+    {% if cita.estado == 'no_atendida' %}<p class="tenue">El paciente no asistió. Para una nueva visita, agende otra cita.</p>
+    {% elif not programada and llenado %}<p class="tenue">Sin acciones pendientes: la cita se atendió y el formulario ya está respondido.</p>{% endif %}
   </section>
 </div>
+
+<section class="tarjeta respuestas" aria-labelledby="titulo-respuestas">
+  <h2 id="titulo-respuestas">Formulario de la visita</h2>
+  {% if respuestas %}
+    {% regroup respuestas by seccion as secciones %}
+    {% for seccion in secciones %}
+    <h3>{{ seccion.grouper }}</h3>
+    <dl class="datos">
+      {% for respuesta in seccion.list %}<dt>{{ respuesta.etiqueta }}</dt><dd>{{ respuesta.valor|linebreaksbr }}</dd>{% endfor %}
+    </dl>
+    {% endfor %}
+    <p class="campo__ayuda">{{ llenado.version_formulario.formulario.nombre }}, versión {{ llenado.version_formulario.numero_version }}.</p>
+  {% elif llenado %}
+    <p class="tenue">El paciente envió el formulario sin respuestas.</p>
+  {% else %}
+    <p class="tenue">Pendiente. Genere el link para que el paciente lo llene desde su celular.</p>
+  {% endif %}
+</section>
 
 {% if programada %}
 <section class="zona-baja" aria-labelledby="titulo-reprogramar">

@@ -5,7 +5,7 @@ import pytest
 from django.db import connection
 from django.test import RequestFactory
 
-from apps.core.limites import excedido, ip_cliente, limpiar_vencidos, registrar_intento
+from apps.core.limites import agotado, ip_cliente, limpiar_vencidos, registrar_intento
 from apps.core.models import ContadorIntentos
 
 pytestmark = pytest.mark.django_db
@@ -16,7 +16,15 @@ UN_MINUTO = datetime.timedelta(minutes=1)
 def test_cuenta_hasta_el_maximo():
     resultados = [registrar_intento('prueba', maximo=3, ventana=UN_MINUTO) for _ in range(5)]
     assert resultados == [False, False, False, True, True]
-    assert excedido('prueba', maximo=3, ventana=UN_MINUTO)
+    assert agotado('prueba', maximo=3, ventana=UN_MINUTO)
+
+
+def test_agotado_al_llegar_al_maximo():
+    for _ in range(2):
+        registrar_intento('prueba', maximo=3, ventana=UN_MINUTO)
+    assert not agotado('prueba', maximo=3, ventana=UN_MINUTO)
+    registrar_intento('prueba', maximo=3, ventana=UN_MINUTO)
+    assert agotado('prueba', maximo=3, ventana=UN_MINUTO)
 
 
 def test_claves_independientes():
@@ -35,8 +43,8 @@ def test_la_ventana_se_reinicia():
     assert ContadorIntentos.objects.get().conteo == 1
 
 
-def test_excedido_no_cuenta():
-    excedido('prueba', maximo=3, ventana=UN_MINUTO)
+def test_agotado_no_cuenta():
+    agotado('prueba', maximo=3, ventana=UN_MINUTO)
     assert not ContadorIntentos.objects.exists()
 
 

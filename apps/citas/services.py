@@ -1,7 +1,7 @@
 import datetime
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -148,6 +148,14 @@ def marcar_no_atendida(cita: Cita) -> Cita:
 # Token del formulario (QR)
 
 
+def _tiene_formulario_llenado(cita: Cita) -> bool:
+    try:
+        cita.formulario_llenado  # noqa: B018  relación inversa de formularios
+    except ObjectDoesNotExist:
+        return False
+    return True
+
+
 def _expiracion(cita: Cita) -> datetime.datetime:
     vigencia = datetime.timedelta(hours=settings.CITAS_QR_HORAS_VIGENCIA)
     return max(timezone.now(), cita.fecha_hora) + vigencia
@@ -161,6 +169,8 @@ def generar_token_qr(cita: Cita) -> str:
     """
     if cita.estado == EstadoCita.NO_ATENDIDA:
         raise TransicionInvalida('La cita no fue atendida.')
+    if _tiene_formulario_llenado(cita):
+        raise TransicionInvalida('El paciente ya llenó el formulario de esta cita.')
     token = nuevo_token()
     cita.token_qr = hash_token(token)
     cita.token_expiracion = _expiracion(cita)

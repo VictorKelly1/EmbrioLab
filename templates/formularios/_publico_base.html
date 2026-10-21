@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% comment %}Páginas públicas del link/QR. Nunca muestran datos del paciente.{% endcomment %}
+
+{% block clase_body %}publico{% endblock %}
+
+{% block cuerpo %}
+<header class="publico__barra">
+  <p class="marca">Embrio<span>Lab</span></p>
+</header>
+<main class="publico__contenido">
+  {% block publico %}{% endblock %}
+</main>
+{% endblock %}

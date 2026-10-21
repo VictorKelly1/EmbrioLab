@@ -39,10 +39,10 @@ def registrar_intento(clave: str, *, maximo: int, ventana: datetime.timedelta) -
     return conteo > maximo
 
 
-def excedido(clave: str, *, maximo: int, ventana: datetime.timedelta) -> bool:
-    """Consulta sin contar un intento nuevo."""
+def agotado(clave: str, *, maximo: int, ventana: datetime.timedelta) -> bool:
+    """True si la clave ya usó sus `maximo` intentos en la ventana. No cuenta uno nuevo."""
     return ContadorIntentos.objects.filter(
-        clave=clave[:200], inicio_ventana__gt=timezone.now() - ventana, conteo__gt=maximo
+        clave=clave[:200], inicio_ventana__gt=timezone.now() - ventana, conteo__gte=maximo
     ).exists()
 
 

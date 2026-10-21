@@ -11,6 +11,11 @@ from apps.formularios.esquema import preguntas
 SI_NO = [('si', 'Sí'), ('no', 'No')]
 
 
+def _no_futura(fecha: datetime.date) -> None:
+    if fecha > timezone.localdate():
+        raise forms.ValidationError('La fecha no puede ser futura.')
+
+
 def _campo(pregunta: dict) -> forms.Field:
     tipo = pregunta['tipo']
     comunes = {
@@ -48,9 +53,13 @@ def _campo(pregunta: dict) -> forms.Field:
         )
     if tipo == 'fecha':
         atributos = {'type': 'date'}
+        validadores = []
         if pregunta.get('no_futura'):
             atributos['max'] = timezone.localdate().isoformat()
-        return forms.DateField(widget=forms.DateInput(attrs=atributos), **comunes)
+            validadores.append(_no_futura)
+        return forms.DateField(
+            widget=forms.DateInput(attrs=atributos), validators=validadores, **comunes
+        )
     raise ValueError(f'Tipo desconocido: {tipo}')
 
 
@@ -77,7 +86,10 @@ class FormularioDinamico(forms.Form):
         super().__init__(*args, **kwargs)
         self._preguntas = {p['clave']: p for p in preguntas(self.esquema)}
         for clave, pregunta in self._preguntas.items():
-            self.fields[clave] = _campo(pregunta)
+            campo = _campo(pregunta)
+            # Para el asterisco en la plantilla: obligatoria cuando se muestra.
+            campo.obligatoria_si_se_muestra = bool(pregunta.get('obligatoria'))
+            self.fields[clave] = campo
 
     def _se_muestra(self, pregunta: dict, valores: dict) -> bool:
         condicion = pregunta.get('mostrar_si')
@@ -117,11 +129,18 @@ class FormularioDinamico(forms.Form):
             campos = []
             for pregunta in seccion['preguntas']:
                 condicion = pregunta.get('mostrar_si')
+                descripcion = ''
+                if condicion:
+                    origen = self._preguntas[condicion['clave']]['etiqueta']
+                    valor = condicion['valor']
+                    legible = ('Sí' if valor else 'No') if isinstance(valor, bool) else valor
+                    descripcion = f'Se muestra si responde «{legible}» a «{origen}»'
                 campos.append(
                     {
                         'campo': self[pregunta['clave']],
                         'condicion_clave': condicion['clave'] if condicion else '',
                         'condicion_valor': _valor_html(condicion['valor']) if condicion else '',
+                        'condicion_descripcion': descripcion,
                     }
                 )
             resultado.append(

@@ -30,6 +30,12 @@ class Formulario(ModeloConTiempos):
     def fecha_creacion(self):
         return self.creado_en
 
+    @property
+    def para_quien(self) -> str:
+        return {'masculino': 'Para hombres', 'femenino': 'Para mujeres'}.get(
+            self.genero_aplicable, 'Para todos'
+        )
+
 
 class VersionFormulario(models.Model):
     """

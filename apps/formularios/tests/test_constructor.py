@@ -76,6 +76,13 @@ def test_valida_limites_y_opciones(campo, valor):
     assert campo in form.errors
 
 
+def test_fecha_no_futura_tambien_en_el_servidor():
+    manana = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    form = _form(TODOS_LOS_TIPOS, {'fecha': manana})
+    assert not form.is_valid()
+    assert form.errors['fecha'] == ['La fecha no puede ser futura.']
+
+
 def test_fecha_no_futura_en_el_navegador():
     form = construir_formulario(TODOS_LOS_TIPOS)()
     assert form.fields['fecha'].widget.attrs['max'] == datetime.date.today().isoformat()
@@ -105,6 +112,7 @@ def test_secciones_para_la_plantilla():
     horas = seccion['campos'][1]
     assert horas['condicion_clave'] == 'ayuno'
     assert horas['condicion_valor'] == 'si'
+    assert horas['condicion_descripcion'] == 'Se muestra si responde «Sí» a «¿Viene en ayuno?»'
 
 
 def test_respuestas_legibles():

@@ -4,6 +4,7 @@ Settings comunes de EmbrioLab. dev.py y prod.py importan todo de aquí.
 https://docs.djangoproject.com/en/6.1/topics/settings/
 """
 
+import datetime
 import os
 from pathlib import Path
 
@@ -188,6 +189,13 @@ CITAS_DIAS_HABILES = [0, 1, 2, 3, 4, 5]
 # El link del formulario vence este número de horas después del inicio de la cita
 # (o de su generación, si la cita ya pasó).
 CITAS_QR_HORAS_VIGENCIA = int(os.environ.get('CITAS_QR_HORAS_VIGENCIA', '24'))
+
+
+# Página pública del formulario (link/QR): límite de peticiones por IP.
+FORMULARIO_PETICIONES_MAX = 30  # en FORMULARIO_PETICIONES_VENTANA
+FORMULARIO_PETICIONES_VENTANA = datetime.timedelta(minutes=10)
+FORMULARIO_LINKS_INVALIDOS_MAX = 10  # links inexistentes o vencidos por hora
+FORMULARIO_LINKS_INVALIDOS_VENTANA = datetime.timedelta(hours=1)
 
 
 # Email
