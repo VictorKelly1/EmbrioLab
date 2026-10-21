@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% comment %}Layout de las pantallas con sesión iniciada.{% endcomment %}
+
+{% block clase_body %}app{% endblock %}
+
+{% block cuerpo %}
+<header class="barra">
+  <a class="marca" href="{% url 'inicio' %}">Embrio<span>Lab</span></a>
+  <div class="barra__usuario">
+    <span class="usuario">
+      <span class="usuario__color" style="--color-usuario: {{ request.user.color }}" aria-hidden="true"></span>
+      <span>{{ request.user.persona.nombre }}</span>
+    </span>
+    <form method="post" action="{% url 'cuentas:salir' %}">
+      {% csrf_token %}
+      <button type="submit" class="boton boton--discreto">Cerrar sesión</button>
+    </form>
+  </div>
+</header>
+<main class="contenido" id="contenido">
+  {% block contenido %}{% endblock %}
+</main>
+{% endblock %}

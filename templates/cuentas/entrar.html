@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Iniciar sesión · EmbrioLab{% endblock %}
+{% block clase_body %}acceso{% endblock %}
+
+{% block cuerpo %}
+<div class="acceso__marco">
+  <aside class="acceso__marca">
+    {% comment %}Nombre en texto hasta que el cliente entregue el logotipo.{% endcomment %}
+    <p class="marca marca--grande">Embrio<span>Lab</span></p>
+    {% include 'includes/embrion.html' %}
+    <div class="acceso__lema">
+      <p class="acceso__titulo">Laboratorio clínico</p>
+      <p class="acceso__categorias">Sanguíneos · Esperma · Cultivo · Otros</p>
+    </div>
+  </aside>
+
+  <main class="acceso__formulario">
+    <form method="post" class="formulario" novalidate data-formulario-entrar>
+      {% csrf_token %}
+      <h1>Iniciar sesión</h1>
+      <p class="formulario__ayuda">Acceso para el personal del laboratorio.</p>
+
+      {% if form.non_field_errors %}
+        <div class="aviso aviso--error" role="alert">
+          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+
+      {% for campo in form %}
+        <div class="campo{% if campo.errors %} campo--error{% endif %}">
+          <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+          {{ campo }}
+          {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="boton boton--principal boton--ancho">
+        <span class="boton__texto">Entrar</span>
+        <span class="boton__cargando">Entrando…</span>
+      </button>
+
+      <p class="formulario__nota">¿Olvidó su contraseña? Pida al administrador que la restablezca.</p>
+    </form>
+  </main>
+</div>
+<script>
+  document.querySelector('[data-formulario-entrar]').addEventListener('submit', (evento) => {
+    const boton = evento.target.querySelector('button[type=submit]');
+    boton.setAttribute('aria-busy', 'true');
+    boton.disabled = true;
+  });
+</script>
+{% endblock %}

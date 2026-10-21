@@ -1,0 +1,17 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Inicio · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<section class="bienvenida">
+  <h1>Hola, {{ request.user.persona.nombre }}</h1>
+  <p class="bienvenida__rol">{{ rol }}</p>
+  <div class="vacio">
+    {% include 'includes/embrion.html' %}
+    <div>
+      <h2>Su espacio de trabajo está listo</h2>
+      <p>Aquí aparecerán las citas, los pedidos y los resultados conforme se habiliten en el sistema.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

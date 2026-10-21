@@ -1,0 +1,49 @@
+# Producción: nginx + gunicorn + postgres. El worker de tareas se agrega en la semana 8.
+# Uso: docker compose -f docker-compose.prod.yml up --build -d
+name: embriolab-prod
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py collectstatic --noinput
+      && gunicorn embriolab.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: embriolab.settings.prod
+      POSTGRES_HOST: db
+    volumes:
+      - static:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static:/app/staticfiles:ro
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  static:

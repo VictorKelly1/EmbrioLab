@@ -19,3 +19,7 @@ db.sqlite3-journal
 .vscode/
 .idea/
 .DS_Store
+
+# Herramientas
+.pytest_cache/
+.ruff_cache/
