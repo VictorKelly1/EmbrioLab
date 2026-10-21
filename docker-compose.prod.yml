@@ -28,6 +28,7 @@ services:
       POSTGRES_HOST: db
     volumes:
       - static:/app/staticfiles
+      - privado:/app/privado
     depends_on:
       db:
         condition: service_healthy
@@ -47,3 +48,4 @@ services:
 volumes:
   pgdata:
   static:
+  privado:
