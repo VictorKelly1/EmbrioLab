@@ -1,0 +1,31 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Registrar usuario · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'cuentas:usuarios' %}">← Usuarios</a>
+<h1>Registrar usuario</h1>
+
+<form method="post" class="formulario formulario--ancho" novalidate>
+  {% csrf_token %}
+  {% if form.errors %}
+    <div class="aviso aviso--error" role="alert">
+      {% for error in form.non_field_errors %}<p>{{ error }}</p>{% empty %}<p>Revise los campos marcados.</p>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% for titulo, campos in form.grupos %}
+  <fieldset class="seccion">
+    <legend>{{ titulo }}</legend>
+    <div class="rejilla">
+      {% for campo in campos %}{% include 'includes/campo.html' %}{% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">Registrar usuario</button>
+    <a class="boton boton--discreto" href="{% url 'cuentas:usuarios' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

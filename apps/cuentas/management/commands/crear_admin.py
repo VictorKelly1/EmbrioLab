@@ -5,12 +5,10 @@ from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
 
 from apps.cuentas.models import Rol
-from apps.cuentas.services import crear_usuario
+from apps.cuentas.services import registrar_usuario
 from apps.personas.models import Genero
-from apps.personas.services import crear_persona
 
 CAMPOS = [
     ('correo', 'Correo'),
@@ -54,22 +52,20 @@ class Command(BaseCommand):
             raise CommandError('El género debe ser "masculino" o "femenino".')
 
         try:
-            with transaction.atomic():
-                persona = crear_persona(
-                    nombre=datos['nombre'],
-                    apellido_paterno=datos['apellido_paterno'],
-                    apellido_materno=datos['apellido_materno'],
-                    genero=datos['genero'],
-                    fecha_nacimiento=fecha,
-                    curp=datos['curp'],
-                )
-                usuario = crear_usuario(
-                    persona=persona,
-                    correo=datos['correo'],
-                    password=password,
-                    rol=Rol.ADMIN,
-                    sueldo=sueldo,
-                )
+            usuario = registrar_usuario(
+                datos_persona={
+                    'nombre': datos['nombre'],
+                    'apellido_paterno': datos['apellido_paterno'],
+                    'apellido_materno': datos['apellido_materno'],
+                    'genero': datos['genero'],
+                    'fecha_nacimiento': fecha,
+                    'curp': datos['curp'],
+                },
+                correo=datos['correo'],
+                password=password,
+                rol=Rol.ADMIN,
+                sueldo=sueldo,
+            )
         except ValidationError as error:
             raise CommandError('; '.join(error.messages)) from error
 

@@ -32,10 +32,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
     'axes',
     'apps.core',
     'apps.personas',
     'apps.cuentas',
+    'apps.pacientes',
 ]
 
 AUTH_USER_MODEL = 'cuentas.Usuario'
@@ -152,6 +154,24 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+
+# Archivos privados (fotos de personas). No tienen URL pública: se sirven desde una
+# vista con control de rol (CONTEXTO.md §5).
+PRIVATE_MEDIA_ROOT = Path(os.environ.get('DJANGO_PRIVATE_MEDIA_ROOT', BASE_DIR / 'privado'))
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+    'privado': {
+        'BACKEND': 'apps.core.almacenamiento.AlmacenamientoPrivado',
+        'OPTIONS': {'location': PRIVATE_MEDIA_ROOT},
+    },
+}
 
 
 # Email

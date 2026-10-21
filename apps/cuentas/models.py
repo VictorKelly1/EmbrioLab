@@ -70,6 +70,12 @@ class Usuario(AbstractBaseUser, PermissionsMixin, ModeloConTiempos):
                 roles.add(rol)
         return roles
 
+    @property
+    def rol_principal(self) -> str:
+        """Nombre del rol para mostrar (en la Fase 1 hay uno solo)."""
+        roles = self.roles
+        return next((r.label for r in Rol if r in roles), '')
+
     def tiene_rol(self, *roles: str) -> bool:
         return self.is_active and bool(self.roles.intersection(roles))
 

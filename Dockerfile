@@ -10,8 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Mismo UID que el usuario de desarrollo para que el código montado no cambie de dueño.
 RUN useradd --uid 1000 --create-home app \
-    && mkdir -p /app/staticfiles \
-    && chown app:app /app/staticfiles
+    && mkdir -p /app/staticfiles /app/privado \
+    && chown app:app /app/staticfiles /app/privado
 
 COPY --chown=app:app . .
 

@@ -1,0 +1,30 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Usuarios · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <h1>Usuarios</h1>
+  <a class="boton boton--principal" href="{% url 'cuentas:usuario_crear' %}">Registrar usuario</a>
+</div>
+
+{% if usuarios %}
+<div class="tabla-marco">
+  <table class="tabla">
+    <thead><tr><th scope="col">Nombre</th><th scope="col">Correo</th><th scope="col">Rol</th><th scope="col">Estado</th></tr></thead>
+    <tbody>
+      {% for usuario in usuarios %}
+      <tr>
+        <td><span class="usuario"><span class="usuario__color" style="--color-usuario: {{ usuario.color }}" aria-hidden="true"></span>{{ usuario.persona.nombre_completo }}</span></td>
+        <td>{{ usuario.correo }}</td>
+        <td>{{ usuario.rol_principal|default:"Sin rol" }}</td>
+        <td>{% if usuario.is_active and usuario.rol_principal %}<span class="etiqueta">Activo</span>{% else %}<span class="etiqueta etiqueta--inactivo">Inactivo</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="sin-resultados">Todavía no hay usuarios.</p>
+{% endif %}
+{% endblock %}

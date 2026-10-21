@@ -1,0 +1,19 @@
+{% comment %}Un campo de formulario: etiqueta, control, ayuda y errores.{% endcomment %}
+{% if campo.field.widget.input_type == 'checkbox' %}
+<div class="campo campo--casilla{% if campo.errors %} campo--error{% endif %}">
+  <label>{{ campo }} {{ campo.label }}</label>
+</div>
+{% elif campo.field.widget.input_type == 'radio' %}
+<fieldset class="campo campo--opciones{% if campo.errors %} campo--error{% endif %}">
+  <legend>{{ campo.label }}{% if campo.field.required %} <span class="obligatorio" aria-hidden="true">*</span>{% endif %}</legend>
+  <div class="opciones">{% for opcion in campo %}<label>{{ opcion.tag }} {{ opcion.choice_label }}</label>{% endfor %}</div>
+  {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+</fieldset>
+{% else %}
+<div class="campo{% if campo.errors %} campo--error{% endif %}">
+  <label for="{{ campo.id_for_label }}">{{ campo.label }}{% if campo.field.required %} <span class="obligatorio" aria-hidden="true">*</span>{% endif %}</label>
+  {{ campo }}
+  {% if campo.help_text %}<p class="campo__ayuda" id="{{ campo.auto_id }}_ayuda">{{ campo.help_text }}</p>{% endif %}
+  {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+</div>
+{% endif %}

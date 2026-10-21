@@ -6,6 +6,19 @@
 {% block cuerpo %}
 <header class="barra">
   <a class="marca" href="{% url 'inicio' %}">Embrio<span>Lab</span></a>
+  {% with roles=request.user.roles ruta=request.resolver_match %}
+  <nav class="menu" aria-label="Principal">
+    {% if 'recepcionista' in roles or 'quimico' in roles %}
+      <a href="{% url 'pacientes:lista' %}"{% if ruta.namespace == 'pacientes' and 'doctor' not in ruta.url_name %} aria-current="page"{% endif %}>Pacientes</a>
+    {% endif %}
+    {% if 'recepcionista' in roles %}
+      <a href="{% url 'pacientes:doctores' %}"{% if 'doctor' in ruta.url_name %} aria-current="page"{% endif %}>Doctores</a>
+    {% endif %}
+    {% if 'admin' in roles %}
+      <a href="{% url 'cuentas:usuarios' %}"{% if 'usuario' in ruta.url_name %} aria-current="page"{% endif %}>Usuarios</a>
+    {% endif %}
+  </nav>
+  {% endwith %}
   <div class="barra__usuario">
     <span class="usuario">
       <span class="usuario__color" style="--color-usuario: {{ request.user.color }}" aria-hidden="true"></span>
@@ -18,6 +31,11 @@
   </div>
 </header>
 <main class="contenido" id="contenido">
+  {% if messages %}
+    <div class="mensajes" role="status">
+      {% for mensaje in messages %}<p class="aviso aviso--{{ mensaje.tags }}">{{ mensaje }}</p>{% endfor %}
+    </div>
+  {% endif %}
   {% block contenido %}{% endblock %}
 </main>
 {% endblock %}
