@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from pathlib import Path
 
@@ -6,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import storages
 from django.core.validators import EmailValidator, RegexValidator
 from django.db import models
+from django.utils import timezone
 
 from apps.core.models import ModeloConTiempos
 from apps.core.texto import normalizar
@@ -97,6 +99,16 @@ class Persona(ModeloConTiempos):
         if update_fields is not None:
             kwargs['update_fields'] = {*update_fields, 'nombre_busqueda'}
         super().save(*args, **kwargs)
+
+    def edad_en(self, fecha: datetime.date) -> int:
+        """Años cumplidos en `fecha`."""
+        nacimiento = self.fecha_nacimiento
+        aun_no_cumple = (fecha.month, fecha.day) < (nacimiento.month, nacimiento.day)
+        return fecha.year - nacimiento.year - aun_no_cumple
+
+    @property
+    def edad(self) -> int:
+        return self.edad_en(timezone.localdate())
 
     @property
     def nombre_completo(self):

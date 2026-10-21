@@ -483,6 +483,392 @@ a {
   }
 }
 
+/* Navegación principal */
+
+.menu {
+  display: flex;
+  gap: 0.25rem;
+  margin-right: auto;
+  margin-left: 1.5rem;
+}
+
+.menu a {
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radio);
+  color: var(--tinta-suave);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.menu a:hover {
+  background: var(--lavanda-clara);
+  color: var(--tinta);
+}
+
+.menu a[aria-current='page'] {
+  background: var(--superficie);
+  color: var(--orquidea-profunda);
+  font-weight: 600;
+}
+
+/* Mensajes */
+
+.mensajes {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.aviso--success {
+  background: var(--lavanda-tenue);
+  border: 1px solid var(--lavanda);
+  color: var(--tinta);
+}
+
+/* Encabezados de página */
+
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.volver {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.contenido > h1 {
+  margin-bottom: 1.5rem;
+}
+
+.tenue {
+  color: var(--gris-oscuro);
+}
+
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Búsqueda, tablas y paginación */
+
+.buscador {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.buscador .campo {
+  flex: 1 1 20rem;
+  max-width: 32rem;
+}
+
+.casilla {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+}
+
+.casilla input,
+.campo--casilla input,
+.opciones input {
+  width: 1.125rem;
+  height: 1.125rem;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--orquidea-fuerte);
+}
+
+.tabla-marco {
+  overflow-x: auto;
+  background: var(--superficie);
+  border: 1px solid var(--lavanda);
+  border-radius: calc(var(--radio) * 1.5);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.tabla th,
+.tabla td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tabla th {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  background: var(--lavanda-tenue);
+}
+
+.tabla tbody tr + tr td {
+  border-top: 1px solid var(--lavanda-clara);
+}
+
+.tabla tbody tr:hover {
+  background: var(--lavanda-tenue);
+}
+
+.tabla a {
+  font-weight: 600;
+}
+
+.tabla__numero {
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla__clave {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+}
+
+.tabla__accion {
+  text-align: right;
+}
+
+.etiqueta {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: var(--lavanda-clara);
+  color: var(--orquidea-profunda);
+}
+
+.etiqueta--inactivo {
+  background: #efefee;
+  color: var(--gris-oscuro);
+}
+
+.sin-resultados {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--gris-oscuro);
+}
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.9375rem;
+}
+
+/* Formularios largos */
+
+.formulario--ancho {
+  max-width: 52rem;
+  gap: 1.5rem;
+}
+
+.seccion {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: var(--superficie);
+  border: 1px solid var(--lavanda);
+  border-radius: calc(var(--radio) * 1.5);
+}
+
+.seccion legend {
+  padding: 0 0.375rem;
+  font-weight: 650;
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  align-items: start;
+  gap: 1rem 1.25rem;
+}
+
+.rejilla .campo {
+  align-content: start;
+}
+
+.campo select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--gris-oscuro);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+}
+
+.campo input[type='file'] {
+  padding: 0.5rem;
+}
+
+.campo--opciones {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.campo--opciones legend {
+  margin-bottom: 0.375rem;
+  padding: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.opciones label,
+.campo--casilla label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-weight: 400;
+}
+
+.campo__ayuda {
+  font-size: 0.8125rem;
+  color: var(--gris-oscuro);
+}
+
+.obligatorio {
+  color: var(--orquidea-fuerte);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Ficha del paciente */
+
+.ficha__titulo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ficha__foto {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid var(--lavanda);
+}
+
+.ficha__claves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin-top: 0.375rem;
+  color: var(--tinta-suave);
+}
+
+.ficha__claves strong {
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1.25rem;
+}
+
+.tarjeta {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--superficie);
+  border: 1px solid var(--lavanda);
+  border-radius: calc(var(--radio) * 1.5);
+}
+
+.tarjeta h2 + * {
+  margin-top: -0.25rem;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+}
+
+.datos dt {
+  color: var(--gris-oscuro);
+}
+
+.datos dd {
+  margin: 0;
+}
+
+.zona-baja {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--lavanda);
+}
+
+.zona-baja form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  color: var(--tinta-suave);
+}
+
+@media (max-width: 40rem) {
+  .barra {
+    flex-wrap: wrap;
+  }
+
+  .menu {
+    order: 3;
+    width: 100%;
+    margin: 0;
+  }
+
+  .seccion {
+    padding: 1rem;
+  }
+
+  .datos {
+    grid-template-columns: 1fr;
+    gap: 0.125rem;
+  }
+
+  .datos dd + dt {
+    margin-top: 0.5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

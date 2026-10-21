@@ -216,3 +216,16 @@ def test_la_bd_permite_un_solo_principal_por_tipo():
         Contacto.objects.create(
             persona=persona, tipo='telefono', valor='3322222222', principal=True
         )
+
+
+@pytest.mark.parametrize(
+    ('fecha', 'edad'),
+    [
+        (datetime.date(2026, 5, 16), 33),
+        (datetime.date(2026, 5, 17), 34),
+        (datetime.date(2026, 12, 31), 34),
+    ],
+)
+def test_edad_en_una_fecha(fecha, edad):
+    persona = Persona(fecha_nacimiento=datetime.date(1992, 5, 17))
+    assert persona.edad_en(fecha) == edad

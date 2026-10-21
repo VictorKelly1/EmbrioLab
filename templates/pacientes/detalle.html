@@ -1,0 +1,64 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{{ paciente.persona.nombre_completo }} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+{% with persona=paciente.persona %}
+<a class="volver" href="{% url 'pacientes:lista' %}">← Pacientes</a>
+<div class="encabezado">
+  <div class="ficha__titulo">
+    {% if persona.foto %}<img class="ficha__foto" src="{% url 'personas:foto' persona.pk %}" alt="Foto de {{ persona.nombre_completo }}" width="72" height="72">{% endif %}
+    <div>
+      <h1>{{ persona.nombre_completo }}</h1>
+      <p class="ficha__claves">
+        <span>Número <strong>{{ paciente.numero }}</strong></span>
+        <span>Folio <strong>{{ paciente.folio }}</strong></span>
+        {% if paciente.estado_actividad %}<span class="etiqueta">Activo</span>{% else %}<span class="etiqueta etiqueta--inactivo">Dado de baja</span>{% endif %}
+      </p>
+    </div>
+  </div>
+  {% if puede_editar %}<a class="boton boton--secundario" href="{% url 'pacientes:editar' paciente.pk %}">Editar datos</a>{% endif %}
+</div>
+
+<div class="tarjetas">
+  <section class="tarjeta">
+    <h2>Datos del paciente</h2>
+    <dl class="datos">
+      <dt>CURP</dt><dd class="tabla__clave">{{ persona.curp }}</dd>
+      <dt>Género</dt><dd>{{ persona.get_genero_display }}</dd>
+      <dt>Fecha de nacimiento</dt><dd>{{ persona.fecha_nacimiento|date:"j \d\e F \d\e Y"|lower }} ({{ persona.edad }} año{{ persona.edad|pluralize }})</dd>
+      <dt>Número de INE</dt><dd>{{ persona.numero_ine|default:"—" }}</dd>
+      <dt>Registrado</dt><dd>{{ paciente.fecha_registro|date:"j \d\e F \d\e Y"|lower }}</dd>
+    </dl>
+  </section>
+  <section class="tarjeta">
+    <h2>Contacto</h2>
+    <dl class="datos">
+      <dt>WhatsApp</dt><dd>{{ contactos.whatsapp|default:"—" }}</dd>
+      <dt>Teléfono</dt><dd>{{ contactos.telefono|default:"—" }}</dd>
+      <dt>Correo</dt><dd>{{ contactos.correo|default:"—" }}</dd>
+    </dl>
+    <h2>Dirección</h2>
+    {% if persona.direccion %}
+      {% with d=persona.direccion %}<p>{{ d.calle }} {{ d.numero }}, {{ d.colonia_frac }}<br>{{ d.ciudad }}, {{ d.estado }}, C.P. {{ d.codigo_postal }}<br>{{ d.pais }}</p>{% endwith %}
+    {% else %}<p class="tenue">Sin dirección registrada.</p>{% endif %}
+  </section>
+</div>
+
+{% if puede_editar %}
+<section class="zona-baja">
+  <form method="post" action="{% url 'pacientes:baja' paciente.pk %}">
+    {% csrf_token %}
+    {% if paciente.estado_actividad %}
+      <p>Dar de baja oculta al paciente de las búsquedas. Sus datos e historial se conservan y puede reactivarlo cuando quiera.</p>
+      <button type="submit" class="boton boton--secundario" onclick="return confirm('¿Dar de baja a este paciente?')">Dar de baja</button>
+    {% else %}
+      <input type="hidden" name="accion" value="reactivar">
+      <p>Este paciente está dado de baja.</p>
+      <button type="submit" class="boton boton--secundario">Reactivar paciente</button>
+    {% endif %}
+  </form>
+</section>
+{% endif %}
+{% endwith %}
+{% endblock %}

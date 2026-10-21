@@ -1,0 +1,18 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{% if doctor %}Editar doctor{% else %}Registrar doctor{% endif %} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'pacientes:doctores' %}">← Doctores</a>
+<h1>{% if doctor %}Editar doctor{% else %}Registrar doctor{% endif %}</h1>
+
+<form method="post" class="formulario" novalidate>
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+  {% for campo in form %}{% include 'includes/campo.html' %}{% endfor %}
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">{% if doctor %}Guardar cambios{% else %}Registrar doctor{% endif %}</button>
+    <a class="boton boton--discreto" href="{% url 'pacientes:doctores' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

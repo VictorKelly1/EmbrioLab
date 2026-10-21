@@ -1,0 +1,39 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{% if paciente %}Editar paciente{% else %}Registrar paciente{% endif %} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+{% if paciente %}
+  <a class="volver" href="{% url 'pacientes:detalle' paciente.pk %}">← {{ paciente.persona.nombre_completo }}</a>
+  <h1>Editar paciente</h1>
+{% else %}
+  <a class="volver" href="{% url 'pacientes:lista' %}">← Pacientes</a>
+  <h1>Registrar paciente</h1>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="formulario formulario--ancho" novalidate>
+  {% csrf_token %}
+  {% if form.errors %}
+    <div class="aviso aviso--error" role="alert">
+      {% for error in form.non_field_errors %}<p>{{ error }}</p>{% empty %}<p>Revise los campos marcados.</p>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% for titulo, campos in form.grupos %}
+  <fieldset class="seccion">
+    <legend>{{ titulo }}</legend>
+    {% if forloop.first and paciente.persona.foto %}
+      <img class="ficha__foto" src="{% url 'personas:foto' paciente.persona.pk %}" alt="Foto actual" width="72" height="72">
+    {% endif %}
+    <div class="rejilla">
+      {% for campo in campos %}{% include 'includes/campo.html' %}{% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">{% if paciente %}Guardar cambios{% else %}Registrar paciente{% endif %}</button>
+    <a class="boton boton--discreto" href="{% if paciente %}{% url 'pacientes:detalle' paciente.pk %}{% else %}{% url 'pacientes:lista' %}{% endif %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
