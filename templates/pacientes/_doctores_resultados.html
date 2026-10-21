@@ -1,12 +1,12 @@
 {% if pagina.object_list %}
 <div class="tabla-marco">
   <table class="tabla">
-    <thead><tr><th scope="col">Nombre</th><th scope="col">Contacto</th><th scope="col"><span class="visualmente-oculto">Acciones</span></th></tr></thead>
+    <thead><tr><th scope="col">Nombre</th><th scope="col" class="tabla__opcional">Contacto</th><th scope="col"><span class="visualmente-oculto">Acciones</span></th></tr></thead>
     <tbody>
       {% for doctor in pagina %}
       <tr>
         <td>{{ doctor.nombre }}</td>
-        <td>{{ doctor.contacto|default:"—" }}</td>
+        <td class="tabla__opcional">{{ doctor.contacto|default:"—" }}</td>
         <td class="tabla__accion"><a href="{% url 'pacientes:doctor_editar' doctor.pk %}">Editar<span class="visualmente-oculto"> a {{ doctor.nombre }}</span></a></td>
       </tr>
       {% endfor %}

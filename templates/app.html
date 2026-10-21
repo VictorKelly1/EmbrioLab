@@ -25,13 +25,21 @@
     <a class="marca" href="{% url 'inicio' %}">Embrio<span>Lab</span></a>
   </div>
   <div class="barra__usuario">
-    <span class="usuario">
-      <span class="usuario__color" style="--color-usuario: {{ request.user.color }}" aria-hidden="true"></span>
-      <span>{{ request.user.persona.nombre }}</span>
+    {% with persona=request.user.persona %}
+    <span class="perfil">
+      <span class="perfil__avatar" style="--color-usuario: {{ request.user.color }}" aria-hidden="true">{{ persona.nombre|first|upper }}{{ persona.apellido_paterno|first|upper }}</span>
+      <span class="perfil__texto">
+        <span class="perfil__nombre">{{ persona.nombre }} {{ persona.apellido_paterno }}</span>
+        <span class="perfil__rol">{{ request.user.rol_principal }}</span>
+      </span>
     </span>
+    {% endwith %}
     <form method="post" action="{% url 'cuentas:salir' %}">
       {% csrf_token %}
-      <button type="submit" class="boton boton--discreto">Cerrar sesión</button>
+      <button type="submit" class="boton boton--discreto boton--salir">
+        <svg class="icono" aria-hidden="true"><use href="#icono-salir"/></svg>
+        <span>Cerrar sesión</span>
+      </button>
     </form>
   </div>
 </header>
@@ -41,20 +49,26 @@
     <ul class="lateral__lista">
       {% for opcion in menu_lateral %}
       <li>
-        {% if opcion.url %}
-          <a class="lateral__opcion" href="{{ opcion.url }}" title="{{ opcion.etiqueta }}"{% if opcion.activa %} aria-current="page"{% endif %}>
-            <svg class="icono" aria-hidden="true"><use href="#icono-{{ opcion.icono }}"/></svg>
-            <span class="lateral__texto">{{ opcion.etiqueta }}</span>
-          </a>
-        {% else %}
-          <span class="lateral__opcion lateral__opcion--pronto" aria-disabled="true" title="{{ opcion.etiqueta }}: disponible próximamente">
-            <svg class="icono" aria-hidden="true"><use href="#icono-{{ opcion.icono }}"/></svg>
-            <span class="lateral__texto">{{ opcion.etiqueta }} <span class="lateral__pronto">Pronto</span></span>
-          </span>
-        {% endif %}
+        <a class="lateral__opcion" href="{{ opcion.url }}" title="{{ opcion.etiqueta }}"{% if opcion.activa %} aria-current="page"{% endif %}>
+          <svg class="icono" aria-hidden="true"><use href="#icono-{{ opcion.icono }}"/></svg>
+          <span class="lateral__texto">{{ opcion.etiqueta }}</span>
+        </a>
       </li>
       {% endfor %}
     </ul>
+    {% if menu_lateral_pronto %}
+    <p class="lateral__grupo" id="menu-pronto">Próximamente</p>
+    <ul class="lateral__lista" aria-labelledby="menu-pronto">
+      {% for opcion in menu_lateral_pronto %}
+      <li>
+        <span class="lateral__opcion lateral__opcion--pronto" aria-disabled="true" title="{{ opcion.etiqueta }}: disponible próximamente">
+          <svg class="icono" aria-hidden="true"><use href="#icono-{{ opcion.icono }}"/></svg>
+          <span class="lateral__texto">{{ opcion.etiqueta }}</span>
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
   </nav>
   <div class="lateral__velo" data-cerrar-menu hidden></div>
 

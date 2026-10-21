@@ -74,4 +74,8 @@ def menu(request):
         return {}
     coincidencia = request.resolver_match
     vista = coincidencia.view_name if coincidencia else ''
-    return {'menu_lateral': opciones_para(request.user, vista)}
+    opciones = opciones_para(request.user, vista)
+    return {
+        'menu_lateral': [o for o in opciones if o['url']],
+        'menu_lateral_pronto': [o for o in opciones if not o['url']],
+    }

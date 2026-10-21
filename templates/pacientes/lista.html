@@ -4,16 +4,20 @@
 
 {% block contenido %}
 <div class="encabezado">
-  <h1>Pacientes</h1>
-  {% if puede_editar %}<a class="boton boton--principal" href="{% url 'pacientes:crear' %}">Registrar paciente</a>{% endif %}
+  <div>
+    <h1>Pacientes</h1>
+    <p class="encabezado__descripcion">Busque a un paciente antes de registrarlo para no duplicar su expediente.</p>
+  </div>
+  {% if puede_editar %}<a class="boton boton--principal" href="{% url 'pacientes:crear' %}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Registrar paciente</a>{% endif %}
 </div>
 
 <form class="buscador" method="get" role="search"
       hx-get="{% url 'pacientes:lista' %}" hx-target="#resultados" hx-push-url="true"
       hx-trigger="input changed delay:300ms from:input[name=q], change from:input[name=inactivos], submit">
-  <div class="campo">
+  <div class="campo campo--buscar">
     <label for="buscar">Buscar por nombre, CURP o número de paciente</label>
-    <input type="search" id="buscar" name="q" value="{{ termino }}" autocomplete="off" autofocus>
+    <svg class="icono" aria-hidden="true"><use href="#icono-buscar"/></svg>
+    <input type="search" id="buscar" name="q" value="{{ termino }}" autocomplete="off" autofocus placeholder="Ej. Ana López, LOGA920517 o 15">
   </div>
   <label class="casilla"><input type="checkbox" name="inactivos" value="1"{% if incluir_inactivos %} checked{% endif %}> Incluir dados de baja</label>
   <noscript><button type="submit" class="boton boton--secundario">Buscar</button></noscript>

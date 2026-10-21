@@ -4,19 +4,22 @@
 
 {% block contenido %}
 <div class="encabezado">
-  <h1>Usuarios</h1>
-  <a class="boton boton--principal" href="{% url 'cuentas:usuario_crear' %}">Registrar usuario</a>
+  <div>
+    <h1>Usuarios</h1>
+    <p class="encabezado__descripcion">Personal con acceso al sistema y su rol.</p>
+  </div>
+  <a class="boton boton--principal" href="{% url 'cuentas:usuario_crear' %}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Registrar usuario</a>
 </div>
 
 {% if usuarios %}
 <div class="tabla-marco">
   <table class="tabla">
-    <thead><tr><th scope="col">Nombre</th><th scope="col">Correo</th><th scope="col">Rol</th><th scope="col">Estado</th></tr></thead>
+    <thead><tr><th scope="col">Nombre</th><th scope="col" class="tabla__opcional">Correo</th><th scope="col">Rol</th><th scope="col">Estado</th></tr></thead>
     <tbody>
       {% for usuario in usuarios %}
       <tr>
-        <td><span class="usuario"><span class="usuario__color" style="--color-usuario: {{ usuario.color }}" aria-hidden="true"></span>{{ usuario.persona.nombre_completo }}</span></td>
-        <td>{{ usuario.correo }}</td>
+        <td><span class="perfil"><span class="perfil__avatar perfil__avatar--chico" style="--color-usuario: {{ usuario.color }}" aria-hidden="true">{{ usuario.persona.nombre|first|upper }}{{ usuario.persona.apellido_paterno|first|upper }}</span>{{ usuario.persona.nombre_completo }}</span></td>
+        <td class="tabla__opcional">{{ usuario.correo }}</td>
         <td>{{ usuario.rol_principal|default:"Sin rol" }}</td>
         <td>{% if usuario.is_active and usuario.rol_principal %}<span class="etiqueta">Activo</span>{% else %}<span class="etiqueta etiqueta--inactivo">Inactivo</span>{% endif %}</td>
       </tr>

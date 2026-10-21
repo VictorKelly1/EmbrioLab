@@ -1,16 +1,17 @@
 {% if pagina.object_list %}
+<p class="conteo">{% with total=pagina.paginator.count %}{{ total }} paciente{{ total|pluralize }}{% if termino %} para «{{ termino }}»{% endif %}{% endwith %}</p>
 <div class="tabla-marco">
   <table class="tabla">
     <thead>
-      <tr><th scope="col">Número</th><th scope="col">Nombre</th><th scope="col">CURP</th><th scope="col">Contacto</th><th scope="col">Estado</th></tr>
+      <tr><th scope="col">Número</th><th scope="col">Nombre</th><th scope="col" class="tabla__opcional">CURP</th><th scope="col" class="tabla__opcional">Contacto</th><th scope="col">Estado</th></tr>
     </thead>
     <tbody>
       {% for paciente in pagina %}
       <tr>
         <td class="tabla__numero">{{ paciente.numero }}</td>
-        <td><a href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.persona.nombre_completo }}</a></td>
-        <td class="tabla__clave">{{ paciente.persona.curp }}</td>
-        <td>{% for contacto in paciente.persona.contactos.all %}{% if forloop.first %}{{ contacto.valor }}{% endif %}{% empty %}<span class="tenue">Sin contacto</span>{% endfor %}</td>
+        <td><a href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.persona.nombre_completo }}</a><span class="tabla__secundario">{{ paciente.persona.curp }}</span></td>
+        <td class="tabla__clave tabla__opcional">{{ paciente.persona.curp }}</td>
+        <td class="tabla__opcional">{% for contacto in paciente.persona.contactos.all %}{% if forloop.first %}{{ contacto.valor }}{% endif %}{% empty %}<span class="tenue">Sin contacto</span>{% endfor %}</td>
         <td>{% if paciente.estado_actividad %}<span class="etiqueta">Activo</span>{% else %}<span class="etiqueta etiqueta--inactivo">Dado de baja</span>{% endif %}</td>
       </tr>
       {% endfor %}

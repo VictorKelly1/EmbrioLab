@@ -1,5 +1,14 @@
 /* EmbrioLab: estilos base. */
 
+/* Figtree (SIL OFL 1.1, ver static/fonts/OFL-Figtree.txt), servida desde el propio sitio. */
+@font-face {
+  font-family: 'Figtree';
+  src: url('../fonts/figtree-latin-wght.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Paleta del cliente */
   --lavanda: #ccccfe;
@@ -19,13 +28,13 @@
   --error: #b42318;
   --error-fondo: #fef3f2;
 
-  --fuente: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --fuente: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --radio: 0.5rem;
   --sombra: 0 1px 2px rgb(42 34 54 / 0.06), 0 8px 24px -12px rgb(42 34 54 / 0.18);
   --transicion: 180ms cubic-bezier(0.16, 1, 0.3, 1);
 
   --alto-barra: 4rem;
-  --ancho-lateral: 17.5rem;
+  --ancho-lateral: 15.5rem;
   --ancho-lateral-plegado: 4.25rem;
 }
 
@@ -37,6 +46,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  scrollbar-color: var(--lavanda) transparent;
 }
 
 body {
@@ -64,8 +74,8 @@ h2 {
 
 h1 {
   font-size: 1.75rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 h2 {
@@ -415,19 +425,50 @@ a {
   gap: 0.75rem;
 }
 
-.usuario {
+.perfil {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-weight: 500;
+  gap: 0.625rem;
 }
 
-.usuario__color {
-  width: 0.75rem;
-  height: 0.75rem;
+.perfil__avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
-  background: var(--color-usuario, var(--orquidea));
-  box-shadow: 0 0 0 2px var(--superficie);
+  border: 2px solid var(--color-usuario, var(--orquidea));
+  background: color-mix(in srgb, var(--color-usuario, var(--orquidea)) 22%, var(--superficie));
+  color: var(--tinta);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.perfil__avatar--chico {
+  width: 1.875rem;
+  height: 1.875rem;
+  font-size: 0.6875rem;
+}
+
+.perfil__texto {
+  display: grid;
+  line-height: 1.25;
+}
+
+.perfil__nombre {
+  font-weight: 600;
+}
+
+.perfil__rol {
+  font-size: 0.8125rem;
+  color: var(--tinta-suave);
+}
+
+.boton--salir .icono {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 .contenido {
@@ -470,8 +511,20 @@ a {
     padding: 0.625rem 1rem;
   }
 
-  .usuario span:last-child {
-    display: none;
+  .perfil__texto,
+  .boton--salir span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .boton--salir {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
   }
 
   .contenido {
@@ -619,16 +672,32 @@ a.lateral__opcion:hover {
   background: var(--lavanda-clara);
   color: var(--orquidea-profunda);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--orquidea-fuerte);
 }
 
 .lateral__opcion--pronto {
+  min-height: 2.5rem;
   color: var(--gris-oscuro);
   cursor: default;
 }
 
 .lateral__opcion--pronto .icono {
-  opacity: 0.6;
+  opacity: 0.55;
+}
+
+.lateral__grupo {
+  margin: 1.5rem 0.75rem 0.375rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--lavanda-clara);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gris-oscuro);
+}
+
+[data-menu='plegado'] .lateral__grupo {
+  height: 0;
+  margin: 1rem 0.25rem 0.75rem;
+  padding: 0;
+  overflow: hidden;
 }
 
 .lateral__texto {
@@ -638,14 +707,6 @@ a.lateral__opcion:hover {
   justify-content: space-between;
   gap: 0.5rem;
   overflow: hidden;
-}
-
-.lateral__pronto {
-  padding: 0.0625rem 0.4375rem;
-  border-radius: 999px;
-  background: #efefee;
-  font-size: 0.75rem;
-  font-weight: 600;
 }
 
 [data-menu='plegado'] .lateral {
@@ -722,10 +783,22 @@ a.lateral__opcion:hover {
 .encabezado {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem 2rem;
+  margin-bottom: 1.75rem;
+}
+
+.encabezado__descripcion {
+  margin-top: 0.375rem;
+  color: var(--tinta-suave);
+  max-width: 60ch;
+}
+
+.boton .icono {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-left: -0.125rem;
 }
 
 .volver {
@@ -764,6 +837,32 @@ a.lateral__opcion:hover {
 .buscador .campo {
   flex: 1 1 20rem;
   max-width: 32rem;
+}
+
+.campo--buscar {
+  position: relative;
+}
+
+.campo--buscar .icono {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.875rem;
+  color: var(--gris-oscuro);
+  pointer-events: none;
+}
+
+.campo--buscar input {
+  padding-left: 2.625rem;
+}
+
+.campo input::placeholder {
+  color: #77777a;
+}
+
+.conteo {
+  margin-bottom: 0.625rem;
+  font-size: 0.875rem;
+  color: var(--tinta-suave);
 }
 
 .casilla {
@@ -808,6 +907,11 @@ a.lateral__opcion:hover {
   font-weight: 600;
   color: var(--tinta-suave);
   background: var(--lavanda-tenue);
+  border-bottom: 1px solid var(--lavanda-clara);
+}
+
+.tabla td {
+  font-variant-numeric: tabular-nums;
 }
 
 .tabla tbody tr + tr td {
@@ -819,7 +923,14 @@ a.lateral__opcion:hover {
 }
 
 .tabla a {
+  color: var(--tinta);
   font-weight: 600;
+  text-decoration: none;
+}
+
+.tabla a:hover {
+  color: var(--orquidea-fuerte);
+  text-decoration: underline;
 }
 
 .tabla__numero {
@@ -827,23 +938,62 @@ a.lateral__opcion:hover {
 }
 
 .tabla__clave {
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 0.875rem;
-  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--tinta-suave);
 }
 
 .tabla__accion {
   text-align: right;
 }
 
+.tabla__secundario {
+  display: none;
+}
+
+@media (max-width: 40rem) {
+  .tabla__opcional {
+    display: none;
+  }
+
+  .tabla__secundario {
+    display: block;
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--tinta-suave);
+  }
+
+  .tabla td {
+    white-space: normal;
+  }
+}
+
+.tabla__accion a {
+  color: var(--orquidea-fuerte);
+  font-weight: 500;
+}
+
 .etiqueta {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   font-size: 0.8125rem;
   font-weight: 600;
   background: var(--lavanda-clara);
   color: var(--orquidea-profunda);
+}
+
+.etiqueta::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .etiqueta--inactivo {
@@ -918,6 +1068,18 @@ a.lateral__opcion:hover {
 
 .campo input[type='file'] {
   padding: 0.5rem;
+}
+
+.campo input[type='file']::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--gris-oscuro);
+  border-radius: calc(var(--radio) * 0.75);
+  background: var(--lavanda-tenue);
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .campo--opciones {
