@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Acceso bloqueado · EmbrioLab{% endblock %}
+{% block clase_body %}acceso acceso--simple{% endblock %}
+
+{% block cuerpo %}
+<main class="acceso__formulario">
+  <div class="formulario">
+    <p class="marca">Embrio<span>Lab</span></p>
+    <h1>Acceso bloqueado temporalmente</h1>
+    <p>Hubo demasiados intentos fallidos para esta cuenta. Por seguridad, espere una hora antes de intentar de nuevo o pida al administrador que la desbloquee.</p>
+    <a class="boton boton--secundario" href="{% url 'cuentas:entrar' %}">Volver a iniciar sesión</a>
+  </div>
+</main>
+{% endblock %}

@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -29,6 +30,10 @@ def crear_usuario(
     if color:
         campos['color'] = color
     usuario = Usuario(correo=correo.strip().lower(), **campos)
+    try:
+        validate_password(password, usuario)
+    except ValidationError as error:
+        raise ValidationError({'password': error.messages}) from error
     usuario.set_password(password)
     usuario.full_clean()
     usuario.save()

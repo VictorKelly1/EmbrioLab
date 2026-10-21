@@ -40,7 +40,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin, ModeloConTiempos):
     correo = models.EmailField(unique=True)
     color = models.CharField(
         max_length=7,
-        default='#2563EB',
+        default='#B57EDC',
         validators=[RegexValidator(r'^#[0-9A-Fa-f]{6}$', 'Usa un color hexadecimal: #RRGGBB.')],
     )
     is_active = models.BooleanField('activo', default=True)

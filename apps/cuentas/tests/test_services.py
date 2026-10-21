@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
+from django.test import RequestFactory
 
 from apps.cuentas.models import Rol
 from apps.cuentas.services import crear_usuario
@@ -33,9 +34,11 @@ def test_crea_usuario_con_un_rol():
 
 def test_login_con_correo_sin_importar_mayusculas():
     usuario = _crear()
-    assert authenticate(username='RECEPCION@embriolab.test', password='una-clave-segura-987') == (
-        usuario
+    request = RequestFactory().post('/entrar/')
+    autenticado = authenticate(
+        request, username='RECEPCION@embriolab.test', password='una-clave-segura-987'
     )
+    assert autenticado == usuario
 
 
 def test_correo_unico_sin_importar_mayusculas():
@@ -71,3 +74,13 @@ def test_color_invalido():
     with pytest.raises(ValidationError) as error:
         _crear(color='azul')
     assert 'color' in error.value.message_dict
+
+
+def test_password_se_guarda_con_argon2():
+    assert _crear().password.startswith('argon2')
+
+
+def test_rechaza_password_debil():
+    with pytest.raises(ValidationError) as error:
+        _crear(password='12345678')
+    assert 'password' in error.value.message_dict
