@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-09-27
+Última actualización: 2026-10-21
 
 ---
 
@@ -231,15 +231,15 @@ Cada semana termina con un **PR a `main`** que nosotros revisamos. Cada entregab
 
 | Sem | Objetivo | Entregables |
 |---|---|---|
-| **1** | Cimientos | Settings base/dev/prod; PostgreSQL + Docker Compose; `es-mx`/TZ; ruff + pytest; `core` (modelos base, borrado lógico, `RolRequerido`); `cuentas` con el usuario personalizado y las 3 tablas de rol; login/logout; layout base + HTMX; Argon2 + axes |
-| **2** | Personas y pacientes | `personas` y `pacientes` (modelos + servicios + selectores); CRUD de pacientes para la recepcionista; búsqueda por nombre (trigram) y CURP; borrado lógico; número de paciente y **función de folio**; Doctores; el admin registra usuarios con rol |
+| **1** | Cimientos | Settings base/dev/prod; PostgreSQL + Docker Compose; `es-mx`/TZ; ruff + pytest; `core` (modelos base, borrado lógico, `RolRequerido`); `cuentas` con el usuario personalizado y las 3 tablas de rol; modelos `Persona` y `Direccion` (adelantados de la semana 2 porque `Usuario` depende de `Persona`); comando `crear_admin`; login/logout; layout base + HTMX; Argon2 + axes |
+| **2** | Personas y pacientes | `personas` (`Contacto`, `Persona.foto`, selectores) y `pacientes` (modelos + servicios + selectores); CRUD de pacientes para la recepcionista; búsqueda por nombre (trigram) y CURP; borrado lógico; número de paciente y **función de folio**; Doctores; el admin registra usuarios con rol |
 | **3** | Citas | Modelo Cita con restricción contra empalmes; calendario (vista día/semana) para agendar y ver las próximas; reprogramar; cancelar = borrar; cita espontánea; marcar atendida/no atendida; generación del token QR (hash, expiración, un solo uso) |
 | **4** | Formularios | Formularios + versiones + validador del esquema; constructor de forms dinámicos; **migración de datos con los 2 formularios del cliente**; página pública del QR (rate limit, token de un uso); FormularioLlenado; la recepcionista ve las respuestas |
 | **5** | Catálogo de estudios | Modelos de estudios, alias y valores de referencia; **registro de definiciones + system check**; carga del catálogo (claves, nombres, precios) desde el Excel del cliente; CRUD de alias y de valores de referencia; primeras definiciones con pruebas contra ejemplos del Excel |
 | **6** | Pedidos (recepción) | Armar el pedido desde una cita; relacionar el nombre solicitado con un estudio (sugerencias por alias y guardado de alias nuevos); asignar químico; estado de pago por estudio; servicio `recalcular_pedido`; máquina de estados |
 | **7** | Químico | Lista de todos los pedidos **con filtros** (asignado, estado, paciente, fecha, pago); detalle del pedido y del paciente; captura de resultados con un form generado desde la definición; cálculos; completar (con copia de la referencia); historial. Continuar con las definiciones de estudios |
-| **8** | Resultados y notificaciones | PDF al vuelo (WeasyPrint); tabla Notificaciones + outbox + worker; canal de correo (SMTP) y stub de WhatsApp; envío de resultados individual o en conjunto; recordatorios de 24 h (comando programado); envío del QR |
-| **9** | Cierre funcional y endurecimiento | **Terminar las ~30 definiciones de estudios**; auditoría; settings de producción + `check --deploy`; respaldos; reportes básicos del admin (según lo que entregue el cliente); pulir la interfaz; revisar consultas N+1 e índices |
+| **8** | Resultados y notificaciones | PDF al vuelo (WeasyPrint); tabla Notificaciones + outbox + worker (aquí se agrega el servicio `worker` a Docker Compose); canal de correo (SMTP) y stub de WhatsApp; envío de resultados individual o en conjunto; recordatorios de 24 h (comando programado); envío del QR |
+| **9** | Cierre funcional y endurecimiento | **Terminar las ~30 definiciones de estudios**; auditoría; settings de producción + `check --deploy` (incluye decidir HSTS preload con el cliente cuando haya dominio, y HTTPS en nginx); respaldos; reportes básicos del admin (según lo que entregue el cliente); pulir la interfaz; revisar consultas N+1 e índices |
 | **10** | Pruebas y entrega | Pruebas de extremo a extremo del flujo completo (cita → QR → pedido → resultados → envío); **validar los cálculos con el cliente usando casos reales**; pruebas de aceptación con la recepcionista y los químicos; corrección de bugs; despliegue en staging; manual breve de uso |
 
 ### Lo que el cliente debe entregar (riesgos del calendario)
@@ -279,3 +279,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 
 ### Registro de cambios
 - 2026-09-27: versión inicial (reglas, BD v2 + catálogos, arquitectura y plan de 10 semanas).
+- 2026-10-21: semana 1 — `Persona` y `Direccion` se adelantan a la semana 1; el servicio `worker` de Docker Compose pasa a la semana 8 (su backend en BD necesita migraciones y aún no hay tareas); HSTS preload y HTTPS en nginx quedan para la semana 9, cuando haya dominio.
