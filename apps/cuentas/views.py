@@ -1,9 +1,15 @@
+from django.contrib import messages
 from django.contrib.auth.views import LoginView, LogoutView
-from django.views.generic import TemplateView
+from django.core.exceptions import ValidationError
+from django.shortcuts import redirect
+from django.views.generic import FormView, TemplateView
 
+from apps.core.forms import aplicar_errores
 from apps.core.mixins import RolRequerido
-from apps.cuentas.forms import FormularioEntrar
+from apps.cuentas.forms import FormularioEntrar, UsuarioForm
 from apps.cuentas.models import Rol
+from apps.cuentas.selectors import listar_usuarios
+from apps.cuentas.services import registrar_usuario
 
 
 class EntrarView(LoginView):
@@ -21,7 +27,27 @@ class InicioView(RolRequerido, TemplateView):
     roles = tuple(Rol)
 
     def get_context_data(self, **kwargs):
-        contexto = super().get_context_data(**kwargs)
-        roles = self.request.user.roles
-        contexto['rol'] = next((Rol(r).label for r in Rol if r in roles), '')
-        return contexto
+        return super().get_context_data(rol=self.request.user.rol_principal, **kwargs)
+
+
+class UsuarioListaView(RolRequerido, TemplateView):
+    roles = [Rol.ADMIN]
+    template_name = 'cuentas/usuarios.html'
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(usuarios=listar_usuarios(), **kwargs)
+
+
+class UsuarioCrearView(RolRequerido, FormView):
+    roles = [Rol.ADMIN]
+    form_class = UsuarioForm
+    template_name = 'cuentas/usuario_formulario.html'
+
+    def form_valid(self, form):
+        try:
+            usuario = registrar_usuario(**form.datos_servicio())
+        except ValidationError as error:
+            aplicar_errores(form, error)
+            return self.form_invalid(form)
+        messages.success(self.request, f'Usuario registrado: {usuario.correo}.')
+        return redirect('cuentas:usuarios')

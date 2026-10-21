@@ -718,6 +718,12 @@ a {
   font: inherit;
 }
 
+.campo input[type='color'] {
+  width: 4rem;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
 .campo input[type='file'] {
   padding: 0.5rem;
 }

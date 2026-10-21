@@ -14,6 +14,9 @@
     {% if 'recepcionista' in roles %}
       <a href="{% url 'pacientes:doctores' %}"{% if 'doctor' in ruta.url_name %} aria-current="page"{% endif %}>Doctores</a>
     {% endif %}
+    {% if 'admin' in roles %}
+      <a href="{% url 'cuentas:usuarios' %}"{% if 'usuario' in ruta.url_name %} aria-current="page"{% endif %}>Usuarios</a>
+    {% endif %}
   </nav>
   {% endwith %}
   <div class="barra__usuario">

@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 
 import pytest
@@ -6,7 +7,8 @@ from django.core.exceptions import ValidationError
 from django.test import RequestFactory
 
 from apps.cuentas.models import Rol
-from apps.cuentas.services import crear_usuario
+from apps.cuentas.services import crear_usuario, registrar_usuario
+from apps.personas.models import Persona
 from apps.personas.tests.factories import PersonaFactory
 
 pytestmark = pytest.mark.django_db
@@ -84,3 +86,40 @@ def test_rechaza_password_debil():
     with pytest.raises(ValidationError) as error:
         _crear(password='12345678')
     assert 'password' in error.value.message_dict
+
+
+def test_registrar_usuario_crea_persona_y_usuario():
+    usuario = registrar_usuario(
+        datos_persona={
+            'nombre': 'Rosa',
+            'apellido_paterno': 'Quiroz',
+            'genero': 'femenino',
+            'fecha_nacimiento': datetime.date(1990, 1, 1),
+            'curp': 'QUXR900101MJCRSS01',
+        },
+        correo='rosa@embriolab.test',
+        password='una-clave-segura-987',
+        rol=Rol.QUIMICO,
+        sueldo=Decimal('15000'),
+        cedula_profesional='12345678',
+    )
+    assert usuario.roles == {Rol.QUIMICO}
+    assert usuario.persona.nombre_completo == 'Rosa Quiroz'
+
+
+def test_registrar_usuario_no_deja_persona_si_falla():
+    with pytest.raises(ValidationError):
+        registrar_usuario(
+            datos_persona={
+                'nombre': 'Rosa',
+                'apellido_paterno': 'Quiroz',
+                'genero': 'femenino',
+                'fecha_nacimiento': datetime.date(1990, 1, 1),
+                'curp': 'QUXR900101MJCRSS01',
+            },
+            correo='rosa@embriolab.test',
+            password='una-clave-segura-987',
+            rol=Rol.QUIMICO,
+            sueldo=Decimal('15000'),
+        )
+    assert not Persona.objects.exists()

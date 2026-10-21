@@ -15,6 +15,8 @@ docker compose exec web python manage.py crear_admin
 - Pruebas: `docker compose exec web pytest`
 - Lint y formato: `docker compose exec web ruff check .` y `docker compose exec web ruff format .`
 - Logs: `docker compose logs -f web`
+- Las fotos de las personas se guardan en `privado/` (fuera del repo y sin URL pública;
+  configurable con `DJANGO_PRIVATE_MEDIA_ROOT`). En producción es el volumen `privado`.
 
 ## Producción
 

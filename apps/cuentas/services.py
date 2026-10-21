@@ -6,6 +6,7 @@ from django.db import transaction
 
 from apps.cuentas.models import MODELOS_ROL, Rol, Usuario
 from apps.personas.models import Persona
+from apps.personas.services import crear_persona
 
 
 @transaction.atomic
@@ -45,3 +46,10 @@ def crear_usuario(
     fila.full_clean()
     fila.save()
     return usuario
+
+
+@transaction.atomic
+def registrar_usuario(*, datos_persona: dict, **datos_usuario) -> Usuario:
+    """Crea la persona y su usuario con un rol. Los argumentos son los de crear_usuario."""
+    persona = crear_persona(**datos_persona)
+    return crear_usuario(persona=persona, **datos_usuario)
