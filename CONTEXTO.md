@@ -285,6 +285,10 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Vigencia del link/QR del formulario.** Provisional: 24 h después del inicio de la cita (`CITAS_QR_HORAS_VIGENCIA`).
 - **Corregir el estado de una cita.** Provisional: una cita atendida o no atendida ya no se puede cambiar. ¿Se permiten correcciones?
 
+### Formularios (semana 4)
+- **Preguntas reales de los 2 formularios** (hombre y mujer): tipos, opciones y cuáles son obligatorias. Provisional: preguntas de ejemplo en la migración `formularios/0002`. Las reales se cargan publicando una versión nueva con otra migración de datos.
+- **Corregir respuestas.** Provisional: una vez enviado, el formulario no se puede editar ni volver a llenar en esa cita. ¿Hace falta que la recepción pueda reabrirlo?
+
 ## 9. Cómo cambiar una decisión
 
 Si al implementar algo encuentras que una decisión de este documento no funciona:
