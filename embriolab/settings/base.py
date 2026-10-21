@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'apps.cuentas',
     'apps.pacientes',
     'apps.citas',
+    'apps.formularios',
 ]
 
 AUTH_USER_MODEL = 'cuentas.Usuario'
