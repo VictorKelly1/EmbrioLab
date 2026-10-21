@@ -264,11 +264,26 @@ Cada semana termina con un **PR a `main`** que nosotros revisamos. Cada entregab
 
 ## 8. Preguntas abiertas
 
+Las decide el cliente. Mientras no responda, el código usa el valor provisional indicado, aislado para cambiarlo fácil.
+
+### Generales
 - La **zona horaria** del laboratorio (todavía no se sabe; usar `America/Mexico_City` de forma provisional y dejarla configurable por `.env`).
 - El formato del **número de pedido**.
-- La regla del folio sin apellido materno (la decide el cliente).
 - El diseño de Donadores (falta información del cliente).
 - Los reportes del admin (los define el cliente).
+
+### Pacientes y folio (semana 2)
+- **Folio sin apellido materno.** Provisional: se rellena con `XX` (`López` → `LOXX15`), como la CURP. Está en `apps/pacientes/folio.py`.
+- **Detalles del folio.** Provisional: sin acentos (`Ñ` → `N`), solo letras (`de la Cruz` → `DE`), número sin ceros a la izquierda y `X` si un apellido tiene una sola letra.
+- **Número de paciente.** Provisional: empieza en 1. Si el cliente trae números de su Excel, al importarlos se ajusta la secuencia con `setval`.
+- **Persona que ya existe en el sistema** (por ejemplo, un empleado que se registra como paciente). Provisional: la CURP aparece como repetida. ¿Se reutiliza la persona?
+- **Usuarios.** ¿Hace falta restablecer contraseñas y dar de baja usuarios desde el sistema? Aún no existe.
+
+### Citas (semana 3)
+- **Cita sin cita.** Provisional: se crea ya atendida y tampoco puede encimarse con una cita agendada. ¿Debe poder encimarse? Si sí, se agrega `condition=Q(origen='agendada')` a la restricción `cita_sin_empalmes`.
+- **Horario de atención.** Provisional: el calendario muestra de lunes a sábado, de 08:00 a 20:00 (`CITAS_HORA_INICIO`, `CITAS_HORA_FIN` y `CITAS_DIAS_HABILES`). Solo es visual; el servicio no restringe horarios.
+- **Vigencia del link/QR del formulario.** Provisional: 24 h después del inicio de la cita (`CITAS_QR_HORAS_VIGENCIA`).
+- **Corregir el estado de una cita.** Provisional: una cita atendida o no atendida ya no se puede cambiar. ¿Se permiten correcciones?
 
 ## 9. Cómo cambiar una decisión
 
