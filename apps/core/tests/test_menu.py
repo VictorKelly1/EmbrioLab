@@ -38,8 +38,8 @@ def test_opciones_del_admin():
 
 def test_las_que_no_existen_aun_no_tienen_url():
     opciones = {o['etiqueta']: o for o in opciones_para(RecepcionistaFactory().usuario)}
-    assert opciones['Pacientes']['url'] == reverse('pacientes:lista')
-    assert opciones['Calendario de citas']['url'] is None
+    assert opciones['Calendario de citas']['url'] == reverse('citas:calendario')
+    assert opciones['Pedidos']['url'] is None
 
 
 @pytest.mark.parametrize(
@@ -48,6 +48,7 @@ def test_las_que_no_existen_aun_no_tienen_url():
         ('pacientes:detalle', 'Pacientes'),
         ('pacientes:doctor_editar', 'Doctores'),
         ('inicio', 'Inicio'),
+        ('citas:detalle', 'Calendario de citas'),
     ],
 )
 def test_opcion_activa(vista, activa):

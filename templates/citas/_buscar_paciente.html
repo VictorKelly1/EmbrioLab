@@ -1,0 +1,14 @@
+{% if pacientes %}
+<ul class="selector-paciente__lista">
+  {% for paciente in pacientes %}
+  <li>
+    <button type="button" data-paciente="{{ paciente.pk }}" data-nombre="{{ paciente.persona.nombre_completo }}" data-detalle="Núm. {{ paciente.numero }} · {{ paciente.persona.curp }}">
+      <strong>{{ paciente.persona.nombre_completo }}</strong>
+      <span class="tenue">Núm. {{ paciente.numero }} · {{ paciente.persona.curp }}</span>
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+{% elif termino|length >= 2 %}
+<p class="selector-paciente__vacio">No hay pacientes activos que coincidan con «{{ termino }}».</p>
+{% endif %}

@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
+from apps.citas.selectors import citas_de_paciente
 from apps.core.forms import aplicar_errores
 from apps.core.mixins import RolRequerido
 from apps.core.services import dar_de_baja, reactivar
@@ -58,10 +59,12 @@ class PacienteDetalleView(RolRequerido, TemplateView):
             paciente = obtener_paciente(self.kwargs['pk'])
         except Paciente.DoesNotExist as error:
             raise Http404 from error
+        es_recepcion = self.request.user.tiene_rol(Rol.RECEPCIONISTA)
         contexto.update(
             paciente=paciente,
             contactos=contactos_principales(paciente.persona),
-            puede_editar=self.request.user.tiene_rol(Rol.RECEPCIONISTA),
+            puede_editar=es_recepcion,
+            citas=citas_de_paciente(paciente)[:10] if es_recepcion else None,
         )
         return contexto
 

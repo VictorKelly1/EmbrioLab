@@ -16,6 +16,11 @@ def citas_entre(inicio: datetime.datetime, fin: datetime.datetime) -> QuerySet[C
     return _citas().filter(fecha_hora__gte=inicio, fecha_hora__lt=fin)
 
 
+def citas_del_dia(fecha: datetime.date) -> QuerySet[Cita]:
+    inicio = timezone.make_aware(datetime.datetime.combine(fecha, datetime.time.min))
+    return citas_entre(inicio, inicio + datetime.timedelta(days=1))
+
+
 def proximas_citas(limite: int = 8) -> QuerySet[Cita]:
     return _citas().filter(estado=EstadoCita.PROGRAMADA, fecha_fin__gt=timezone.now())[:limite]
 

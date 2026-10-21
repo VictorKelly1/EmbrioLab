@@ -2,8 +2,10 @@ from django.contrib import messages
 from django.contrib.auth.views import LoginView, LogoutView
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect
+from django.utils import timezone
 from django.views.generic import FormView, TemplateView
 
+from apps.citas.selectors import citas_del_dia
 from apps.core.forms import aplicar_errores
 from apps.core.mixins import RolRequerido
 from apps.cuentas.forms import FormularioEntrar, UsuarioForm
@@ -27,7 +29,10 @@ class InicioView(RolRequerido, TemplateView):
     roles = tuple(Rol)
 
     def get_context_data(self, **kwargs):
-        return super().get_context_data(rol=self.request.user.rol_principal, **kwargs)
+        usuario = self.request.user
+        if usuario.tiene_rol(Rol.RECEPCIONISTA):
+            kwargs['citas_hoy'] = citas_del_dia(timezone.localdate())
+        return super().get_context_data(rol=usuario.rol_principal, **kwargs)
 
 
 class UsuarioListaView(RolRequerido, TemplateView):
