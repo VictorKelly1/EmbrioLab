@@ -82,6 +82,19 @@ def test_campo_por_clave_incluye_calculados():
     assert definicion.campo('no-existe') is None
 
 
+def test_json_de_ida_y_vuelta_conserva_los_decimales():
+    definicion = obtener('ESP')
+    valores = {**_d(volumen='2.5', total_espermatozoides='100.0'), 'aspecto': 'Normal'}
+    datos = definicion.a_json({**valores, 'total_moviles_progresivos': None})
+    assert datos == {
+        'volumen': '2.5',
+        'total_espermatozoides': '100.0',
+        'aspecto': 'Normal',
+        'total_moviles_progresivos': None,
+    }
+    assert definicion.de_json(datos) == {**valores, 'total_moviles_progresivos': None}
+
+
 # Registro
 
 

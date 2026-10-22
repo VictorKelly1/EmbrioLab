@@ -2,11 +2,13 @@ from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from apps.citas.models import Cita, EstadoCita
 from apps.core.texto import normalizar
 from apps.cuentas.models import Quimico, Recepcionista
 from apps.estudios.models import Estudio, EstudioAlias
+from apps.estudios.selectors import referencias_para
 from apps.estudios.services import registrar_alias
 from apps.pacientes.models import Doctor
 from apps.pedidos.estados import (
@@ -192,6 +194,105 @@ def actualizar_estudio_pedido(
         estudio_pedido = asignar_quimicos(estudio_pedido, quimicos, usuario=usuario)
     if estado_pago != estudio_pedido.estado_pago:
         estudio_pedido = cambiar_estado_pago(estudio_pedido, estado_pago)
+    return estudio_pedido
+
+
+def _para_capturar(estudio_pedido: EstudioPedido, quimico: Quimico):
+    """
+    Bloquea el estudio y revisa que se pueda capturar. PROVISIONAL (CONTEXTO.md §8):
+    solo un químico asignado y solo mientras está en proceso.
+    """
+    estudio_pedido = (
+        EstudioPedido.objects.select_for_update(of=('self',))
+        .select_related('estudio', 'pedido__cita__paciente__persona')
+        .get(pk=estudio_pedido.pk)
+    )
+    if estudio_pedido.estado != EstadoEstudio.EN_PROCESO:
+        raise TransicionInvalida(
+            f'El estudio está {estudio_pedido.get_estado_display().lower()}: '
+            'solo se capturan resultados de un estudio en proceso.'
+        )
+    if not estudio_pedido.asignaciones.filter(quimico=quimico).exists():
+        raise ValidationError('Este estudio no le fue asignado.')
+    definicion = estudio_pedido.estudio.definicion
+    if definicion is None:
+        raise ValidationError('El estudio no tiene definición en el código.')
+    return estudio_pedido, definicion
+
+
+def _capturados(definicion, valores: dict) -> dict:
+    """Solo los campos que captura el químico; los vacíos no se guardan."""
+    claves = {c.clave for c in definicion.campos}
+    desconocidos = valores.keys() - claves
+    if desconocidos:
+        raise ValidationError(f'Campos que no son del estudio: {", ".join(sorted(desconocidos))}.')
+    return {c: v for c, v in valores.items() if v not in (None, '')}
+
+
+@transaction.atomic
+def guardar_borrador(estudio_pedido: EstudioPedido, valores: dict, *, quimico: Quimico):
+    """
+    PROVISIONAL. Guarda lo capturado hasta ahora, sin calcular ni validar que esté completo.
+    El estudio sigue en proceso.
+    """
+    estudio_pedido, definicion = _para_capturar(estudio_pedido, quimico)
+    estudio_pedido.resultados = {
+        'version': definicion.version,
+        'valores': definicion.a_json(_capturados(definicion, valores)),
+    }
+    estudio_pedido.version_estudio = definicion.version
+    estudio_pedido.save(update_fields=['resultados', 'version_estudio'])
+    return estudio_pedido
+
+
+@transaction.atomic
+def completar_estudio(estudio_pedido: EstudioPedido, valores: dict, *, quimico: Quimico):
+    """
+    Valida y calcula con la definición del estudio, copia las referencias que aplican al
+    paciente (CONTEXTO.md §3) y lo marca completado. Completado ya no se corrige.
+
+    Resultados: {'version', 'valores' (capturados y calculados), 'referencias' (por campo)}.
+    PROVISIONAL: la referencia que aplica es la vigente el día de la cita, con la edad
+    que tenía el paciente ese día.
+    """
+    estudio_pedido, definicion = _para_capturar(estudio_pedido, quimico)
+    capturados = _capturados(definicion, valores)
+    faltan = {
+        c.clave: 'Capture este valor para completar el estudio.'
+        for c in definicion.campos
+        if c.clave not in capturados
+    }
+    if faltan:
+        raise ValidationError(faltan)
+    cita = estudio_pedido.pedido.cita
+    resultados = definicion.resultados(capturados, cita.paciente)
+    referencias = referencias_para(
+        estudio_pedido.estudio, cita.paciente, timezone.localdate(cita.fecha_hora)
+    )
+    validar_transicion(estudio_pedido.estado, EstadoEstudio.COMPLETADO)
+    estudio_pedido.resultados = {
+        'version': definicion.version,
+        'valores': definicion.a_json(resultados),
+        'referencias': {
+            clave: referencia.como_json()
+            for clave, referencia in sorted(referencias.items())
+            if clave in resultados
+        },
+    }
+    estudio_pedido.version_estudio = definicion.version
+    estudio_pedido.estado = EstadoEstudio.COMPLETADO
+    estudio_pedido.quimico_completo = quimico
+    estudio_pedido.fecha_completado = timezone.now()
+    estudio_pedido.save(
+        update_fields=[
+            'resultados',
+            'version_estudio',
+            'estado',
+            'quimico_completo',
+            'fecha_completado',
+        ]
+    )
+    recalcular_pedido(estudio_pedido.pedido)
     return estudio_pedido
 
 
