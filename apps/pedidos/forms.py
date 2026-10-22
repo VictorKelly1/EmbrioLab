@@ -1,6 +1,10 @@
+from decimal import Decimal
+
 from django import forms
 from django.urls import reverse
 
+from apps.cuentas.models import Quimico
+from apps.estudios.definiciones import Campo
 from apps.estudios.models import Estudio
 from apps.pacientes.models import Doctor
 from apps.pedidos.models import EstadoPago, EstadoPedido
@@ -105,6 +109,11 @@ class PagoPedidoForm(forms.Form):
     estado_pago = forms.ChoiceField(choices=EstadoPago.choices)
 
 
+class QuimicoField(forms.ModelChoiceField):
+    def label_from_instance(self, quimico):
+        return quimico.usuario.persona.nombre_completo
+
+
 class FiltroPedidosForm(forms.Form):
     q = forms.CharField(label='Buscar por número, folio o paciente', required=False)
     estado = forms.ChoiceField(
@@ -115,3 +124,66 @@ class FiltroPedidosForm(forms.Form):
     estado_pago = forms.ChoiceField(
         label='Pago', required=False, choices=[('', 'Todos'), *EstadoPago.choices]
     )
+    # Todos, no solo los activos: el historial incluye a los que se dieron de baja.
+    quimico = QuimicoField(
+        label='Químico asignado',
+        required=False,
+        empty_label='Todos',
+        queryset=Quimico.objects.select_related('usuario__persona').order_by(
+            'usuario__persona__nombre', 'usuario__persona__apellido_paterno'
+        ),
+    )
+    desde = forms.DateField(
+        label='Desde', required=False, widget=forms.DateInput(attrs={'type': 'date'})
+    )
+    hasta = forms.DateField(
+        label='Hasta', required=False, widget=forms.DateInput(attrs={'type': 'date'})
+    )
+
+    def clean(self):
+        datos = super().clean()
+        desde, hasta = datos.get('desde'), datos.get('hasta')
+        if desde and hasta and desde > hasta:
+            self.add_error('hasta', 'Debe ser igual o posterior a «Desde».')
+        return datos
+
+
+def _campo_resultado(campo: Campo, requerido: bool) -> forms.Field:
+    comunes = {'label': campo.etiqueta, 'required': requerido, 'help_text': campo.unidad}
+    if campo.tipo in ('decimal', 'entero'):
+        limites = {'min_value': campo.minimo, 'max_value': campo.maximo}
+        decimales = campo.decimales if campo.tipo == 'decimal' else 0
+        atributos = {'inputmode': 'decimal' if decimales else 'numeric', 'autocomplete': 'off'}
+        atributos['step'] = str(Decimal(1).scaleb(-decimales)) if decimales else '1'
+        if campo.tipo == 'entero':
+            return forms.IntegerField(
+                widget=forms.NumberInput(attrs=atributos), **limites, **comunes
+            )
+        return forms.DecimalField(
+            decimal_places=decimales,
+            widget=forms.NumberInput(attrs=atributos),
+            **limites,
+            **comunes,
+        )
+    if campo.tipo == 'opcion':
+        opciones = [('', 'Elija una opción'), *((o, o) for o in campo.opciones)]
+        return forms.ChoiceField(choices=opciones, **comunes)
+    return forms.CharField(max_length=500, **comunes)
+
+
+class ResultadosForm(forms.Form):
+    """
+    Captura de un estudio, generada desde los `campos` de su definición. Para un borrador
+    nada es obligatorio; para completar, todos.
+    """
+
+    def __init__(self, *args, definicion, completar: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        for campo in definicion.campos:
+            self.fields[campo.clave] = _campo_resultado(campo, completar)
+
+    def valores(self) -> dict:
+        return {
+            clave: valor.strip() if isinstance(valor, str) else valor
+            for clave, valor in self.cleaned_data.items()
+        }

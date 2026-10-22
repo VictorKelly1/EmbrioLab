@@ -6,13 +6,13 @@
 <div class="encabezado">
   <div>
     <h1>Pedidos</h1>
-    <p class="encabezado__descripcion">Órdenes de estudios de cada cita. Para armar uno, abra una cita atendida desde el calendario.</p>
+    <p class="encabezado__descripcion">{% if es_quimico %}Todos los pedidos, actuales e históricos. Filtre por químico para ver los suyos.{% else %}Órdenes de estudios de cada cita. Para armar uno, abra una cita atendida desde el calendario.{% endif %}</p>
   </div>
 </div>
 
 <form class="buscador filtros" method="get" role="search"
       hx-get="{% url 'pedidos:lista' %}" hx-target="#resultados" hx-push-url="true"
-      hx-trigger="input changed delay:300ms from:input[name=q], change from:select, submit">
+      hx-trigger="input changed delay:300ms from:input[name=q], change from:select, change from:input[type=date], submit">
   <div class="campo campo--buscar">
     <label for="{{ filtros.q.id_for_label }}">{{ filtros.q.label }}</label>
     <svg class="icono" aria-hidden="true"><use href="#icono-buscar"/></svg>
@@ -20,6 +20,11 @@
   </div>
   <div class="campo"><label for="{{ filtros.estado.id_for_label }}">{{ filtros.estado.label }}</label>{{ filtros.estado }}</div>
   <div class="campo"><label for="{{ filtros.estado_pago.id_for_label }}">{{ filtros.estado_pago.label }}</label>{{ filtros.estado_pago }}</div>
+  <div class="campo"><label for="{{ filtros.quimico.id_for_label }}">{{ filtros.quimico.label }}</label>{{ filtros.quimico }}</div>
+  {% for campo in filtros %}{% if campo.name == 'desde' or campo.name == 'hasta' %}
+  <div class="campo{% if campo.errors %} campo--error{% endif %}"><label for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}{% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}</div>
+  {% endif %}{% endfor %}
+  {% if mio %}<p class="filtros__atajo"><a href="?quimico={{ mio }}">Solo mis estudios</a></p>{% endif %}
 </form>
 
 <div id="resultados">{% include 'pedidos/_resultados.html' %}</div>

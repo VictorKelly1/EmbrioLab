@@ -1,0 +1,92 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{{ estudio_pedido.estudio.nombre }} · Pedido {{ pedido.numero }} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'pedidos:detalle' pedido.pk %}">← Pedido {{ pedido.numero }}</a>
+<div class="encabezado">
+  <div>
+    <h1>{{ estudio_pedido.estudio.nombre }}</h1>
+    <p class="ficha__claves">
+      <span><a href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.persona.nombre_completo }}</a></span>
+      <span>{{ paciente.persona.get_genero_display }}, {{ paciente.persona.edad }} año{{ paciente.persona.edad|pluralize }}</span>
+      <span>Folio <strong>{{ pedido.cita.numero_folio }}</strong></span>
+      <span class="etiqueta etiqueta--{{ estudio_pedido.estado }}">{{ estudio_pedido.get_estado_display }}</span>
+    </p>
+  </div>
+</div>
+
+<div class="pila">
+{% if not definicion %}
+<div class="aviso aviso--error" role="alert"><p>Este estudio no tiene definición en el código. Avise al equipo de desarrollo.</p></div>
+{% endif %}
+
+<section class="tarjeta" aria-labelledby="titulo-resultados">
+  <h2 id="titulo-resultados">Resultados</h2>
+  <dl class="datos">
+    <dt>Químicos</dt><dd>{% for quimico in quimicos %}{{ quimico.usuario.persona.nombre_completo }}{% if not forloop.last %}, {% endif %}{% empty %}Sin asignar{% endfor %}</dd>
+    {% if estudio_pedido.nombre_solicitado != estudio_pedido.estudio.nombre %}<dt>En la orden</dt><dd>«{{ estudio_pedido.nombre_solicitado }}»</dd>{% endif %}
+    {% if completado %}<dt>Completó</dt><dd>{{ estudio_pedido.quimico_completo.usuario.persona.nombre_completo }}, {{ estudio_pedido.fecha_completado|date:'j/m/Y H:i' }}</dd>{% endif %}
+  </dl>
+
+  {% if form %}
+  <form method="post" class="formulario formulario--ancho" novalidate>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+    <div class="rejilla">
+      {% for campo in form %}{% include 'includes/campo.html' %}{% endfor %}
+    </div>
+    {% if calculados %}
+    <div class="aviso aviso--info">
+      <p>Al completar, el sistema calcula:</p>
+      <ul>{% for campo in calculados %}<li><strong>{{ campo.etiqueta }}</strong>: {{ campo.formula }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    <div class="acciones">
+      <button type="submit" name="accion" value="completar" class="boton boton--principal" onclick="return confirm('¿Completar el estudio? Después ya no podrá corregirse.')">Completar estudio</button>
+      <button type="submit" name="accion" value="borrador" class="boton boton--secundario">Guardar borrador</button>
+    </div>
+    <p class="campo__ayuda">El borrador guarda lo capturado sin calcular; el estudio sigue en proceso. Para completarlo hacen falta todos los campos.</p>
+  </form>
+
+  {% elif filas %}
+  {% if not completado %}<div class="aviso aviso--info"><p>Borrador: el estudio sigue en proceso y estos valores pueden cambiar.</p></div>{% endif %}
+  <div class="tabla-marco">
+    <table class="tabla tabla--resultados">
+      <thead><tr><th scope="col">Campo</th><th scope="col" class="tabla__numero">Resultado</th><th scope="col">Unidad</th><th scope="col">Referencia</th></tr></thead>
+      <tbody>
+        {% for fila in filas %}
+        <tr>
+          <td>{{ fila.etiqueta }}{% if fila.calculado %} <span class="etiqueta">Calculado</span>{% endif %}</td>
+          <td class="tabla__numero"><strong>{{ fila.valor }}</strong>{% if fila.marca %} <span class="etiqueta etiqueta--{{ fila.marca }}">{{ fila.marca|capfirst }}</span>{% endif %}</td>
+          <td>{{ fila.unidad|default:"—" }}</td>
+          <td class="tenue">{{ fila.referencia|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if completado %}<p class="campo__ayuda">La referencia es la que aplicaba al paciente el día de la cita y quedó guardada con el resultado.</p>{% endif %}
+
+  {% else %}
+  <p class="tenue">{% if estudio_pedido.estado == 'pendiente' %}Sin químico asignado: la recepción lo asigna desde el pedido.{% else %}Todavía no hay resultados capturados.{% endif %}</p>
+  {% endif %}
+</section>
+
+<section class="tarjeta" aria-labelledby="titulo-anteriores">
+  <h2 id="titulo-anteriores">Resultados anteriores del paciente</h2>
+  {% if anteriores %}
+  <ul class="anteriores">
+    {% for anterior in anteriores %}
+    <li>
+      <a href="{% url 'pedidos:resultados' anterior.pk %}">{{ anterior.fecha_completado|date:'j/m/Y' }} · Pedido {{ anterior.pedido.numero }}</a>
+      <span>{% for fila in anterior.filas %}{{ fila.etiqueta }} <strong>{{ fila.valor }}</strong>{% if fila.unidad %} {{ fila.unidad }}{% endif %}{% if fila.marca %} ({{ fila.marca }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="tenue">Es la primera vez que se le hace este estudio.</p>
+  {% endif %}
+</section>
+</div>
+{% endblock %}
