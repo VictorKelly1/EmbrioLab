@@ -1,4 +1,6 @@
 import datetime
+from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 from django.db.models import Prefetch, Q, QuerySet
 from django.utils import timezone
@@ -77,3 +79,41 @@ def referencias_para(
 def _prioridad(valor: ValorReferencia) -> tuple:
     por_edad = valor.edad_minima is not None or valor.edad_maxima is not None
     return (bool(valor.genero), por_edad, valor.vigente_desde, valor.pk)
+
+
+@dataclass(frozen=True)
+class Sugerencia:
+    estudio: Estudio
+    # El alias, nombre o clave que más se parece a lo que pidió el doctor.
+    coincide_con: str
+    exacta: bool
+
+
+SIMILITUD_MINIMA = 0.6
+
+
+def sugerir_estudios(texto: str, limite: int = 5) -> list[Sugerencia]:
+    """
+    Estudios activos que se parecen al nombre que escribió el doctor, comparando contra
+    nombres, claves y alias normalizados. Una coincidencia exacta va primero.
+    """
+    buscado = normalizar(texto)
+    if len(buscado) < 2:
+        return []
+    puntajes = []
+    for estudio in Estudio.objects.filter(activo=True).prefetch_related('alias'):
+        candidatos = [normalizar(estudio.nombre), normalizar(estudio.clave)]
+        candidatos += [a.alias for a in estudio.alias.all()]
+        puntaje, candidato = max((_parecido(buscado, c), c) for c in candidatos)
+        if puntaje >= SIMILITUD_MINIMA:
+            puntajes.append((puntaje, estudio, candidato))
+    puntajes.sort(key=lambda p: (-p[0], p[1].nombre))
+    return [Sugerencia(estudio=e, coincide_con=c, exacta=p == 1) for p, e, c in puntajes[:limite]]
+
+
+def _parecido(buscado: str, candidato: str) -> float:
+    if buscado == candidato:
+        return 1
+    if buscado in candidato or candidato in buscado:
+        return 0.9
+    return SequenceMatcher(None, buscado, candidato).ratio()
