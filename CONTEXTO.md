@@ -268,7 +268,7 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 
 ### Generales
 - La **zona horaria** del laboratorio (todavía no se sabe; usar `America/Mexico_City` de forma provisional y dejarla configurable por `.env`).
-- El formato del **número de pedido**.
+- El formato del **número de pedido**. Provisional: año y consecutivo anual (`2026-0001`), en `apps/pedidos/numero.py`.
 - El diseño de Donadores (falta información del cliente).
 - Los reportes del admin (los define el cliente).
 
@@ -295,6 +295,14 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Precio.** Provisional: el precio vigente solo cambia con una migración de datos (no hay pantalla). ¿Quién lo cambia y con qué frecuencia?
 - **Referencia que aplica.** Provisional: si varias aplican al paciente, gana la de su género sobre la general, la de su rango de edad sobre la que no tiene edad y, al final, la más reciente. Los límites de edad se incluyen (años cumplidos).
 - **Varios rangos por campo** (normal, limítrofe, alto; por ejemplo, colesterol deseable/limítrofe/alto). Provisional: un solo rango mínimo–máximo o un texto por fila.
+
+### Pedidos (semana 6)
+- **Desde qué cita se arma un pedido.** Provisional: solo desde una cita atendida (la espontánea ya nace atendida). ¿También desde una programada, antes de que llegue el paciente?
+- **Estado de pago del pedido.** Provisional: pagado si todos sus estudios están pagados, pendiente si ninguno tiene pago y abonado en cualquier otro caso. Está en `apps/pedidos/estados.py`.
+- **`TotalPago`.** Provisional: lo que cuesta el pedido (la suma de los precios copiados), no lo pagado. Cuando existan los abonos se podrá mostrar también lo pagado y el saldo.
+- **Cuándo pasa un estudio a «en proceso».** Provisional: al asignarle un químico (sin químico queda pendiente). Mientras está en proceso se puede reasignar; completado, ya no.
+- **Estudio repetido en un pedido.** Provisional: no se permite el mismo estudio dos veces en un pedido.
+- **Quitar estudios.** Provisional: se puede quitar un estudio que aún no está completado, siempre que el pedido conserve al menos uno.
 
 ## 9. Cómo cambiar una decisión
 
