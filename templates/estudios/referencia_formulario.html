@@ -1,0 +1,31 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{% if valor %}Editar valor de referencia{% else %}Agregar valor de referencia{% endif %} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'estudios:detalle' estudio.pk %}">← {{ estudio.nombre }}</a>
+<h1>{% if valor %}Editar valor de referencia{% else %}Agregar valor de referencia{% endif %}</h1>
+
+<form method="post" class="formulario formulario--medio" novalidate>
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+  {% if valor %}<p class="formulario__nota">Si el laboratorio cambió el valor, es mejor agregar uno nuevo con su fecha de vigencia y desactivar este: así queda el historial. Edite solo para corregir un error de captura.</p>{% endif %}
+  <div class="rejilla rejilla--dos">
+    {% with campo=form.clave_campo %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=form.genero %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=form.edad_minima %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=form.edad_maxima %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=form.valor_minimo %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=form.valor_maximo %}{% include 'includes/campo.html' %}{% endwith %}
+  </div>
+  {% with campo=form.texto_referencia %}{% include 'includes/campo.html' %}{% endwith %}
+  <div class="rejilla rejilla--dos">
+    {% with campo=form.unidad %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=form.vigente_desde %}{% include 'includes/campo.html' %}{% endwith %}
+  </div>
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">{% if valor %}Guardar cambios{% else %}Guardar valor{% endif %}</button>
+    <a class="boton boton--discreto" href="{% url 'estudios:detalle' estudio.pk %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

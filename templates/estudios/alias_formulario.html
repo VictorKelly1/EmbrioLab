@@ -1,0 +1,18 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{% if alias %}Editar alias{% else %}Agregar alias{% endif %} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'estudios:detalle' estudio.pk %}">← {{ estudio.nombre }}</a>
+<h1>{% if alias %}Editar alias{% else %}Agregar alias{% endif %}</h1>
+
+<form method="post" class="formulario" novalidate>
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+  {% for campo in form %}{% include 'includes/campo.html' %}{% endfor %}
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">{% if alias %}Guardar cambios{% else %}Guardar alias{% endif %}</button>
+    <a class="boton boton--discreto" href="{% url 'estudios:detalle' estudio.pk %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

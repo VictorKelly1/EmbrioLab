@@ -1,0 +1,24 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Catálogo de estudios · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Catálogo de estudios</h1>
+    <p class="encabezado__descripcion">Estudios que ofrece el laboratorio, con sus campos, valores de referencia y los nombres con que los piden los doctores.</p>
+  </div>
+</div>
+
+<form class="buscador" method="get" role="search"
+      hx-get="{% url 'estudios:lista' %}" hx-target="#resultados" hx-push-url="true"
+      hx-trigger="input changed delay:300ms from:input[name=q], submit">
+  <div class="campo campo--buscar">
+    <label for="buscar">Buscar por nombre, clave o alias</label>
+    <svg class="icono" aria-hidden="true"><use href="#icono-buscar"/></svg>
+    <input type="search" id="buscar" name="q" value="{{ termino }}" autocomplete="off">
+  </div>
+</form>
+
+<div id="resultados">{% include 'estudios/_resultados.html' %}</div>
+{% endblock %}
