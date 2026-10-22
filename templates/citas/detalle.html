@@ -89,6 +89,36 @@
   {% endif %}
 </section>
 
+<section class="tarjeta pedidos-cita" aria-labelledby="titulo-pedidos">
+  <div class="tarjeta__encabezado">
+    <h2 id="titulo-pedidos">Pedidos</h2>
+    {% if atendida %}<a class="boton boton--principal boton--chico" href="{% url 'pedidos:crear' %}?cita={{ cita.pk }}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Armar pedido</a>{% endif %}
+  </div>
+  {% if pedidos %}
+  <div class="tabla-marco">
+    <table class="tabla">
+      <thead><tr><th scope="col">Número</th><th scope="col" class="tabla__opcional">Doctor</th><th scope="col" class="tabla__opcional">Estudios</th><th scope="col">Estado</th><th scope="col" class="tabla__numero">Total</th><th scope="col"><span class="visualmente-oculto">Ver</span></th></tr></thead>
+      <tbody>
+        {% for pedido in pedidos %}
+        <tr>
+          <td class="tabla__clave">{{ pedido.numero }}</td>
+          <td class="tabla__opcional">{{ pedido.doctor|default:"—" }}</td>
+          <td class="tabla__opcional tabla__numero">{{ pedido.num_estudios }}</td>
+          <td><span class="etiqueta etiqueta--{{ pedido.estado }}">{{ pedido.get_estado_display }}</span></td>
+          <td class="tabla__numero">${{ pedido.total_pago }}</td>
+          <td class="tabla__accion"><a href="{% url 'pedidos:detalle' pedido.pk %}">Ver<span class="visualmente-oculto"> pedido {{ pedido.numero }}</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif atendida %}
+  <p class="tenue">Sin pedidos. Ármelo con la orden del doctor.</p>
+  {% else %}
+  <p class="tenue">El pedido se arma cuando la cita está atendida.</p>
+  {% endif %}
+</section>
+
 {% if programada %}
 <section class="zona-baja" aria-labelledby="titulo-reprogramar">
   <h2 id="titulo-reprogramar">Reprogramar</h2>

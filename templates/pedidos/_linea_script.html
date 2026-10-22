@@ -1,0 +1,23 @@
+<script>
+  (() => {
+    // Elegir una sugerencia llena el estudio de su fila.
+    const elegir = (boton) => {
+      const linea = boton.closest('[data-linea]');
+      linea.querySelector('[data-estudio]').value = boton.dataset.sugerencia;
+      linea.querySelectorAll('[data-sugerencia]').forEach((b) => b.setAttribute('aria-pressed', b === boton));
+      // Con un alias exacto ya no hace falta guardarlo.
+      const alias = linea.querySelector('input[name$="guardar_alias"]');
+      if (alias && 'exacta' in boton.dataset) alias.checked = false;
+    };
+    document.addEventListener('click', (evento) => {
+      const boton = evento.target.closest('[data-sugerencia]');
+      if (boton) elegir(boton);
+    });
+    // Un alias exacto se elige solo si la fila aún no tiene estudio.
+    document.addEventListener('htmx:afterSwap', (evento) => {
+      const exacta = evento.target.matches('[data-sugerencias]') && evento.target.querySelector('[data-exacta]');
+      const estudio = exacta && exacta.closest('[data-linea]').querySelector('[data-estudio]');
+      if (estudio && !estudio.value) elegir(exacta);
+    });
+  })();
+</script>

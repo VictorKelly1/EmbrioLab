@@ -14,6 +14,7 @@ urlpatterns = [
     path('f/enviado/', formulario_enviado, name='formulario_enviado'),
     path('f/<str:token>/', FormularioPublicoView.as_view(), name='formulario_publico'),
     path('pacientes/', include('apps.pacientes.urls')),
+    path('pedidos/', include('apps.pedidos.urls')),
     path('personas/', include('apps.personas.urls')),
     path('admin/', admin.site.urls),
 ]

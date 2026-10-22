@@ -29,7 +29,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 | Rol | Qué hace |
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
-| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y **asigna un químico** a cada estudio. Registra el estado de pago. |
+| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y **asigna uno o varios químicos** a cada estudio. Registra el estado de pago. |
 | **Químico** | Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico asignado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto. Consulta al paciente y el catálogo. |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
@@ -139,7 +139,8 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 | Tabla | Campos |
 |---|---|
 | **Pedidos** | Id, IdCita, IdRecepcionista, IdDoctor (null), Numero, FechaInicio, Estado\*, EstadoPago\*, TotalPago\*, FechaCompletado, FechaEnvio. *(\* derivados)* |
-| **EstudiosPedido** | Id, IdPedido, IdEstudio, NombreSolicitado, Precio (copia al momento del pedido), **VersionEstudio**, IdQuimicoAsignado, Estado, EstadoPago, Resultados (JSON), IdQuimicoCompleto, FechaCompletado, IdUsuarioEnvio, FechaEnvio |
+| **EstudiosPedido** | Id, IdPedido, IdEstudio, NombreSolicitado, Precio (copia al momento del pedido), **VersionEstudio**, Estado, EstadoPago, Resultados (JSON), IdQuimicoCompleto, FechaCompletado, IdUsuarioEnvio, FechaEnvio |
+| **AsignacionesQuimico** | Id, IdEstudioPedido, IdQuimico, IdUsuarioAsignacion, FechaAsignacion. *Uno o varios químicos responsables por estudio; único por (estudio, químico).* |
 | **Abonos** | ⏸ FASE POSTERIOR, no crear. Diseño previsto: Id, IdEstudioPedido, Monto, Fecha, MetodoPago, IdRecepcionista |
 
 ### Notificaciones
@@ -149,7 +150,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 
 ### Índices mínimos
 - `Citas(fecha_hora)`
-- `EstudiosPedido(estado, quimico_asignado)`
+- `EstudiosPedido(estado)` (los estudios de un químico se buscan por `AsignacionesQuimico(quimico)`, índice de su FK)
 - Trigram (`pg_trgm`) sobre el nombre completo de la persona
 - Único parcial en la versión publicada de cada formulario
 
@@ -236,7 +237,7 @@ Cada semana termina con un **PR a `main`** que nosotros revisamos. Cada entregab
 | **3** | Citas | Modelo Cita con restricción contra empalmes; calendario (vista día/semana) para agendar y ver las próximas; reprogramar; cancelar = borrar; cita espontánea; marcar atendida/no atendida; generación del token QR (hash, expiración, un solo uso) |
 | **4** | Formularios | Formularios + versiones + validador del esquema; constructor de forms dinámicos; **migración de datos con los 2 formularios del cliente**; página pública del QR (rate limit, token de un uso); FormularioLlenado; la recepcionista ve las respuestas |
 | **5** | Catálogo de estudios | Modelos de estudios, alias y valores de referencia; **registro de definiciones + system check**; carga del catálogo (claves, nombres, precios) desde el Excel del cliente; CRUD de alias y de valores de referencia; primeras definiciones con pruebas contra ejemplos del Excel |
-| **6** | Pedidos (recepción) | Armar el pedido desde una cita; relacionar el nombre solicitado con un estudio (sugerencias por alias y guardado de alias nuevos); asignar químico; estado de pago por estudio; servicio `recalcular_pedido`; máquina de estados |
+| **6** | Pedidos (recepción) | Armar el pedido desde una cita; relacionar el nombre solicitado con un estudio (sugerencias por alias y guardado de alias nuevos); asignar uno o varios químicos; estado de pago por estudio; servicio `recalcular_pedido`; máquina de estados |
 | **7** | Químico | Lista de todos los pedidos **con filtros** (asignado, estado, paciente, fecha, pago); detalle del pedido y del paciente; captura de resultados con un form generado desde la definición; cálculos; completar (con copia de la referencia); historial. Continuar con las definiciones de estudios |
 | **8** | Resultados y notificaciones | PDF al vuelo (WeasyPrint); tabla Notificaciones + outbox + worker (aquí se agrega el servicio `worker` a Docker Compose); canal de correo (SMTP) y stub de WhatsApp; envío de resultados individual o en conjunto; recordatorios de 24 h (comando programado); envío del QR |
 | **9** | Cierre funcional y endurecimiento | **Terminar las ~30 definiciones de estudios**; auditoría; settings de producción + `check --deploy` (incluye decidir HSTS preload con el cliente cuando haya dominio, y HTTPS en nginx); respaldos; reportes básicos del admin (según lo que entregue el cliente); pulir la interfaz; revisar consultas N+1 e índices |
@@ -268,7 +269,7 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 
 ### Generales
 - La **zona horaria** del laboratorio (todavía no se sabe; usar `America/Mexico_City` de forma provisional y dejarla configurable por `.env`).
-- El formato del **número de pedido**.
+- El formato del **número de pedido**. Provisional: año y consecutivo anual (`2026-0001`), en `apps/pedidos/numero.py`.
 - El diseño de Donadores (falta información del cliente).
 - Los reportes del admin (los define el cliente).
 
@@ -296,6 +297,14 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Referencia que aplica.** Provisional: si varias aplican al paciente, gana la de su género sobre la general, la de su rango de edad sobre la que no tiene edad y, al final, la más reciente. Los límites de edad se incluyen (años cumplidos).
 - **Varios rangos por campo** (normal, limítrofe, alto; por ejemplo, colesterol deseable/limítrofe/alto). Provisional: un solo rango mínimo–máximo o un texto por fila.
 
+### Pedidos (semana 6)
+- **Desde qué cita se arma un pedido.** Provisional: solo desde una cita atendida (la espontánea ya nace atendida). ¿También desde una programada, antes de que llegue el paciente?
+- **Estado de pago del pedido.** Provisional: pagado si todos sus estudios están pagados, pendiente si ninguno tiene pago y abonado en cualquier otro caso. Está en `apps/pedidos/estados.py`.
+- **`TotalPago`.** Provisional: lo que cuesta el pedido (la suma de los precios copiados), no lo pagado. Cuando existan los abonos se podrá mostrar también lo pagado y el saldo.
+- **Cuándo pasa un estudio a «en proceso».** Provisional: al asignarle el primer químico (sin químicos queda pendiente). Mientras está en proceso se pueden agregar o quitar químicos, pero siempre debe quedar al menos uno; completado, ya no cambian.
+- **Estudio repetido en un pedido.** Provisional: no se permite el mismo estudio dos veces en un pedido.
+- **Quitar estudios.** Provisional: se puede quitar un estudio que aún no está completado, siempre que el pedido conserve al menos uno.
+
 ## 9. Cómo cambiar una decisión
 
 Si al implementar algo encuentras que una decisión de este documento no funciona:
@@ -308,3 +317,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-10-21: semana 1 — `Persona` y `Direccion` se adelantan a la semana 1; el servicio `worker` de Docker Compose pasa a la semana 8 (su backend en BD necesita migraciones y aún no hay tareas); HSTS preload y HTTPS en nginx quedan para la semana 9, cuando haya dominio.
 - 2026-10-21: semana 3 — `Citas` agrega `FechaFin` para la restricción contra empalmes (no hace falta `btree_gist`).
 - 2026-10-21: semana 5 — el system check del catálogo corre solo con base de datos (`migrate` y `manage.py check --database default`), no en `runserver`; si `estudios` tiene migraciones pendientes no revisa nada, porque son las que cargan las filas nuevas.
+- 2026-10-21: semana 6 — un estudio del pedido puede tener **varios químicos responsables** (decisión del equipo): `EstudiosPedido.IdQuimicoAsignado` se reemplaza por la tabla `AsignacionesQuimico`, que guarda quién asignó a cada químico y cuándo. El índice `EstudiosPedido(estado, quimico_asignado)` pasa a `EstudiosPedido(estado)` más el de la FK de la asignación. Quien completa sigue siendo uno (`IdQuimicoCompleto`).

@@ -29,7 +29,7 @@ TODOS = tuple(Rol)
 OPCIONES = (
     Opcion('Inicio', 'inicio', TODOS, 'inicio', ('inicio',)),
     Opcion('Calendario de citas', 'calendario', RECEPCION, 'citas:calendario', ('citas:',)),
-    Opcion('Pedidos', 'pedidos', RECEPCION + QUIMICO),
+    Opcion('Pedidos', 'pedidos', RECEPCION + QUIMICO, 'pedidos:lista', ('pedidos:',)),
     Opcion(
         'Pacientes',
         'pacientes',

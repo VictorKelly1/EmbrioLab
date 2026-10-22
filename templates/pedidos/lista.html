@@ -1,0 +1,26 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Pedidos · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Pedidos</h1>
+    <p class="encabezado__descripcion">Órdenes de estudios de cada cita. Para armar uno, abra una cita atendida desde el calendario.</p>
+  </div>
+</div>
+
+<form class="buscador filtros" method="get" role="search"
+      hx-get="{% url 'pedidos:lista' %}" hx-target="#resultados" hx-push-url="true"
+      hx-trigger="input changed delay:300ms from:input[name=q], change from:select, submit">
+  <div class="campo campo--buscar">
+    <label for="{{ filtros.q.id_for_label }}">{{ filtros.q.label }}</label>
+    <svg class="icono" aria-hidden="true"><use href="#icono-buscar"/></svg>
+    <input type="search" id="{{ filtros.q.id_for_label }}" name="q" value="{{ filtros.q.value|default:'' }}" autocomplete="off">
+  </div>
+  <div class="campo"><label for="{{ filtros.estado.id_for_label }}">{{ filtros.estado.label }}</label>{{ filtros.estado }}</div>
+  <div class="campo"><label for="{{ filtros.estado_pago.id_for_label }}">{{ filtros.estado_pago.label }}</label>{{ filtros.estado_pago }}</div>
+</form>
+
+<div id="resultados">{% include 'pedidos/_resultados.html' %}</div>
+{% endblock %}
