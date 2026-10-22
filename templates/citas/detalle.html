@@ -1,0 +1,93 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Cita {{ cita.numero_folio }} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'citas:calendario' %}?vista=dia&fecha={{ cita.fecha_hora|date:'Y-m-d' }}">← Calendario</a>
+<div class="encabezado">
+  <div>
+    <h1>{{ cita.fecha_hora|date:'l j \d\e F'|lower|capfirst }}, {{ cita.fecha_hora|time:'H:i' }}–{{ cita.fecha_fin|time:'H:i' }}</h1>
+    <p class="ficha__claves">
+      <span><a href="{% url 'pacientes:detalle' cita.paciente.pk %}">{{ cita.paciente.persona.nombre_completo }}</a></span>
+      <span>Folio <strong>{{ cita.numero_folio }}</strong></span>
+      <span class="etiqueta etiqueta--{{ cita.estado }}">{{ cita.get_estado_display }}</span>
+      {% if cita.origen == 'espontanea' %}<span class="etiqueta etiqueta--inactivo">Sin cita</span>{% endif %}
+    </p>
+  </div>
+</div>
+
+{% if link %}
+<section class="tarjeta qr" aria-labelledby="titulo-qr">
+  <div class="qr__imagen">{{ qr|safe }}</div>
+  <div class="qr__texto">
+    <h2 id="titulo-qr">Link del formulario</h2>
+    <p>Pida al paciente que escanee el código o envíele el link. Sirve una sola vez y vence el {{ cita.token_expiracion|date:'j \d\e F'|lower }} a las {{ cita.token_expiracion|time:'H:i' }}.</p>
+    <div class="copiar">
+      <input type="text" readonly value="{{ link }}" aria-label="Link del formulario" id="link-formulario">
+      <button type="button" class="boton boton--secundario" data-copiar="link-formulario">Copiar</button>
+    </div>
+    <p class="campo__ayuda">Por seguridad este link no se vuelve a mostrar. Si lo necesita de nuevo, genere otro: el anterior deja de funcionar.</p>
+  </div>
+</section>
+<script>
+  document.querySelector('[data-copiar]').addEventListener('click', async (evento) => {
+    const boton = evento.currentTarget;
+    const campo = document.getElementById(boton.dataset.copiar);
+    try { await navigator.clipboard.writeText(campo.value); } catch (e) { campo.select(); document.execCommand('copy'); }
+    boton.textContent = 'Copiado';
+    setTimeout(() => { boton.textContent = 'Copiar'; }, 2000);
+  });
+</script>
+{% endif %}
+
+<div class="tarjetas">
+  <section class="tarjeta">
+    <h2>Detalles</h2>
+    <dl class="datos">
+      <dt>Asunto</dt><dd>{{ cita.asunto|default:"—" }}</dd>
+      <dt>Origen</dt><dd>{{ cita.get_origen_display }}</dd>
+      <dt>Registró</dt><dd>{{ cita.recepcionista.usuario.persona.nombre_completo }}</dd>
+      <dt>Formulario</dt><dd>{% if cita.token_qr %}Link vigente hasta el {{ cita.token_expiracion|date:'j/m/Y H:i' }}{% else %}Sin link vigente{% endif %}</dd>
+    </dl>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Acciones</h2>
+    {% if programada %}
+    <form method="post" action="{% url 'citas:accion' cita.pk %}" class="acciones">
+      {% csrf_token %}
+      <button type="submit" name="accion" value="atendida" class="boton boton--principal">Marcar atendida</button>
+      {% if ya_empezo %}<button type="submit" name="accion" value="no_atendida" class="boton boton--secundario">No asistió</button>{% endif %}
+    </form>
+    {% endif %}
+    {% if cita.estado != 'no_atendida' %}
+    <form method="post" action="{% url 'citas:generar_qr' cita.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="boton boton--secundario">{% if cita.token_qr %}Generar un link nuevo{% else %}Generar link del formulario{% endif %}</button>
+    </form>
+    {% endif %}
+    {% if not programada and cita.estado == 'no_atendida' %}<p class="tenue">El paciente no asistió. Para una nueva visita, agende otra cita.</p>{% endif %}
+  </section>
+</div>
+
+{% if programada %}
+<section class="zona-baja" aria-labelledby="titulo-reprogramar">
+  <h2 id="titulo-reprogramar">Reprogramar</h2>
+  <form method="post" action="{% url 'citas:reprogramar' cita.pk %}" class="reprogramar" novalidate>
+    {% csrf_token %}
+    {% for error in reprogramar_form.non_field_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+    <div class="rejilla rejilla--tres">
+      {% with campo=reprogramar_form.fecha %}{% include 'includes/campo.html' %}{% endwith %}
+      {% with campo=reprogramar_form.hora %}{% include 'includes/campo.html' %}{% endwith %}
+      <div class="reprogramar__boton"><button type="submit" class="boton boton--secundario">Reprogramar</button></div>
+    </div>
+  </form>
+
+  <form method="post" action="{% url 'citas:accion' cita.pk %}" class="cancelar">
+    {% csrf_token %}
+    <p>Cancelar elimina la cita y libera el horario.</p>
+    <button type="submit" name="accion" value="cancelar" class="boton boton--peligro" onclick="return confirm('¿Cancelar esta cita? Se eliminará.')">Cancelar cita</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

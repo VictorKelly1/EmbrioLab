@@ -45,6 +45,39 @@
   </section>
 </div>
 
+{% if citas is not None %}
+<section class="seccion-citas" aria-labelledby="titulo-citas">
+  <div class="encabezado encabezado--seccion">
+    <h2 id="titulo-citas">Citas</h2>
+    {% if paciente.estado_actividad %}
+    <div class="acciones">
+      <a class="boton boton--secundario boton--chico" href="{% url 'citas:espontanea' %}?paciente={{ paciente.pk }}">Atender sin cita</a>
+      <a class="boton boton--principal boton--chico" href="{% url 'citas:agendar' %}?paciente={{ paciente.pk }}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Agendar cita</a>
+    </div>
+    {% endif %}
+  </div>
+  {% if citas %}
+  <div class="tabla-marco">
+    <table class="tabla">
+      <thead><tr><th scope="col">Fecha</th><th scope="col">Hora</th><th scope="col" class="tabla__opcional">Asunto</th><th scope="col">Estado</th></tr></thead>
+      <tbody>
+        {% for cita in citas %}
+        <tr>
+          <td><a href="{% url 'citas:detalle' cita.pk %}">{{ cita.fecha_hora|date:'j M Y' }}</a></td>
+          <td class="tabla__numero">{{ cita.fecha_hora|time:'H:i' }}</td>
+          <td class="tabla__opcional">{{ cita.asunto|default:"—" }}{% if cita.origen == 'espontanea' %} <span class="tenue">(sin cita)</span>{% endif %}</td>
+          <td><span class="etiqueta etiqueta--{{ cita.estado }}">{{ cita.get_estado_display }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tenue">Sin citas registradas.</p>
+  {% endif %}
+</section>
+{% endif %}
+
 {% if puede_editar %}
 <section class="zona-baja">
   <form method="post" action="{% url 'pacientes:baja' paciente.pk %}">

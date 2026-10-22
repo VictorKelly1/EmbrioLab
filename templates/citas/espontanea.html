@@ -1,0 +1,23 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Atender sin cita · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'citas:calendario' %}">← Calendario</a>
+<h1>Atender sin cita</h1>
+<p class="encabezado__descripcion">Para un paciente que llegó sin cita. Se registra como atendido a la hora indicada.</p>
+
+<form method="post" class="formulario formulario--medio" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="aviso aviso--error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+  {% include 'citas/_selector_paciente.html' %}
+  {% with campo=form.hora %}{% include 'includes/campo.html' %}{% endwith %}
+  {% with campo=form.asunto %}{% include 'includes/campo.html' %}{% endwith %}
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">Registrar atención</button>
+    <a class="boton boton--discreto" href="{% url 'citas:calendario' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

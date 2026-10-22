@@ -1,0 +1,52 @@
+{% comment %}Buscador de paciente para formularios de cita. Llena el campo oculto `paciente`.{% endcomment %}
+{% with campo=form.paciente %}
+<div class="campo selector-paciente{% if campo.errors %} campo--error{% endif %}" data-selector-paciente>
+  <label for="buscar-paciente">Paciente <span class="obligatorio" aria-hidden="true">*</span></label>
+  {{ campo }}
+  <div class="selector-paciente__elegido" data-elegido{% if not paciente_elegido %} hidden{% endif %}>
+    <span>
+      <strong data-elegido-nombre>{{ paciente_elegido.persona.nombre_completo }}</strong>
+      <span class="tenue" data-elegido-detalle>{% if paciente_elegido %}Núm. {{ paciente_elegido.numero }} · {{ paciente_elegido.persona.curp }}{% endif %}</span>
+    </span>
+    <button type="button" class="boton boton--discreto boton--chico" data-cambiar>Cambiar</button>
+  </div>
+  <div class="campo--buscar" data-buscador{% if paciente_elegido %} hidden{% endif %}>
+    <svg class="icono" aria-hidden="true"><use href="#icono-buscar"/></svg>
+    <input type="search" id="buscar-paciente" name="q" autocomplete="off" placeholder="Nombre, CURP o número de paciente"
+           hx-get="{% url 'citas:buscar_paciente' %}" hx-trigger="input changed delay:250ms" hx-target="#resultados-paciente" hx-include="this"
+           aria-controls="resultados-paciente" aria-describedby="ayuda-paciente">
+  </div>
+  <p class="campo__ayuda" id="ayuda-paciente" data-buscador{% if paciente_elegido %} hidden{% endif %}>¿No aparece? <a href="{% url 'pacientes:crear' %}">Regístrelo primero</a>.</p>
+  <div id="resultados-paciente" class="selector-paciente__resultados" aria-live="polite"></div>
+  {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+</div>
+<script>
+  (() => {
+    const caja = document.querySelector('[data-selector-paciente]');
+    const oculto = caja.querySelector('input[type=hidden]');
+    const elegido = caja.querySelector('[data-elegido]');
+    const buscador = caja.querySelectorAll('[data-buscador]');
+    const entrada = caja.querySelector('#buscar-paciente');
+    const resultados = caja.querySelector('#resultados-paciente');
+    const mostrar = (hayElegido) => {
+      elegido.hidden = !hayElegido;
+      buscador.forEach((el) => { el.hidden = hayElegido; });
+    };
+    resultados.addEventListener('click', (evento) => {
+      const opcion = evento.target.closest('[data-paciente]');
+      if (!opcion) return;
+      oculto.value = opcion.dataset.paciente;
+      caja.querySelector('[data-elegido-nombre]').textContent = opcion.dataset.nombre;
+      caja.querySelector('[data-elegido-detalle]').textContent = opcion.dataset.detalle;
+      resultados.innerHTML = '';
+      mostrar(true);
+    });
+    caja.querySelector('[data-cambiar]').addEventListener('click', () => {
+      oculto.value = '';
+      mostrar(false);
+      entrada.value = '';
+      entrada.focus();
+    });
+  })();
+</script>
+{% endwith %}

@@ -1,0 +1,26 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Agendar cita · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'citas:calendario' %}">← Calendario</a>
+<h1>Agendar cita</h1>
+
+<form method="post" class="formulario formulario--medio" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="aviso aviso--error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+  {% include 'citas/_selector_paciente.html' %}
+  <div class="rejilla rejilla--dos">
+    {% with campo=form.fecha %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=form.hora %}{% include 'includes/campo.html' %}{% endwith %}
+  </div>
+  <p class="campo__ayuda">La cita dura 30 minutos.</p>
+  {% with campo=form.asunto %}{% include 'includes/campo.html' %}{% endwith %}
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">Agendar cita</button>
+    <a class="boton boton--discreto" href="{% url 'citas:calendario' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Calendario de citas · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Calendario de citas</h1>
+    <p class="encabezado__descripcion">Citas de 30 minutos. Elija un horario libre para agendar.</p>
+  </div>
+  <div class="acciones">
+    <a class="boton boton--secundario" href="{% url 'citas:espontanea' %}">Atender sin cita</a>
+    <a class="boton boton--principal" href="{% url 'citas:agendar' %}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Agendar cita</a>
+  </div>
+</div>
+
+<div class="agenda-marco">
+  <section class="agenda-principal" aria-labelledby="titulo-rango">
+    <div class="agenda-barra">
+      <div class="agenda-nav">
+        <a class="boton-icono" href="?vista={{ vista }}&fecha={{ anterior|date:'Y-m-d' }}" aria-label="{% if vista == 'dia' %}Día anterior{% else %}Semana anterior{% endif %}"><svg class="icono" aria-hidden="true"><use href="#icono-anterior"/></svg></a>
+        <a class="boton boton--secundario boton--chico" href="?vista={{ vista }}">Hoy</a>
+        <a class="boton-icono" href="?vista={{ vista }}&fecha={{ siguiente|date:'Y-m-d' }}" aria-label="{% if vista == 'dia' %}Día siguiente{% else %}Semana siguiente{% endif %}"><svg class="icono" aria-hidden="true"><use href="#icono-siguiente"/></svg></a>
+        <h2 id="titulo-rango" class="agenda-titulo">{{ titulo_rango|capfirst }}</h2>
+      </div>
+      <div class="segmentado" role="group" aria-label="Vista">
+        <a href="?vista=dia&fecha={{ fecha|date:'Y-m-d' }}"{% if vista == 'dia' %} aria-current="true"{% endif %}>Día</a>
+        <a href="?vista=semana&fecha={{ fecha|date:'Y-m-d' }}"{% if vista == 'semana' %} aria-current="true"{% endif %}>Semana</a>
+      </div>
+    </div>
+
+    <div class="agenda-desplazable">
+      <table class="agenda agenda--{{ vista }}">
+        <thead>
+          <tr>
+            <th scope="col" class="agenda__esquina"><span class="visualmente-oculto">Hora</span></th>
+            {% for dia in dias %}
+            <th scope="col"{% if dia == hoy %} class="agenda__hoy" aria-current="date"{% endif %}>
+              {% if vista == 'semana' %}<a href="?vista=dia&fecha={{ dia|date:'Y-m-d' }}">{% endif %}
+              <span class="agenda__dia-nombre">{{ dia|date:'D' }}</span>
+              <span class="agenda__dia-numero">{{ dia|date:'j' }}</span>
+              {% if vista == 'semana' %}</a>{% endif %}
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in filas %}
+          <tr{% if fila.hora.minute == 0 %} class="agenda__hora-entera"{% endif %}>
+            <th scope="row" class="agenda__hora">{{ fila.hora|time:'H:i' }}</th>
+            {% for celda in fila.celdas %}
+            <td{% if celda.pasada %} class="agenda__pasada"{% endif %}>
+              {% for cita in celda.citas %}
+                <a class="cita-bloque cita-bloque--{{ cita.estado }}" href="{% url 'citas:detalle' cita.pk %}">
+                  <span class="cita-bloque__hora">{{ cita.fecha_hora|time:'H:i' }}</span>
+                  <span class="cita-bloque__nombre">{{ cita.paciente.persona.nombre_completo }}</span>
+                  {% if vista == 'dia' %}
+                    <span class="cita-bloque__extra">{{ cita.numero_folio }}{% if cita.asunto %} · {{ cita.asunto }}{% endif %} · {{ cita.get_estado_display }}{% if cita.origen == 'espontanea' %} (sin cita){% endif %}</span>
+                  {% else %}
+                    <span class="visualmente-oculto">, {{ cita.get_estado_display }}</span>
+                  {% endif %}
+                </a>
+              {% empty %}
+                {% if not celda.pasada %}
+                <a class="hueco" href="{% url 'citas:agendar' %}?fecha_hora={{ celda.inicio|date:'Y-m-d\TH:i' }}">
+                  <svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>
+                  <span class="visualmente-oculto">Agendar el {{ celda.inicio|date:'l j \d\e F' }} a las {{ celda.inicio|time:'H:i' }}</span>
+                </a>
+                {% endif %}
+              {% endfor %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <ul class="leyenda" aria-label="Estados">
+      <li><span class="leyenda__muestra cita-bloque--programada"></span>Programada</li>
+      <li><span class="leyenda__muestra cita-bloque--atendida"></span>Atendida</li>
+      <li><span class="leyenda__muestra cita-bloque--no_atendida"></span>No atendida</li>
+    </ul>
+  </section>
+
+  <aside class="proximas" aria-labelledby="titulo-proximas">
+    <h2 id="titulo-proximas">Próximas citas</h2>
+    {% if proximas %}
+    <ol class="proximas__lista">
+      {% for cita in proximas %}
+      <li>
+        <a href="{% url 'citas:detalle' cita.pk %}">
+          <span class="proximas__cuando">{% if cita.fecha_hora|date:'Y-m-d' == hoy|date:'Y-m-d' %}Hoy{% else %}{{ cita.fecha_hora|date:'D j M'|capfirst }}{% endif %} · {{ cita.fecha_hora|time:'H:i' }}</span>
+          <span class="proximas__nombre">{{ cita.paciente.persona.nombre_completo }}</span>
+          {% if cita.asunto %}<span class="proximas__asunto">{{ cita.asunto }}</span>{% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="tenue">No hay citas programadas.</p>
+    {% endif %}
+  </aside>
+</div>
+<script>
+  // En celular la semana no cabe: si no se eligió vista, se abre el día.
+  if (!new URLSearchParams(location.search).has('vista') && window.matchMedia('(max-width: 40rem)').matches) {
+    const url = new URL(location.href);
+    url.searchParams.set('vista', 'dia');
+    location.replace(url);
+  }
+</script>
+{% endblock %}

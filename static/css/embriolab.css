@@ -27,6 +27,8 @@
   --superficie: #ffffff;
   --error: #b42318;
   --error-fondo: #fef3f2;
+  --exito: #23683f;
+  --exito-fondo: #e9f5ee;
 
   --fuente: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --radio: 0.5rem;
@@ -1190,6 +1192,30 @@ a.lateral__opcion:hover {
   margin: 0;
 }
 
+.hoy {
+  margin-top: 1.75rem;
+  max-width: 48rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--superficie);
+  border: 1px solid var(--lavanda);
+  border-radius: calc(var(--radio) * 1.5);
+}
+
+.hoy__lista a {
+  grid-template-columns: 3.5rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.seccion-citas {
+  margin-top: 2rem;
+}
+
+.encabezado--seccion {
+  align-items: center;
+  margin-bottom: 0.875rem;
+}
+
 .zona-baja {
   margin-top: 2rem;
   padding-top: 1.5rem;
@@ -1216,6 +1242,537 @@ a.lateral__opcion:hover {
 
   .datos dd + dt {
     margin-top: 0.5rem;
+  }
+}
+
+/* Variantes de botones y rejillas */
+
+.boton--chico {
+  min-height: 2.25rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.boton--peligro {
+  background: var(--superficie);
+  border-color: rgb(180 35 24 / 0.5);
+  color: var(--error);
+}
+
+.boton--peligro:hover {
+  background: var(--error-fondo);
+  border-color: var(--error);
+}
+
+.formulario--medio {
+  max-width: 34rem;
+}
+
+.rejilla--dos {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rejilla--tres {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  align-items: end;
+}
+
+.etiqueta--programada {
+  background: var(--lavanda-clara);
+  color: var(--orquidea-profunda);
+}
+
+.etiqueta--atendida {
+  background: var(--exito-fondo);
+  color: var(--exito);
+}
+
+.etiqueta--no_atendida {
+  background: #efefee;
+  color: var(--gris-oscuro);
+}
+
+/* Calendario de citas */
+
+.agenda-marco {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  align-items: start;
+  gap: 1.5rem;
+}
+
+.agenda-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.875rem;
+}
+
+.agenda-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.agenda-nav .boton-icono {
+  margin: 0;
+  color: var(--tinta-suave);
+}
+
+.agenda-titulo {
+  margin-left: 0.75rem;
+  font-size: 1.125rem;
+}
+
+.segmentado {
+  display: inline-flex;
+  padding: 0.1875rem;
+  border-radius: var(--radio);
+  background: var(--lavanda-clara);
+}
+
+.segmentado a {
+  padding: 0.375rem 0.875rem;
+  border-radius: calc(var(--radio) * 0.75);
+  color: var(--tinta-suave);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.segmentado a[aria-current] {
+  background: var(--superficie);
+  color: var(--orquidea-profunda);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(42 34 54 / 0.12);
+}
+
+.agenda-desplazable {
+  overflow: auto;
+  max-height: calc(100vh - var(--alto-barra) - 15rem);
+  min-height: 24rem;
+  background: var(--superficie);
+  border: 1px solid var(--lavanda);
+  border-radius: calc(var(--radio) * 1.5);
+}
+
+.agenda {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.agenda--semana {
+  min-width: 44rem;
+}
+
+.agenda thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.5rem 0.25rem;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--lavanda);
+  font-weight: 500;
+  text-align: center;
+}
+
+.agenda thead a {
+  display: inline-grid;
+  justify-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.agenda__esquina {
+  width: 4rem;
+}
+
+.agenda__dia-nombre {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+  text-transform: capitalize;
+}
+
+.agenda__dia-numero {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  font-size: 1.125rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda thead a:hover .agenda__dia-numero {
+  background: var(--lavanda-clara);
+}
+
+.agenda__hoy .agenda__dia-numero {
+  background: var(--orquidea-fuerte);
+  color: #fff;
+}
+
+.agenda__hoy .agenda__dia-nombre {
+  color: var(--orquidea-profunda);
+  font-weight: 600;
+}
+
+.agenda__hora {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 4rem;
+  padding: 0 0.625rem 0 0.5rem;
+  background: var(--superficie);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-suave);
+  text-align: right;
+  vertical-align: top;
+  transform: translateY(-0.5rem);
+}
+
+.agenda tbody tr:first-child .agenda__hora {
+  transform: none;
+}
+
+.agenda td {
+  height: 3rem;
+  padding: 0.1875rem;
+  border-left: 1px solid var(--lavanda-clara);
+  border-top: 1px dashed var(--lavanda-clara);
+  vertical-align: top;
+}
+
+.agenda tr.agenda__hora-entera td {
+  border-top-style: solid;
+}
+
+.agenda--dia td {
+  height: 3.5rem;
+}
+
+.agenda td.agenda__pasada {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 6px,
+    rgb(157 157 155 / 0.07) 6px 7px
+  );
+}
+
+.cita-bloque {
+  display: grid;
+  gap: 0.0625rem;
+  height: 100%;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: calc(var(--radio) * 0.75);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  text-decoration: none;
+  overflow: hidden;
+  transition: filter var(--transicion);
+}
+
+.cita-bloque:hover {
+  filter: brightness(0.96);
+}
+
+.cita-bloque + .cita-bloque {
+  margin-top: 0.1875rem;
+}
+
+.cita-bloque__hora {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cita-bloque__nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cita-bloque__extra {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.agenda--dia .cita-bloque {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.agenda--dia .cita-bloque__extra {
+  grid-column: 2;
+}
+
+.cita-bloque--programada {
+  background: var(--lavanda);
+  color: var(--tinta);
+}
+
+.cita-bloque--atendida {
+  background: var(--exito-fondo);
+  color: var(--exito);
+}
+
+.cita-bloque--no_atendida {
+  background: #f1f1f0;
+  color: var(--gris-oscuro);
+}
+
+.cita-bloque--no_atendida .cita-bloque__nombre {
+  text-decoration: line-through;
+}
+
+.hueco {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 2.5rem;
+  border-radius: calc(var(--radio) * 0.75);
+  color: var(--orquidea-fuerte);
+  opacity: 0;
+  transition:
+    opacity var(--transicion),
+    background-color var(--transicion);
+}
+
+.hueco:hover,
+.hueco:focus-visible {
+  opacity: 1;
+  background: var(--lavanda-tenue);
+  outline-offset: -2px;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--tinta-suave);
+}
+
+.leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.leyenda__muestra {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 0.25rem;
+  box-shadow: inset 0 0 0 1px rgb(42 34 54 / 0.18);
+}
+
+.proximas {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: var(--superficie);
+  border: 1px solid var(--lavanda);
+  border-radius: calc(var(--radio) * 1.5);
+}
+
+.proximas__lista {
+  display: grid;
+  margin: 0 -0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.proximas__lista a {
+  display: grid;
+  gap: 0.0625rem;
+  padding: 0.625rem 0.5rem;
+  border-radius: var(--radio);
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.proximas__lista li + li a {
+  border-top: 1px solid var(--lavanda-clara);
+}
+
+.proximas__lista a:hover {
+  background: var(--lavanda-tenue);
+}
+
+.proximas__cuando {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--orquidea-profunda);
+}
+
+.proximas__nombre {
+  font-weight: 500;
+}
+
+.proximas__asunto {
+  font-size: 0.8125rem;
+  color: var(--tinta-suave);
+}
+
+@media (max-width: 72rem) {
+  .agenda-marco {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Selector de paciente */
+
+.selector-paciente__elegido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--lavanda-tenue);
+  border: 1px solid var(--lavanda);
+  border-radius: var(--radio);
+}
+
+.selector-paciente__elegido > span {
+  display: grid;
+}
+
+.selector-paciente__elegido .tenue,
+.selector-paciente__lista .tenue {
+  font-size: 0.8125rem;
+}
+
+.selector-paciente__resultados:empty {
+  display: none;
+}
+
+.selector-paciente__lista {
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--superficie);
+  border: 1px solid var(--lavanda);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+}
+
+.selector-paciente__lista button {
+  display: grid;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: calc(var(--radio) * 0.75);
+  background: transparent;
+  color: var(--tinta);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.selector-paciente__lista button:hover,
+.selector-paciente__lista button:focus-visible {
+  background: var(--lavanda-tenue);
+}
+
+.selector-paciente__vacio {
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--tinta-suave);
+}
+
+/* Detalle de cita */
+
+.qr {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+  border-color: var(--orquidea);
+}
+
+.qr__imagen svg {
+  display: block;
+  width: 11rem;
+  height: auto;
+}
+
+.qr__texto {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.copiar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.copiar input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gris-oscuro);
+  border-radius: var(--radio);
+  background: var(--lavanda-tenue);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.tarjeta form + form {
+  margin-top: 0.25rem;
+}
+
+.zona-baja h2 {
+  margin-bottom: 1rem;
+}
+
+.zona-baja form.reprogramar {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 40rem;
+}
+
+.cancelar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  margin-top: 1.75rem;
+  color: var(--tinta-suave);
+}
+
+@media (max-width: 40rem) {
+  .qr {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .copiar {
+    flex-direction: column;
+  }
+
+  .agenda-titulo {
+    order: 5;
+    width: 100%;
+    margin: 0.25rem 0 0;
+  }
+
+  .agenda-nav {
+    flex-wrap: wrap;
   }
 }
 

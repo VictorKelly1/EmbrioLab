@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'apps.personas',
     'apps.cuentas',
     'apps.pacientes',
+    'apps.citas',
 ]
 
 AUTH_USER_MODEL = 'cuentas.Usuario'
@@ -173,6 +174,19 @@ STORAGES = {
         'OPTIONS': {'location': PRIVATE_MEDIA_ROOT},
     },
 }
+
+
+# Citas
+
+# Horario que muestra el calendario (solo visual; las reglas de citas no dependen de él).
+# Pendiente de confirmar con el cliente. Días: 0 = lunes … 6 = domingo.
+CITAS_HORA_INICIO = os.environ.get('CITAS_HORA_INICIO', '08:00')
+CITAS_HORA_FIN = os.environ.get('CITAS_HORA_FIN', '20:00')
+CITAS_DIAS_HABILES = [0, 1, 2, 3, 4, 5]
+
+# El link del formulario vence este número de horas después del inicio de la cita
+# (o de su generación, si la cita ya pasó).
+CITAS_QR_HORAS_VIGENCIA = int(os.environ.get('CITAS_QR_HORAS_VIGENCIA', '24'))
 
 
 # Email

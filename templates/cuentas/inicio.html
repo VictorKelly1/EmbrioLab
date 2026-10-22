@@ -6,12 +6,39 @@
 <section class="bienvenida">
   <h1>Hola, {{ request.user.persona.nombre }}</h1>
   <p class="bienvenida__rol">{{ rol }}</p>
+  {% if citas_hoy is not None %}
+  <section class="hoy" aria-labelledby="titulo-hoy">
+    <div class="encabezado encabezado--seccion">
+      <h2 id="titulo-hoy">Citas de hoy</h2>
+      <div class="acciones">
+        <a class="boton boton--secundario boton--chico" href="{% url 'citas:espontanea' %}">Atender sin cita</a>
+        <a class="boton boton--principal boton--chico" href="{% url 'citas:agendar' %}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Agendar cita</a>
+      </div>
+    </div>
+    {% if citas_hoy %}
+    <ol class="proximas__lista hoy__lista">
+      {% for cita in citas_hoy %}
+      <li>
+        <a href="{% url 'citas:detalle' cita.pk %}">
+          <span class="proximas__cuando">{{ cita.fecha_hora|time:'H:i' }}</span>
+          <span class="proximas__nombre">{{ cita.paciente.persona.nombre_completo }}{% if cita.asunto %} <span class="tenue">· {{ cita.asunto }}</span>{% endif %}</span>
+          <span class="etiqueta etiqueta--{{ cita.estado }}">{{ cita.get_estado_display }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="tenue">No hay citas para hoy. <a href="{% url 'citas:calendario' %}">Ver el calendario</a>.</p>
+    {% endif %}
+  </section>
+  {% else %}
   <div class="vacio">
     {% include 'includes/embrion.html' %}
     <div>
       <h2>Su espacio de trabajo está listo</h2>
-      <p>Aquí aparecerán las citas, los pedidos y los resultados conforme se habiliten en el sistema.</p>
+      <p>Aquí aparecerán los pedidos y los resultados conforme se habiliten en el sistema.</p>
     </div>
   </div>
+  {% endif %}
 </section>
 {% endblock %}
