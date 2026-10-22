@@ -5,9 +5,7 @@
   {% for error in linea.non_field_errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
   {% with campo=linea.nombre_solicitado %}{% include 'includes/campo.html' %}{% endwith %}
   <div class="sugerencias" data-sugerencias aria-live="polite"></div>
-  <div class="rejilla rejilla--dos">
-    {% with campo=linea.estudio %}{% include 'includes/campo.html' %}{% endwith %}
-    {% with campo=linea.quimico %}{% include 'includes/campo.html' %}{% endwith %}
-  </div>
+  {% with campo=linea.estudio %}{% include 'includes/campo.html' %}{% endwith %}
   {% with campo=linea.guardar_alias %}{% include 'includes/campo.html' %}{% endwith %}
+  {% with campo=linea.quimicos %}{% include 'includes/campo.html' %}{% endwith %}
 </fieldset>

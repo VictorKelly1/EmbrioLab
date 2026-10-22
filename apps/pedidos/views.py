@@ -139,13 +139,12 @@ class PedidoDetalleView(RolRequerido, TemplateView):
         estudios = list(pedido.estudios.all())
         for estudio in estudios:
             estudio.completado = estudio.estado == EstadoEstudio.COMPLETADO
+            estudio.quimicos = list(estudio.quimicos_asignados.all())
             if puede_editar:
                 estudio.form = EstudioPedidoForm(
                     prefix=f'fila{estudio.pk}',
-                    initial={
-                        'quimico': estudio.quimico_asignado,
-                        'estado_pago': estudio.estado_pago,
-                    },
+                    quimicos_asignados=estudio.quimicos,
+                    initial={'quimicos': estudio.quimicos, 'estado_pago': estudio.estado_pago},
                 )
                 # Los selects van en la tabla y el <form> en la última celda.
                 for campo in estudio.form.fields.values():
@@ -219,10 +218,14 @@ class EstudioPedidoActualizarView(_AccionPedidoView):
     modelo = EstudioPedido
 
     def ejecutar(self, estudio_pedido):
-        datos = self._form(EstudioPedidoForm, prefix=f'fila{estudio_pedido.pk}').cleaned_data
+        datos = self._form(
+            EstudioPedidoForm,
+            prefix=f'fila{estudio_pedido.pk}',
+            quimicos_asignados=estudio_pedido.quimicos_asignados.all(),
+        ).cleaned_data
         actualizar_estudio_pedido(
             estudio_pedido,
-            quimico=datos['quimico'],
+            quimicos=list(datos['quimicos']),
             estado_pago=datos['estado_pago'],
             usuario=self.request.user,
         )

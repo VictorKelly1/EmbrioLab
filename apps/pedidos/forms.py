@@ -8,7 +8,11 @@ from apps.pedidos.selectors import quimicos_activos
 from apps.pedidos.services import Linea
 
 
-class QuimicoField(forms.ModelChoiceField):
+class QuimicosField(forms.ModelMultipleChoiceField):
+    """Uno o varios químicos responsables, como casillas."""
+
+    widget = forms.CheckboxSelectMultiple
+
     def label_from_instance(self, quimico):
         return quimico.usuario.persona.nombre_completo
 
@@ -41,14 +45,17 @@ class LineaForm(forms.Form):
     guardar_alias = forms.BooleanField(
         label='Guardar el nombre como alias de este estudio', required=False
     )
-    quimico = QuimicoField(
-        label='Químico', queryset=None, required=False, empty_label='Sin asignar'
+    quimicos = QuimicosField(
+        label='Químicos responsables',
+        queryset=None,
+        required=False,
+        help_text='Puede elegir uno o varios. Sin químico, el estudio queda pendiente.',
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['estudio'].queryset = _estudios()
-        self.fields['quimico'].queryset = quimicos_activos()
+        self.fields['quimicos'].queryset = quimicos_activos()
         self.fields['nombre_solicitado'].widget.attrs.update(
             {
                 'hx-get': reverse('pedidos:sugerencias'),
@@ -64,7 +71,7 @@ class LineaForm(forms.Form):
             estudio=datos['estudio'],
             nombre_solicitado=datos['nombre_solicitado'],
             guardar_alias=datos['guardar_alias'],
-            quimico=datos['quimico'],
+            quimicos=tuple(datos['quimicos']),
         )
 
 
@@ -83,14 +90,15 @@ class DoctorPedidoForm(forms.Form):
 class EstudioPedidoForm(forms.Form):
     """La fila de un estudio en el detalle del pedido."""
 
-    quimico = QuimicoField(
-        label='Químico', queryset=None, required=False, empty_label='Sin asignar'
-    )
+    quimicos = QuimicosField(label='Químicos', queryset=None, required=False)
     estado_pago = forms.ChoiceField(label='Pago', choices=EstadoPago.choices)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, quimicos_asignados=(), **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['quimico'].queryset = quimicos_activos()
+        # Los activos más los ya asignados, aunque se hayan dado de baja después.
+        activos = quimicos_activos()
+        asignados = activos.model.objects.filter(pk__in=[q.pk for q in quimicos_asignados])
+        self.fields['quimicos'].queryset = (activos | asignados).distinct()
 
 
 class PagoPedidoForm(forms.Form):

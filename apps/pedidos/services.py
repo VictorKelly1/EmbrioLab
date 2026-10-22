@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.utils import timezone
 
 from apps.citas.models import Cita, EstadoCita
 from apps.core.texto import normalizar
@@ -17,7 +16,14 @@ from apps.pedidos.estados import (
     total_del_pedido,
     validar_transicion,
 )
-from apps.pedidos.models import EstadoEstudio, EstadoPago, EstadoPedido, EstudioPedido, Pedido
+from apps.pedidos.models import (
+    AsignacionQuimico,
+    EstadoEstudio,
+    EstadoPago,
+    EstadoPedido,
+    EstudioPedido,
+    Pedido,
+)
 from apps.pedidos.numero import siguiente_numero
 
 
@@ -28,7 +34,7 @@ class Linea:
     estudio: Estudio
     nombre_solicitado: str = ''
     guardar_alias: bool = False
-    quimico: Quimico | None = None
+    quimicos: tuple[Quimico, ...] = ()
 
 
 @transaction.atomic
@@ -95,8 +101,8 @@ def _agregar(pedido: Pedido, linea: Linea, usuario) -> EstudioPedido:
         precio=estudio.precio,
         version_estudio=estudio.version_definicion,
     )
-    if linea.quimico:
-        _asignar(estudio_pedido, linea.quimico, usuario)
+    if linea.quimicos:
+        _asignar(estudio_pedido, linea.quimicos, usuario)
     return estudio_pedido
 
 
@@ -116,28 +122,41 @@ def _guardar_alias(estudio: Estudio, nombre: str, usuario) -> None:
 
 
 @transaction.atomic
-def asignar_quimico(estudio_pedido: EstudioPedido, quimico: Quimico, *, usuario) -> EstudioPedido:
-    """Asignar pasa el estudio de pendiente a en proceso. En proceso se puede reasignar."""
+def asignar_quimicos(estudio_pedido: EstudioPedido, quimicos, *, usuario) -> EstudioPedido:
+    """
+    Deja exactamente esos químicos como responsables del estudio. Asignar el primero lo
+    pasa de pendiente a en proceso; en proceso se puede cambiar el equipo, pero no dejarlo
+    sin nadie. Completado ya no cambia.
+    """
     estudio_pedido = EstudioPedido.objects.select_for_update().get(pk=estudio_pedido.pk)
-    _asignar(estudio_pedido, quimico, usuario)
+    _asignar(estudio_pedido, quimicos, usuario)
     recalcular_pedido(estudio_pedido.pedido)
     return estudio_pedido
 
 
-def _asignar(estudio_pedido: EstudioPedido, quimico: Quimico, usuario) -> None:
+def _asignar(estudio_pedido: EstudioPedido, quimicos, usuario) -> None:
     if estudio_pedido.estado == EstadoEstudio.COMPLETADO:
-        raise TransicionInvalida('El estudio ya está completado: no se puede reasignar.')
-    if not (quimico.estado_actividad and quimico.usuario.is_active):
-        raise ValidationError('Ese químico está dado de baja.')
-    if estudio_pedido.estado == EstadoEstudio.PENDIENTE:
+        raise TransicionInvalida(
+            'El estudio ya está completado: no se pueden cambiar sus químicos.'
+        )
+    nuevos = {q.pk: q for q in quimicos}
+    if not nuevos and estudio_pedido.estado == EstadoEstudio.EN_PROCESO:
+        raise ValidationError('Un estudio en proceso necesita al menos un químico.')
+    actuales = set(estudio_pedido.asignaciones.values_list('quimico_id', flat=True))
+    # Solo se revisa a los que se agregan: uno ya asignado que se dio de baja puede quedarse.
+    for pk in nuevos.keys() - actuales:
+        quimico = nuevos[pk]
+        if not (quimico.estado_actividad and quimico.usuario.is_active):
+            raise ValidationError(f'{quimico.usuario.persona.nombre_completo} está dado de baja.')
+    estudio_pedido.asignaciones.exclude(quimico_id__in=nuevos).delete()
+    AsignacionQuimico.objects.bulk_create(
+        AsignacionQuimico(estudio_pedido=estudio_pedido, quimico_id=pk, usuario_asignacion=usuario)
+        for pk in nuevos.keys() - actuales
+    )
+    if nuevos and estudio_pedido.estado == EstadoEstudio.PENDIENTE:
         validar_transicion(estudio_pedido.estado, EstadoEstudio.EN_PROCESO)
         estudio_pedido.estado = EstadoEstudio.EN_PROCESO
-    estudio_pedido.quimico_asignado = quimico
-    estudio_pedido.usuario_asignacion = usuario
-    estudio_pedido.fecha_asignacion = timezone.now()
-    estudio_pedido.save(
-        update_fields=['estado', 'quimico_asignado', 'usuario_asignacion', 'fecha_asignacion']
-    )
+        estudio_pedido.save(update_fields=['estado'])
 
 
 @transaction.atomic
@@ -165,11 +184,12 @@ def cambiar_pago_pedido(pedido: Pedido, estado_pago: str) -> Pedido:
 
 @transaction.atomic
 def actualizar_estudio_pedido(
-    estudio_pedido: EstudioPedido, *, quimico: Quimico | None, estado_pago: str, usuario
+    estudio_pedido: EstudioPedido, *, quimicos, estado_pago: str, usuario
 ) -> EstudioPedido:
-    """Lo que la recepción cambia desde la fila del estudio: químico y pago."""
-    if quimico and quimico.pk != estudio_pedido.quimico_asignado_id:
-        estudio_pedido = asignar_quimico(estudio_pedido, quimico, usuario=usuario)
+    """Lo que la recepción cambia desde la fila del estudio: químicos y pago."""
+    actuales = set(estudio_pedido.asignaciones.values_list('quimico_id', flat=True))
+    if {q.pk for q in quimicos} != actuales:
+        estudio_pedido = asignar_quimicos(estudio_pedido, quimicos, usuario=usuario)
     if estado_pago != estudio_pedido.estado_pago:
         estudio_pedido = cambiar_estado_pago(estudio_pedido, estado_pago)
     return estudio_pedido

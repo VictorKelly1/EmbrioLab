@@ -43,8 +43,8 @@ def obtener_pedido(pk: int) -> Pedido:
         .prefetch_related(
             Prefetch(
                 'estudios',
-                queryset=EstudioPedido.objects.select_related(
-                    'estudio', 'quimico_asignado__usuario__persona'
+                queryset=EstudioPedido.objects.select_related('estudio').prefetch_related(
+                    'quimicos_asignados__usuario__persona'
                 ),
             )
         )

@@ -80,6 +80,7 @@ class EstudioPedido(models.Model):
     """
     Un estudio de un pedido. Máquina de estados en pedidos/estados.py:
     pendiente → en_proceso → completado; "enviado" = `fecha_envio` no nula.
+    En proceso tiene al menos un químico asignado (lo garantiza el servicio).
     """
 
     pedido = models.ForeignKey(Pedido, on_delete=models.PROTECT, related_name='estudios')
@@ -91,17 +92,10 @@ class EstudioPedido(models.Model):
     # Copias al momento del pedido: si el catálogo cambia, el pedido no.
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     version_estudio = models.PositiveIntegerField()
-    quimico_asignado = models.ForeignKey(
-        'cuentas.Quimico',
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        related_name='estudios_asignados',
+    # Uno o varios químicos responsables; quién asignó a cada uno queda en la asignación.
+    quimicos_asignados = models.ManyToManyField(
+        'cuentas.Quimico', through='AsignacionQuimico', related_name='estudios_asignados'
     )
-    usuario_asignacion = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name='+'
-    )
-    fecha_asignacion = models.DateTimeField(null=True, blank=True)
     estado = models.CharField(
         max_length=12, choices=EstadoEstudio.choices, default=EstadoEstudio.PENDIENTE
     )
@@ -127,7 +121,7 @@ class EstudioPedido(models.Model):
         verbose_name = 'estudio de pedido'
         verbose_name_plural = 'estudios de pedido'
         indexes = [
-            models.Index(fields=['estado', 'quimico_asignado'], name='estudio_pedido_trabajo_idx'),
+            models.Index(fields=['estado'], name='estudio_pedido_estado_idx'),
         ]
         constraints = [
             models.CheckConstraint(
@@ -139,11 +133,6 @@ class EstudioPedido(models.Model):
             ),
             models.CheckConstraint(
                 condition=Q(precio__gte=0), name='estudio_pedido_precio_no_negativo'
-            ),
-            # Solo se trabaja un estudio asignado a un químico.
-            models.CheckConstraint(
-                condition=Q(estado=EstadoEstudio.PENDIENTE) | Q(quimico_asignado__isnull=False),
-                name='estudio_pedido_en_proceso_con_quimico',
             ),
             models.CheckConstraint(
                 condition=~Q(estado=EstadoEstudio.COMPLETADO)
@@ -163,3 +152,31 @@ class EstudioPedido(models.Model):
     @property
     def enviado(self) -> bool:
         return self.fecha_envio is not None
+
+
+class AsignacionQuimico(models.Model):
+    """Un químico responsable de un estudio del pedido, con quién lo asignó y cuándo."""
+
+    estudio_pedido = models.ForeignKey(
+        EstudioPedido, on_delete=models.CASCADE, related_name='asignaciones'
+    )
+    quimico = models.ForeignKey(
+        'cuentas.Quimico', on_delete=models.PROTECT, related_name='asignaciones'
+    )
+    usuario_asignacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name='+'
+    )
+    fecha_asignacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['fecha_asignacion', 'id']
+        verbose_name = 'asignación de químico'
+        verbose_name_plural = 'asignaciones de químico'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estudio_pedido', 'quimico'], name='asignacion_quimico_unica'
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.estudio_pedido} → {self.quimico}'

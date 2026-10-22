@@ -2119,6 +2119,32 @@ a.lateral__opcion:hover {
   box-shadow: 0 0 0 3px var(--lavanda);
 }
 
+.linea .opciones--varias {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.quimicos-fila {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quimicos-fila label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  font-weight: 400;
+}
+
+.quimicos-fila input {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--orquidea-fuerte);
+}
+
 [data-agregar-linea] {
   justify-self: start;
 }

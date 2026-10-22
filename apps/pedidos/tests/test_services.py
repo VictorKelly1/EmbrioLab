@@ -17,7 +17,7 @@ from apps.pedidos.services import (
     Linea,
     actualizar_estudio_pedido,
     agregar_estudio,
-    asignar_quimico,
+    asignar_quimicos,
     cambiar_doctor,
     cambiar_estado_pago,
     cambiar_pago_pedido,
@@ -155,54 +155,78 @@ def test_no_guarda_alias_igual_al_nombre(cita, recepcionista, catalogo):
 # Químico
 
 
-def test_asignar_quimico_lo_pone_en_proceso(cita, recepcionista, catalogo):
-    quimico = QuimicoFactory()
+def _quimicos(estudio):
+    return set(estudio.quimicos_asignados.all())
+
+
+def test_asignar_varios_quimicos_lo_pone_en_proceso(cita, recepcionista, catalogo):
+    uno, dos = QuimicoFactory(), QuimicoFactory()
     pedido = _pedido(cita, recepcionista, Linea(catalogo['GLU']), Linea(catalogo['PLIP']))
     glu = pedido.estudios.get(estudio__clave='GLU')
-    asignar_quimico(glu, quimico, usuario=recepcionista.usuario)
+    asignar_quimicos(glu, [uno, dos], usuario=recepcionista.usuario)
     glu.refresh_from_db()
     pedido.refresh_from_db()
-    assert (glu.estado, glu.quimico_asignado, glu.usuario_asignacion) == (
-        'en_proceso',
-        quimico,
-        recepcionista.usuario,
-    )
-    assert glu.fecha_asignacion is not None
+    assert glu.estado == 'en_proceso'
+    assert _quimicos(glu) == {uno, dos}
+    asignacion = glu.asignaciones.get(quimico=uno)
+    assert asignacion.usuario_asignacion == recepcionista.usuario
+    assert asignacion.fecha_asignacion is not None
     assert pedido.estado == 'en_proceso'
 
 
 def test_asignar_al_crear(cita, recepcionista, catalogo):
-    quimico = QuimicoFactory()
-    pedido = _pedido(cita, recepcionista, Linea(catalogo['GLU'], quimico=quimico))
-    assert pedido.estudios.get().quimico_asignado == quimico
+    uno, dos = QuimicoFactory(), QuimicoFactory()
+    pedido = _pedido(cita, recepcionista, Linea(catalogo['GLU'], quimicos=(uno, dos)))
+    assert _quimicos(pedido.estudios.get()) == {uno, dos}
     assert pedido.estado == 'en_proceso'
 
 
-def test_reasignar_en_proceso(recepcionista):
+def test_cambiar_el_equipo_en_proceso_conserva_a_los_que_siguen(recepcionista):
     estudio = EstudioPedidoFactory()
-    asignar_quimico(estudio, QuimicoFactory(), usuario=recepcionista.usuario)
-    otro = QuimicoFactory()
-    asignar_quimico(estudio, otro, usuario=recepcionista.usuario)
-    estudio.refresh_from_db()
-    assert (estudio.estado, estudio.quimico_asignado) == ('en_proceso', otro)
+    uno, dos, tres = QuimicoFactory(), QuimicoFactory(), QuimicoFactory()
+    asignar_quimicos(estudio, [uno, dos], usuario=recepcionista.usuario)
+    original = estudio.asignaciones.get(quimico=uno)
+    asignar_quimicos(estudio, [uno, tres], usuario=recepcionista.usuario)
+    assert _quimicos(estudio) == {uno, tres}
+    assert estudio.asignaciones.get(quimico=uno) == original
 
 
-def test_no_reasigna_un_completado(recepcionista):
+def test_en_proceso_no_se_queda_sin_quimicos(recepcionista):
+    estudio = EstudioPedidoFactory()
+    asignar_quimicos(estudio, [QuimicoFactory()], usuario=recepcionista.usuario)
+    with pytest.raises(ValidationError, match='al menos un químico'):
+        asignar_quimicos(estudio, [], usuario=recepcionista.usuario)
+
+
+def test_pendiente_sin_quimicos_sigue_pendiente(recepcionista):
+    estudio = asignar_quimicos(EstudioPedidoFactory(), [], usuario=recepcionista.usuario)
+    assert estudio.estado == 'pendiente'
+
+
+def test_no_cambia_quimicos_de_un_completado(recepcionista):
     estudio = EstudioPedidoFactory(
-        estado='completado',
-        quimico_asignado=QuimicoFactory(),
-        resultados={'glucosa': '90'},
-        fecha_completado=timezone.now(),
+        estado='completado', resultados={'glucosa': '90'}, fecha_completado=timezone.now()
     )
     with pytest.raises(TransicionInvalida):
-        asignar_quimico(estudio, QuimicoFactory(), usuario=recepcionista.usuario)
+        asignar_quimicos(estudio, [QuimicoFactory()], usuario=recepcionista.usuario)
+
+
+def test_un_quimico_dado_de_baja_puede_quedarse_pero_no_agregarse(recepcionista):
+    estudio = EstudioPedidoFactory()
+    quimico = QuimicoFactory()
+    asignar_quimicos(estudio, [quimico], usuario=recepcionista.usuario)
+    quimico.estado_actividad = False
+    quimico.save()
+    otro = QuimicoFactory()
+    asignar_quimicos(estudio, [quimico, otro], usuario=recepcionista.usuario)
+    assert _quimicos(estudio) == {quimico, otro}
 
 
 def test_no_asigna_quimico_dado_de_baja(recepcionista):
     with pytest.raises(ValidationError, match='baja'):
-        asignar_quimico(
+        asignar_quimicos(
             EstudioPedidoFactory(),
-            QuimicoFactory(estado_actividad=False),
+            [QuimicoFactory(estado_actividad=False)],
             usuario=recepcionista.usuario,
         )
 
@@ -237,16 +261,15 @@ def test_actualizar_fila_solo_cambia_lo_distinto(recepcionista):
     estudio = EstudioPedidoFactory()
     quimico = QuimicoFactory()
     actualizar_estudio_pedido(
-        estudio, quimico=quimico, estado_pago='abonado', usuario=recepcionista.usuario
+        estudio, quimicos=[quimico], estado_pago='abonado', usuario=recepcionista.usuario
     )
-    estudio.refresh_from_db()
-    fecha = estudio.fecha_asignacion
+    asignacion = estudio.asignaciones.get()
     actualizar_estudio_pedido(
-        estudio, quimico=quimico, estado_pago='pagado', usuario=recepcionista.usuario
+        estudio, quimicos=[quimico], estado_pago='pagado', usuario=recepcionista.usuario
     )
     estudio.refresh_from_db()
-    assert (estudio.quimico_asignado, estudio.estado_pago) == (quimico, 'pagado')
-    assert estudio.fecha_asignacion == fecha
+    assert (_quimicos(estudio), estudio.estado_pago) == ({quimico}, 'pagado')
+    assert estudio.asignaciones.get() == asignacion
 
 
 # Agregar, quitar y doctor
@@ -287,7 +310,6 @@ def test_cambiar_doctor(cita, recepcionista, catalogo):
 def _completar(estudio, enviado=None):
     EstudioPedido.objects.filter(pk=estudio.pk).update(
         estado='completado',
-        quimico_asignado=QuimicoFactory(),
         resultados={},
         fecha_completado=timezone.now() - datetime.timedelta(hours=1),
         fecha_envio=enviado,
@@ -316,8 +338,3 @@ def test_recalcular_completado_cuando_todo_esta_enviado():
 def test_la_bd_no_permite_enviar_sin_completar():
     with pytest.raises(IntegrityError):
         EstudioPedidoFactory(fecha_envio=timezone.now())
-
-
-def test_la_bd_no_permite_en_proceso_sin_quimico():
-    with pytest.raises(IntegrityError):
-        EstudioPedidoFactory(estado='en_proceso')
