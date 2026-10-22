@@ -1,3 +1,5 @@
+import datetime
+
 import factory
 
 from apps.estudios.models import CategoriaEstudio, Estudio, EstudioAlias, ValorReferencia
@@ -41,3 +43,6 @@ class ValorReferenciaFactory(factory.django.DjangoModelFactory):
     valor_minimo = 70
     valor_maximo = 99
     unidad = 'mg/dL'
+    # Fija y en el pasado: con la fecha de hoy, las pruebas con fechas fijas dejarían de
+    # encontrarla al pasar los días.
+    vigente_desde = datetime.date(2026, 1, 1)
