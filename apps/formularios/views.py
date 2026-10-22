@@ -21,9 +21,13 @@ from apps.formularios.services import guardar_respuestas
 
 
 def _privada(respuesta):
-    """El token va en la URL: que no se guarde en cachés, no se filtre ni se indexe."""
+    """
+    El token va en la URL: que no se guarde en cachés, no se filtre ni se indexe.
+    `same-origin` y no `no-referrer`: con `no-referrer` el navegador manda
+    `Origin: null` al enviar el formulario y la protección CSRF lo rechaza.
+    """
     respuesta['Cache-Control'] = 'no-store'
-    respuesta['Referrer-Policy'] = 'no-referrer'
+    respuesta['Referrer-Policy'] = 'same-origin'
     respuesta['X-Robots-Tag'] = 'noindex, nofollow'
     return respuesta
 

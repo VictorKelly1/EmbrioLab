@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from django.test import Client
 from django.urls import reverse
 
 from apps.citas.services import TransicionInvalida, generar_token_qr
@@ -57,8 +58,23 @@ def test_muestra_el_formulario_de_su_genero_sin_datos_del_paciente(client, hombr
 def test_encabezados_de_privacidad(client, token):
     respuesta = client.get(_url(token))
     assert respuesta['Cache-Control'] == 'no-store'
-    assert respuesta['Referrer-Policy'] == 'no-referrer'
+    # El link no se manda a otros sitios, pero sí al propio: con 'no-referrer' el
+    # navegador envía Origin: null y Django rechaza el POST por CSRF.
+    assert respuesta['Referrer-Policy'] == 'same-origin'
     assert 'noindex' in respuesta['X-Robots-Tag']
+
+
+def test_envio_real_con_csrf_activo(hombre, token):
+    navegador = Client(enforce_csrf_checks=True)
+    pagina = navegador.get(_url(token))
+    csrf = pagina.cookies['csrftoken'].value
+    respuesta = navegador.post(
+        _url(token),
+        {**RESPUESTAS_HOMBRE, 'csrfmiddlewaretoken': csrf},
+        headers={'Origin': 'http://testserver'},
+    )
+    assert respuesta.status_code == 302
+    assert FormularioLlenado.objects.exists()
 
 
 def test_enviar_guarda_y_el_link_ya_no_sirve(client, hombre, token):
