@@ -1,0 +1,50 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Formularios · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Formularios</h1>
+    <p class="encabezado__descripcion">Preguntas que el paciente contesta con el link o QR de su cita. Cada paciente recibe el de su género.</p>
+  </div>
+</div>
+
+<div class="tarjetas tarjetas--formularios">
+  {% for formulario in formularios %}
+  <a class="tarjeta tarjeta--enlace" href="{% url 'formularios:detalle' formulario.pk %}">
+    <h2>{{ formulario.nombre }}</h2>
+    <p class="ficha__claves">
+      <span>{{ formulario.para_quien }}</span>
+      <span>{% if formulario.publicada %}Versión {{ formulario.publicada.numero_version }}{% else %}Sin versión publicada{% endif %}</span>
+      <span>{{ formulario.num_llenados }} respuesta{{ formulario.num_llenados|pluralize }}</span>
+      {% if not formulario.activo %}<span class="etiqueta etiqueta--inactivo">Inactivo</span>{% endif %}
+    </p>
+    {% if formulario.descripcion %}<p class="tenue">{{ formulario.descripcion }}</p>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<section class="seccion-citas" aria-labelledby="titulo-recientes">
+  <h2 id="titulo-recientes" class="encabezado--seccion">Respuestas recientes</h2>
+  {% if llenados %}
+  <div class="tabla-marco">
+    <table class="tabla">
+      <thead><tr><th scope="col">Recibido</th><th scope="col">Paciente</th><th scope="col" class="tabla__opcional">Formulario</th><th scope="col"><span class="visualmente-oculto">Ver</span></th></tr></thead>
+      <tbody>
+        {% for llenado in llenados %}
+        <tr>
+          <td class="tabla__numero">{{ llenado.fecha_llenado|date:'j M Y, H:i' }}</td>
+          <td>{{ llenado.cita.paciente.persona.nombre_completo }}</td>
+          <td class="tabla__opcional">{{ llenado.version_formulario.formulario.nombre }}</td>
+          <td class="tabla__accion"><a href="{% url 'citas:detalle' llenado.cita.pk %}">Ver respuestas</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tenue">Todavía no hay respuestas. Genere el link desde el detalle de una cita.</p>
+  {% endif %}
+</section>
+{% endblock %}

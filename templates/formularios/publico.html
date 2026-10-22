@@ -1,0 +1,55 @@
+{% extends 'formularios/_publico_base.html' %}
+
+{% block titulo %}Formulario de su visita · EmbrioLab{% endblock %}
+
+{% block publico %}
+<h1>Formulario de su visita</h1>
+<p class="publico__intro">Sus respuestas ayudan al laboratorio a preparar sus estudios. Toma unos 2 minutos. Los campos con <span class="obligatorio">*</span> son obligatorios.</p>
+
+<form method="post" class="formulario formulario--publico" novalidate data-formulario-dinamico>
+  {% csrf_token %}
+  {% if form.errors %}
+    <div class="aviso aviso--error" role="alert"><p>Revise las respuestas marcadas.</p></div>
+  {% endif %}
+  {% for seccion in form.secciones %}
+  <fieldset class="seccion">
+    <legend>{{ seccion.titulo }}</legend>
+    {% if seccion.descripcion %}<p class="seccion__descripcion">{{ seccion.descripcion }}</p>{% endif %}
+    {% for item in seccion.campos %}
+      <div class="pregunta"{% if item.condicion_clave %} data-mostrar-si="{{ item.condicion_clave }}" data-valor="{{ item.condicion_valor }}"{% endif %}>
+        {% with campo=item.campo %}{% include 'includes/campo.html' %}{% endwith %}
+      </div>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+  <button type="submit" class="boton boton--principal boton--ancho">
+    <span class="boton__texto">Enviar respuestas</span>
+    <span class="boton__cargando">Enviando…</span>
+  </button>
+  <p class="formulario__nota">Este link sirve una sola vez. Al enviar, sus respuestas llegan directo al laboratorio.</p>
+</form>
+<script>
+  (() => {
+    const form = document.querySelector('[data-formulario-dinamico]');
+    const condicionales = form.querySelectorAll('[data-mostrar-si]');
+    const valorDe = (clave) => {
+      const marcado = form.querySelector(`[name="${clave}"]:checked`);
+      return marcado ? marcado.value : null;
+    };
+    const visible = (pregunta) => {
+      if (!pregunta.dataset.mostrarSi) return true;
+      const origen = form.querySelector(`[name="${pregunta.dataset.mostrarSi}"]`);
+      const contenedor = origen && origen.closest('.pregunta');
+      return (!contenedor || visible(contenedor)) && valorDe(pregunta.dataset.mostrarSi) === pregunta.dataset.valor;
+    };
+    const actualizar = () => condicionales.forEach((pregunta) => { pregunta.hidden = !visible(pregunta); });
+    form.addEventListener('change', actualizar);
+    actualizar();
+    form.addEventListener('submit', () => {
+      const boton = form.querySelector('button[type=submit]');
+      boton.setAttribute('aria-busy', 'true');
+      boton.disabled = true;
+    });
+  })();
+</script>
+{% endblock %}

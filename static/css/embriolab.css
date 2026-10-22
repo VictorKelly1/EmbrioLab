@@ -1776,6 +1776,163 @@ a.lateral__opcion:hover {
   }
 }
 
+/* Formularios dinámicos y página pública del QR */
+
+.campo textarea {
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--gris-oscuro);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+  resize: vertical;
+}
+
+.campo textarea:focus-visible {
+  outline: none;
+  border-color: var(--orquidea-fuerte);
+  box-shadow: 0 0 0 3px var(--lavanda);
+}
+
+.campo--error textarea {
+  border-color: var(--error);
+}
+
+.campo input[type='number'] {
+  max-width: 10rem;
+}
+
+.opciones--varias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0 1rem;
+}
+
+.campo--opciones .campo__ayuda {
+  margin-top: 0.25rem;
+}
+
+.publico {
+  background: var(--fondo);
+}
+
+.publico__barra {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--lavanda);
+}
+
+.publico__contenido {
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.publico__intro {
+  margin: 0.625rem 0 1.75rem;
+  color: var(--tinta-suave);
+}
+
+.formulario--publico {
+  max-width: none;
+  gap: 1.25rem;
+}
+
+.formulario--publico .seccion {
+  gap: 1.25rem;
+}
+
+.seccion__descripcion {
+  margin-top: -0.5rem;
+  font-size: 0.9375rem;
+  color: var(--tinta-suave);
+}
+
+.pregunta[hidden] {
+  display: none;
+}
+
+.publico__mensaje {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.publico__mensaje .embrion {
+  width: 6rem;
+  margin-bottom: 0.5rem;
+}
+
+.publico__mensaje p {
+  max-width: 34ch;
+  color: var(--tinta-suave);
+}
+
+/* Formularios (recepción) */
+
+.tarjetas--formularios {
+  margin-bottom: 0.5rem;
+}
+
+.tarjeta--enlace {
+  color: var(--tinta);
+  text-decoration: none;
+  transition:
+    border-color var(--transicion),
+    box-shadow var(--transicion);
+}
+
+.tarjeta--enlace:hover {
+  border-color: var(--orquidea);
+  box-shadow: var(--sombra);
+}
+
+.tarjeta--enlace h2 {
+  color: var(--orquidea-profunda);
+}
+
+.aviso--info {
+  margin-bottom: 1.25rem;
+  background: var(--lavanda-tenue);
+  border: 1px solid var(--lavanda);
+  color: var(--tinta-suave);
+}
+
+.vista-previa {
+  max-width: 40rem;
+  margin-top: 1rem;
+}
+
+.vista-previa .seccion {
+  background: var(--lavanda-tenue);
+}
+
+.pregunta__condicion {
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--orquidea-profunda);
+}
+
+.respuestas {
+  margin-top: 1.25rem;
+}
+
+.respuestas h3 {
+  margin: 0.5rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--tinta-suave);
+}
+
+.respuestas .datos {
+  grid-template-columns: minmax(0, 24rem) 1fr;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

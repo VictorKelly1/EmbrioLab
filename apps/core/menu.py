@@ -42,7 +42,7 @@ OPCIONES = (
             'pacientes:editar',
         ),
     ),
-    Opcion('Formularios', 'formularios', RECEPCION),
+    Opcion('Formularios', 'formularios', RECEPCION, 'formularios:lista', ('formularios:',)),
     Opcion('Catálogo de estudios', 'estudios', RECEPCION + QUIMICO),
     Opcion('Doctores', 'doctores', RECEPCION, 'pacientes:doctores', ('pacientes:doctor',)),
     Opcion('Usuarios', 'usuarios', (Rol.ADMIN,), 'cuentas:usuarios', ('cuentas:usuario',)),

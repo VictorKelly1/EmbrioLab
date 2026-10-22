@@ -4,10 +4,9 @@ import segno
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import formats, timezone
-from django.views import View
 from django.views.generic import FormView, TemplateView
 
 from apps.citas import calendario
@@ -20,19 +19,18 @@ from apps.citas.selectors import (
     siguiente_horario_libre,
 )
 from apps.citas.services import (
-    TokenInvalido,
     agendar_cita,
     cancelar_cita,
     generar_token_qr,
     marcar_atendida,
     marcar_no_atendida,
-    obtener_cita_por_token,
     registrar_espontanea,
     reprogramar_cita,
 )
 from apps.core.forms import aplicar_errores
 from apps.core.mixins import RolRequerido
 from apps.cuentas.models import Rol
+from apps.formularios.selectors import respuestas_de
 from apps.pacientes.models import Paciente
 from apps.pacientes.selectors import buscar_pacientes
 
@@ -190,8 +188,11 @@ class CitaDetalleView(RolRequerido, TemplateView):
             'reprogramar_form',
             ReprogramarForm(initial={'fecha': local.date(), 'hora': local.time()}),
         )
+        llenado = getattr(cita, 'formulario_llenado', None)
         return super().get_context_data(
             cita=cita,
+            llenado=llenado,
+            respuestas=respuestas_de(llenado) if llenado else None,
             programada=cita.estado == EstadoCita.PROGRAMADA,
             ya_empezo=cita.fecha_hora <= timezone.now(),
             **kwargs,
@@ -258,18 +259,3 @@ class GenerarQRView(CitaDetalleView):
         link = request.build_absolute_uri(reverse('formulario_publico', args=[token]))
         qr = segno.make(link, error='m').svg_inline(scale=5, dark='#2a2236', border=2)
         return self.render_to_response(self.get_context_data(link=link, qr=qr))
-
-
-class FormularioPublicoView(View):
-    """
-    Página pública del link/QR. No muestra datos del paciente (CONTEXTO.md §5).
-    PROVISIONAL: el formulario dinámico, el consumo del token y el rate limit
-    llegan en la semana 4.
-    """
-
-    def get(self, request, token):
-        try:
-            obtener_cita_por_token(token)
-        except TokenInvalido:
-            return render(request, 'citas/link_invalido.html', status=404)
-        return render(request, 'citas/formulario_publico.html')

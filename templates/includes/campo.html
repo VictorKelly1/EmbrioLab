@@ -1,17 +1,18 @@
 {% comment %}Un campo de formulario: etiqueta, control, ayuda y errores.{% endcomment %}
-{% if campo.field.widget.input_type == 'checkbox' %}
+{% if campo.field.widget.allow_multiple_selected and campo.field.widget.input_type == 'checkbox' or campo.field.widget.input_type == 'radio' %}
+<fieldset class="campo campo--opciones{% if campo.errors %} campo--error{% endif %}"{% if campo.help_text %} aria-describedby="{{ campo.auto_id }}_ayuda"{% endif %}>
+  <legend>{{ campo.label }}{% if campo.field.required or campo.field.obligatoria_si_se_muestra %} <span class="obligatorio" aria-hidden="true">*</span>{% endif %}</legend>
+  <div class="opciones{% if campo.field.widget.allow_multiple_selected %} opciones--varias{% endif %}">{% for opcion in campo %}<label>{{ opcion.tag }} {{ opcion.choice_label }}</label>{% endfor %}</div>
+  {% if campo.help_text %}<p class="campo__ayuda" id="{{ campo.auto_id }}_ayuda">{{ campo.help_text }}</p>{% endif %}
+  {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+</fieldset>
+{% elif campo.field.widget.input_type == 'checkbox' %}
 <div class="campo campo--casilla{% if campo.errors %} campo--error{% endif %}">
   <label>{{ campo }} {{ campo.label }}</label>
 </div>
-{% elif campo.field.widget.input_type == 'radio' %}
-<fieldset class="campo campo--opciones{% if campo.errors %} campo--error{% endif %}">
-  <legend>{{ campo.label }}{% if campo.field.required %} <span class="obligatorio" aria-hidden="true">*</span>{% endif %}</legend>
-  <div class="opciones">{% for opcion in campo %}<label>{{ opcion.tag }} {{ opcion.choice_label }}</label>{% endfor %}</div>
-  {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
-</fieldset>
 {% else %}
 <div class="campo{% if campo.errors %} campo--error{% endif %}">
-  <label for="{{ campo.id_for_label }}">{{ campo.label }}{% if campo.field.required %} <span class="obligatorio" aria-hidden="true">*</span>{% endif %}</label>
+  <label for="{{ campo.id_for_label }}">{{ campo.label }}{% if campo.field.required or campo.field.obligatoria_si_se_muestra %} <span class="obligatorio" aria-hidden="true">*</span>{% endif %}</label>
   {{ campo }}
   {% if campo.help_text %}<p class="campo__ayuda" id="{{ campo.auto_id }}_ayuda">{{ campo.help_text }}</p>{% endif %}
   {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}

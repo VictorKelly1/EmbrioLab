@@ -26,11 +26,19 @@ def proximas_citas(limite: int = 8) -> QuerySet[Cita]:
 
 
 def citas_de_paciente(paciente: Paciente) -> QuerySet[Cita]:
-    return Cita.objects.filter(paciente=paciente).order_by('-fecha_hora')
+    return (
+        Cita.objects.filter(paciente=paciente)
+        .select_related('formulario_llenado')
+        .order_by('-fecha_hora')
+    )
 
 
 def obtener_cita(pk: int) -> Cita:
-    return _citas().select_related('recepcionista__usuario__persona').get(pk=pk)
+    return (
+        _citas()
+        .select_related('recepcionista__usuario__persona', 'formulario_llenado__version_formulario')
+        .get(pk=pk)
+    )
 
 
 def _al_bloque(momento: datetime.datetime) -> datetime.datetime:

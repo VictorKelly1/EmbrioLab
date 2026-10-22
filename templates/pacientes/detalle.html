@@ -59,13 +59,14 @@
   {% if citas %}
   <div class="tabla-marco">
     <table class="tabla">
-      <thead><tr><th scope="col">Fecha</th><th scope="col">Hora</th><th scope="col" class="tabla__opcional">Asunto</th><th scope="col">Estado</th></tr></thead>
+      <thead><tr><th scope="col">Fecha</th><th scope="col">Hora</th><th scope="col" class="tabla__opcional">Asunto</th><th scope="col" class="tabla__opcional">Formulario</th><th scope="col">Estado</th></tr></thead>
       <tbody>
         {% for cita in citas %}
         <tr>
           <td><a href="{% url 'citas:detalle' cita.pk %}">{{ cita.fecha_hora|date:'j M Y' }}</a></td>
           <td class="tabla__numero">{{ cita.fecha_hora|time:'H:i' }}</td>
           <td class="tabla__opcional">{{ cita.asunto|default:"—" }}{% if cita.origen == 'espontanea' %} <span class="tenue">(sin cita)</span>{% endif %}</td>
+          <td class="tabla__opcional">{% if cita.formulario_llenado %}Respondido{% else %}<span class="tenue">—</span>{% endif %}</td>
           <td><span class="etiqueta etiqueta--{{ cita.estado }}">{{ cita.get_estado_display }}</span></td>
         </tr>
         {% endfor %}

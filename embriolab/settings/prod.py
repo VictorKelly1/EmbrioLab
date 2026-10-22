@@ -24,6 +24,9 @@ CSRF_TRUSTED_ORIGINS = [
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'True') == 'True'
 
+# El límite de intentos propio (core/limites.py) toma la IP de X-Forwarded-For.
+IP_DESDE_PROXY = True
+
 # axes debe tomar la IP real del cliente que nginx pone en X-Forwarded-For.
 AXES_IPWARE_PROXY_COUNT = 1
 AXES_IPWARE_META_PRECEDENCE_ORDER = ['HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']

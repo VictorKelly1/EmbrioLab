@@ -1,0 +1,38 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{{ formulario.nombre }} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'formularios:lista' %}">← Formularios</a>
+<div class="encabezado">
+  <div>
+    <h1>{{ formulario.nombre }}</h1>
+    <p class="ficha__claves">
+      <span>{{ formulario.para_quien }}</span>
+      {% if version %}<span>Versión {{ version.numero_version }}, publicada el {{ version.fecha_publicacion|date:'j \d\e F \d\e Y'|lower }}</span>{% endif %}
+    </p>
+  </div>
+</div>
+
+{% if formulario.descripcion %}<div class="aviso aviso--info"><p>{{ formulario.descripcion }}</p></div>{% endif %}
+
+{% if vista_previa %}
+<p class="encabezado__descripcion">Vista previa: así lo ve el paciente. Las preguntas condicionales aparecen solo según sus respuestas.</p>
+<div class="formulario formulario--publico vista-previa" aria-label="Vista previa del formulario">
+  {% for seccion in vista_previa.secciones %}
+  <fieldset class="seccion" disabled>
+    <legend>{{ seccion.titulo }}</legend>
+    {% if seccion.descripcion %}<p class="seccion__descripcion">{{ seccion.descripcion }}</p>{% endif %}
+    {% for item in seccion.campos %}
+      <div class="pregunta">
+        {% if item.condicion_descripcion %}<p class="pregunta__condicion">{{ item.condicion_descripcion }}</p>{% endif %}
+        {% with campo=item.campo %}{% include 'includes/campo.html' %}{% endwith %}
+      </div>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+</div>
+{% else %}
+<p class="tenue">Este formulario no tiene una versión publicada.</p>
+{% endif %}
+{% endblock %}

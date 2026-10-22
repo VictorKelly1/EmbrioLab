@@ -38,3 +38,20 @@ class ModeloBorradoLogico(ModeloConTiempos):
 
     def delete(self, *args, **kwargs):
         raise BorradoFisicoNoPermitido('Usa core.services.dar_de_baja().')
+
+
+class ContadorIntentos(models.Model):
+    """
+    Contador por ventana de tiempo para limitar peticiones (core/limites.py).
+    Una fila por clave, por ejemplo 'formulario:ip:203.0.113.5'.
+    """
+
+    clave = models.CharField(max_length=200, unique=True)
+    inicio_ventana = models.DateTimeField()
+    conteo = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name_plural = 'contadores de intentos'
+
+    def __str__(self):
+        return f'{self.clave}: {self.conteo}'
