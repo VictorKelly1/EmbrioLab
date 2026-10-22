@@ -1,0 +1,119 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Pedido {{ pedido.numero }} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+{% with cita=pedido.cita paciente=pedido.cita.paciente %}
+<a class="volver" href="{% url 'pedidos:lista' %}">← Pedidos</a>
+<div class="encabezado">
+  <div>
+    <h1>Pedido {{ pedido.numero }}</h1>
+    <p class="ficha__claves">
+      <span><a href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.persona.nombre_completo }}</a></span>
+      <span>Folio <strong>{{ cita.numero_folio }}</strong></span>
+      <span class="etiqueta etiqueta--{{ pedido.estado }}">{{ pedido.get_estado_display }}</span>
+      <span class="etiqueta etiqueta--pago-{{ pedido.estado_pago }}">Pago {{ pedido.get_estado_pago_display|lower }}</span>
+    </p>
+  </div>
+</div>
+
+<div class="pila">
+<div class="tarjetas">
+  <section class="tarjeta">
+    <h2>Detalles</h2>
+    <dl class="datos">
+      <dt>Cita</dt><dd>{% if puede_editar %}<a href="{% url 'citas:detalle' cita.pk %}">{{ cita.fecha_hora|date:'j/m/Y H:i' }}</a>{% else %}{{ cita.fecha_hora|date:'j/m/Y H:i' }}{% endif %}</dd>
+      <dt>Doctor</dt><dd>{{ pedido.doctor|default:"—" }}</dd>
+      <dt>Armó</dt><dd>{{ pedido.recepcionista.usuario.persona.nombre_completo }}, {{ pedido.fecha_inicio|date:'j/m/Y H:i' }}</dd>
+      <dt>Total</dt><dd><strong>${{ pedido.total_pago }}</strong></dd>
+      {% if pedido.fecha_completado %}<dt>Completado</dt><dd>{{ pedido.fecha_completado|date:'j/m/Y H:i' }}</dd>{% endif %}
+      {% if pedido.fecha_envio %}<dt>Enviado</dt><dd>{{ pedido.fecha_envio|date:'j/m/Y H:i' }}</dd>{% endif %}
+    </dl>
+  </section>
+
+  {% if puede_editar %}
+  <section class="tarjeta">
+    <h2>Acciones</h2>
+    <form method="post" action="{% url 'pedidos:doctor' pedido.pk %}" class="en-fila">
+      {% csrf_token %}
+      {% with campo=doctor_form.doctor %}{% include 'includes/campo.html' %}{% endwith %}
+      <button type="submit" class="boton boton--secundario boton--chico">Cambiar doctor</button>
+    </form>
+    {% if pedido.estado_pago != 'pagado' %}
+    <form method="post" action="{% url 'pedidos:pago' pedido.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="estado_pago" value="pagado">
+      <button type="submit" class="boton boton--principal">Marcar todo como pagado</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+
+<section class="tarjeta" aria-labelledby="titulo-estudios">
+  <h2 id="titulo-estudios">Estudios</h2>
+  <div class="tabla-marco">
+    <table class="tabla tabla--pedido">
+      <thead>
+        <tr>
+          <th scope="col">Estudio</th>
+          <th scope="col" class="tabla__numero">Precio</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Químico</th>
+          <th scope="col">Pago</th>
+          {% if puede_editar %}<th scope="col"><span class="visualmente-oculto">Acciones</span></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for estudio in estudios %}
+        <tr>
+          <td>
+            {{ estudio.estudio.nombre }}
+            {% if estudio.nombre_solicitado != estudio.estudio.nombre %}<span class="tabla__nota">Orden: «{{ estudio.nombre_solicitado }}»</span>{% endif %}
+          </td>
+          <td class="tabla__numero">${{ estudio.precio }}</td>
+          <td><span class="etiqueta etiqueta--{{ estudio.estado }}">{{ estudio.get_estado_display }}</span>{% if estudio.enviado %} <span class="etiqueta etiqueta--completado">Enviado</span>{% endif %}</td>
+          {% if puede_editar %}
+          <td>
+            {% if estudio.completado %}{{ estudio.quimico_asignado.usuario.persona.nombre_completo }}
+            {% else %}<label class="visualmente-oculto" for="{{ estudio.form.quimico.id_for_label }}">Químico de {{ estudio.estudio.nombre }}</label>{{ estudio.form.quimico.as_widget }}{% endif %}
+          </td>
+          <td><label class="visualmente-oculto" for="{{ estudio.form.estado_pago.id_for_label }}">Pago de {{ estudio.estudio.nombre }}</label>{{ estudio.form.estado_pago.as_widget }}</td>
+          <td class="tabla__accion">
+            <form method="post" action="{% url 'pedidos:estudio_actualizar' estudio.pk %}" id="fila-{{ estudio.pk }}" class="en-linea">
+              {% csrf_token %}
+              <button type="submit" class="boton boton--secundario boton--chico">Guardar</button>
+            </form>
+            {% if puede_quitar and not estudio.completado %}
+            <form method="post" action="{% url 'pedidos:estudio_quitar' estudio.pk %}" class="en-linea">
+              {% csrf_token %}
+              <button type="submit" class="enlace enlace--peligro" onclick="return confirm('¿Quitar {{ estudio.estudio.nombre|escapejs }} del pedido?')">Quitar</button>
+            </form>
+            {% endif %}
+          </td>
+          {% else %}
+          <td>{{ estudio.quimico_asignado.usuario.persona.nombre_completo|default:"Sin asignar" }}</td>
+          <td><span class="etiqueta etiqueta--pago-{{ estudio.estado_pago }}">{{ estudio.get_estado_pago_display }}</span></td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if puede_editar %}<p class="campo__ayuda">Asignar un químico pone el estudio en proceso: aparece en su lista de trabajo. El envío de resultados no depende del pago.</p>{% endif %}
+</section>
+
+{% if agregar_form %}
+<section class="tarjeta" aria-labelledby="titulo-agregar">
+  <h2 id="titulo-agregar">Agregar un estudio</h2>
+  <form method="post" action="{% url 'pedidos:agregar_estudio' pedido.pk %}" class="formulario formulario--ancho" novalidate>
+    {% csrf_token %}
+    {% include 'pedidos/_linea.html' with linea=agregar_form numero=estudios|length|add:1 %}
+    <div class="acciones"><button type="submit" class="boton boton--secundario">Agregar al pedido</button></div>
+  </form>
+</section>
+{% include 'pedidos/_linea_script.html' %}
+{% endif %}
+</div>
+{% endwith %}
+{% endblock %}

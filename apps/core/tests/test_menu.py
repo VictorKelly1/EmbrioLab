@@ -37,9 +37,10 @@ def test_opciones_del_admin():
 
 
 def test_las_que_no_existen_aun_no_tienen_url():
-    opciones = {o['etiqueta']: o for o in opciones_para(RecepcionistaFactory().usuario)}
-    assert opciones['Calendario de citas']['url'] == reverse('citas:calendario')
-    assert opciones['Pedidos']['url'] is None
+    recepcion = {o['etiqueta']: o for o in opciones_para(RecepcionistaFactory().usuario)}
+    assert recepcion['Pedidos']['url'] == reverse('pedidos:lista')
+    admin = {o['etiqueta']: o for o in opciones_para(AdminFactory().usuario)}
+    assert admin['Reportes']['url'] is None
 
 
 @pytest.mark.parametrize(

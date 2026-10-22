@@ -1,0 +1,13 @@
+{% if sugerencias %}
+<p class="sugerencias__titulo">Coincidencias en el catálogo:</p>
+<div class="sugerencias__lista">
+  {% for sugerencia in sugerencias %}
+  <button type="button" class="sugerencia" data-sugerencia="{{ sugerencia.estudio.pk }}"{% if sugerencia.exacta %} data-exacta{% endif %} aria-pressed="false">
+    <strong>{{ sugerencia.estudio.nombre }}</strong>
+    <span>{% if sugerencia.exacta %}Alias exacto{% else %}Parecido a «{{ sugerencia.coincide_con }}»{% endif %}</span>
+  </button>
+  {% endfor %}
+</div>
+{% elif buscado %}
+<p class="sugerencias__vacio">No hay coincidencias. Elija el estudio en la lista y marque «Guardar el nombre como alias» para que se reconozca la próxima vez.</p>
+{% endif %}

@@ -1,0 +1,13 @@
+{% comment %}Un estudio de la orden (LineaForm). `quitable`: muestra el botón para quitar la fila.{% endcomment %}
+<fieldset class="linea" data-linea>
+  <legend class="linea__titulo">Estudio <span data-numero>{{ numero }}</span></legend>
+  {% if quitable %}<button type="button" class="enlace enlace--peligro linea__quitar" data-quitar-linea>Quitar</button>{% endif %}
+  {% for error in linea.non_field_errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+  {% with campo=linea.nombre_solicitado %}{% include 'includes/campo.html' %}{% endwith %}
+  <div class="sugerencias" data-sugerencias aria-live="polite"></div>
+  <div class="rejilla rejilla--dos">
+    {% with campo=linea.estudio %}{% include 'includes/campo.html' %}{% endwith %}
+    {% with campo=linea.quimico %}{% include 'includes/campo.html' %}{% endwith %}
+  </div>
+  {% with campo=linea.guardar_alias %}{% include 'includes/campo.html' %}{% endwith %}
+</fieldset>

@@ -33,6 +33,7 @@ from apps.cuentas.models import Rol
 from apps.formularios.selectors import respuestas_de
 from apps.pacientes.models import Paciente
 from apps.pacientes.selectors import buscar_pacientes
+from apps.pedidos.selectors import pedidos_de_cita
 
 
 def _aplicar_errores_con_sugerencia(form, error: ValidationError, fecha_hora) -> None:
@@ -193,6 +194,8 @@ class CitaDetalleView(RolRequerido, TemplateView):
             cita=cita,
             llenado=llenado,
             respuestas=respuestas_de(llenado) if llenado else None,
+            pedidos=pedidos_de_cita(cita),
+            atendida=cita.estado == EstadoCita.ATENDIDA,
             programada=cita.estado == EstadoCita.PROGRAMADA,
             ya_empezo=cita.fecha_hora <= timezone.now(),
             **kwargs,

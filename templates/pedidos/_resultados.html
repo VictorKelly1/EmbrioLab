@@ -1,0 +1,26 @@
+{% if pagina.object_list %}
+<div class="tabla-marco">
+  <table class="tabla">
+    <thead><tr><th scope="col">Número</th><th scope="col">Paciente</th><th scope="col" class="tabla__opcional">Fecha</th><th scope="col" class="tabla__opcional">Estudios</th><th scope="col">Estado</th><th scope="col" class="tabla__opcional">Pago</th><th scope="col" class="tabla__numero tabla__opcional">Total</th><th scope="col"><span class="visualmente-oculto">Ver</span></th></tr></thead>
+    <tbody>
+      {% for pedido in pagina %}
+      <tr>
+        <td class="tabla__clave">{{ pedido.numero }}</td>
+        <td>{{ pedido.cita.paciente.persona.nombre_completo }}<span class="tabla__secundario">{{ pedido.fecha_inicio|date:'j/m/Y' }} · {{ pedido.get_estado_pago_display }} · ${{ pedido.total_pago }}</span></td>
+        <td class="tabla__opcional tabla__numero">{{ pedido.fecha_inicio|date:'j/m/Y' }}</td>
+        <td class="tabla__opcional tabla__numero">{{ pedido.num_estudios }}</td>
+        <td><span class="etiqueta etiqueta--{{ pedido.estado }}">{{ pedido.get_estado_display }}</span></td>
+        <td class="tabla__opcional"><span class="etiqueta etiqueta--pago-{{ pedido.estado_pago }}">{{ pedido.get_estado_pago_display }}</span></td>
+        <td class="tabla__numero tabla__opcional">${{ pedido.total_pago }}</td>
+        <td class="tabla__accion"><a href="{% url 'pedidos:detalle' pedido.pk %}">Ver<span class="visualmente-oculto"> pedido {{ pedido.numero }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'includes/paginacion.html' %}
+{% elif filtrado %}
+<p class="sin-resultados">No hay pedidos con esos filtros.</p>
+{% else %}
+<p class="sin-resultados">Todavía no hay pedidos. Se arman desde una cita atendida.</p>
+{% endif %}

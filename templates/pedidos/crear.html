@@ -1,0 +1,73 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Armar pedido · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'citas:detalle' cita.pk %}">← Cita del {{ cita.fecha_hora|date:'j \d\e F'|lower }}</a>
+<div class="encabezado">
+  <div>
+    <h1>Armar pedido</h1>
+    <p class="ficha__claves">
+      <span>{{ cita.paciente.persona.nombre_completo }}</span>
+      <span>Folio <strong>{{ cita.numero_folio }}</strong></span>
+    </p>
+  </div>
+</div>
+
+<form method="post" class="formulario formulario--ancho" novalidate>
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+  {% for error in lineas.non_form_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+  {% with campo=form.doctor %}{% include 'includes/campo.html' %}{% endwith %}
+  <p class="campo__ayuda">¿No está el doctor? <a href="{% url 'pacientes:doctor_crear' %}" target="_blank" rel="noopener">Regístrelo</a> y recargue esta página.</p>
+
+  <h2 class="encabezado--seccion">Estudios de la orden</h2>
+  {{ lineas.management_form }}
+  <div class="lineas" data-lineas>
+    {% for linea in lineas %}{% include 'pedidos/_linea.html' with numero=forloop.counter quitable=True %}{% endfor %}
+  </div>
+  <template data-linea-vacia>{% include 'pedidos/_linea.html' with linea=lineas.empty_form numero='' quitable=True %}</template>
+  <button type="button" class="boton boton--secundario" data-agregar-linea><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Agregar otro estudio</button>
+
+  <div class="acciones">
+    <button type="submit" class="boton boton--principal">Crear pedido</button>
+    <a class="boton boton--discreto" href="{% url 'citas:detalle' cita.pk %}">Cancelar</a>
+  </div>
+</form>
+{% include 'pedidos/_linea_script.html' %}
+<script>
+  (() => {
+    const lineas = document.querySelector('[data-lineas]');
+    const total = document.querySelector('input[name="form-TOTAL_FORMS"]');
+    const vacia = document.querySelector('[data-linea-vacia]');
+    // Renumera las filas para que el formset no tenga huecos al quitar una.
+    const renumerar = () => {
+      const filas = lineas.querySelectorAll('[data-linea]');
+      filas.forEach((fila, i) => {
+        fila.querySelector('[data-numero]').textContent = i + 1;
+        fila.querySelector('[data-quitar-linea]').hidden = filas.length === 1;
+        fila.querySelectorAll('[name], [id], [for], [aria-describedby]').forEach((el) => {
+          for (const atributo of ['name', 'id', 'for', 'aria-describedby']) {
+            const valor = el.getAttribute(atributo);
+            if (valor) el.setAttribute(atributo, valor.replace(/form-(\d+|__prefix__)-/g, `form-${i}-`));
+          }
+        });
+      });
+      total.value = filas.length;
+    };
+    document.querySelector('[data-agregar-linea]').addEventListener('click', () => {
+      const fila = vacia.content.firstElementChild.cloneNode(true);
+      lineas.append(fila);
+      renumerar();
+      htmx.process(fila);
+      fila.querySelector('input[type=text]').focus();
+    });
+    lineas.addEventListener('click', (evento) => {
+      if (!evento.target.matches('[data-quitar-linea]')) return;
+      evento.target.closest('[data-linea]').remove();
+      renumerar();
+    });
+    renumerar();
+  })();
+</script>
+{% endblock %}

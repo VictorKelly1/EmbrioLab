@@ -16,7 +16,7 @@ def buscar_pedidos(
     termino: str = '', *, estado: str = '', estado_pago: str = ''
 ) -> QuerySet[Pedido]:
     """Por número de pedido, folio o nombre del paciente; con filtros de estado y pago."""
-    pedidos = _con_paciente(Pedido.objects.all())
+    pedidos = _con_paciente(Pedido.objects.order_by('-fecha_inicio', '-id'))
     if estado:
         pedidos = pedidos.filter(estado=estado)
     if estado_pago:
