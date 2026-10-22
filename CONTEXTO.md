@@ -289,6 +289,13 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Preguntas reales de los 2 formularios** (hombre y mujer): tipos, opciones y cuáles son obligatorias. Provisional: preguntas de ejemplo en la migración `formularios/0002`. Las reales se cargan publicando una versión nueva con otra migración de datos.
 - **Corregir respuestas.** Provisional: una vez enviado, el formulario no se puede editar ni volver a llenar en esa cita. ¿Hace falta que la recepción pueda reabrirlo?
 
+### Catálogo de estudios (semana 5)
+- **Excel de estudios** (claves, nombres, categorías, precios, campos, fórmulas y ejemplos reales). Provisional: 3 estudios de ejemplo en la migración `estudios/0002` (glucosa, perfil de lípidos y espermatobioscopia básica), con claves, precios, alias y valores de referencia inventados. Los reales se cargan con otra migración de datos y sus clases en `apps/estudios/definiciones/`.
+- **Quién administra qué.** Provisional: la recepción agrega y edita los alias; el químico, los valores de referencia. Ambos consultan el catálogo. ¿Los valores de referencia los captura alguien más (el admin, la recepción)?
+- **Precio.** Provisional: el precio vigente solo cambia con una migración de datos (no hay pantalla). ¿Quién lo cambia y con qué frecuencia?
+- **Referencia que aplica.** Provisional: si varias aplican al paciente, gana la de su género sobre la general, la de su rango de edad sobre la que no tiene edad y, al final, la más reciente. Los límites de edad se incluyen (años cumplidos).
+- **Varios rangos por campo** (normal, limítrofe, alto; por ejemplo, colesterol deseable/limítrofe/alto). Provisional: un solo rango mínimo–máximo o un texto por fila.
+
 ## 9. Cómo cambiar una decisión
 
 Si al implementar algo encuentras que una decisión de este documento no funciona:
@@ -300,3 +307,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-09-27: versión inicial (reglas, BD v2 + catálogos, arquitectura y plan de 10 semanas).
 - 2026-10-21: semana 1 — `Persona` y `Direccion` se adelantan a la semana 1; el servicio `worker` de Docker Compose pasa a la semana 8 (su backend en BD necesita migraciones y aún no hay tareas); HSTS preload y HTTPS en nginx quedan para la semana 9, cuando haya dominio.
 - 2026-10-21: semana 3 — `Citas` agrega `FechaFin` para la restricción contra empalmes (no hace falta `btree_gist`).
+- 2026-10-21: semana 5 — el system check del catálogo corre solo con base de datos (`migrate` y `manage.py check --database default`), no en `runserver`; si `estudios` tiene migraciones pendientes no revisa nada, porque son las que cargan las filas nuevas.

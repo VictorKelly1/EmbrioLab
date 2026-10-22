@@ -49,6 +49,7 @@ def test_las_que_no_existen_aun_no_tienen_url():
         ('pacientes:doctor_editar', 'Doctores'),
         ('inicio', 'Inicio'),
         ('citas:detalle', 'Calendario de citas'),
+        ('estudios:alias_editar', 'Catálogo de estudios'),
     ],
 )
 def test_opcion_activa(vista, activa):

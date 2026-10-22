@@ -1,0 +1,107 @@
+{% extends 'app.html' %}
+
+{% block titulo %}{{ estudio.nombre }} · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'estudios:lista' %}">← Catálogo de estudios</a>
+<div class="encabezado">
+  <div>
+    <h1>{{ estudio.nombre }}</h1>
+    <p class="ficha__claves">
+      <span>Clave <strong>{{ estudio.clave }}</strong></span>
+      <span>{{ estudio.categoria }}</span>
+      <span>${{ estudio.precio }}</span>
+      <span>Versión {{ estudio.version_definicion }}</span>
+      {% if not estudio.activo %}<span class="etiqueta etiqueta--inactivo">Inactivo</span>{% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="pila">
+<section class="tarjeta" aria-labelledby="titulo-campos">
+  <h2 id="titulo-campos">Campos del estudio</h2>
+  {% if definicion %}
+  <div class="tabla-marco">
+    <table class="tabla">
+      <thead><tr><th scope="col">Campo</th><th scope="col">Unidad</th><th scope="col" class="tabla__opcional">Cómo se obtiene</th></tr></thead>
+      <tbody>
+        {% for campo in definicion.campos %}
+        <tr><td>{{ campo.etiqueta }}</td><td>{{ campo.unidad|default:"—" }}</td><td class="tabla__opcional tenue">{% if campo.opciones %}Captura: {{ campo.opciones|join:", " }}{% else %}Captura{% endif %}</td></tr>
+        {% endfor %}
+        {% for campo in definicion.calculados %}
+        <tr><td>{{ campo.etiqueta }} <span class="etiqueta">Calculado</span></td><td>{{ campo.unidad|default:"—" }}</td><td class="tabla__opcional tenue">{{ campo.formula }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="aviso aviso--error" role="alert"><p>Este estudio no tiene definición en el código. Avise al equipo de desarrollo.</p></div>
+  {% endif %}
+</section>
+
+<section class="tarjeta" aria-labelledby="titulo-referencias">
+  <div class="tarjeta__encabezado">
+    <h2 id="titulo-referencias">Valores de referencia</h2>
+    {% if puede_referencias and definicion %}<a class="boton boton--secundario boton--chico" href="{% url 'estudios:referencia_crear' estudio.pk %}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Agregar valor</a>{% endif %}
+  </div>
+  {% if referencias %}
+  <div class="tabla-marco">
+    <table class="tabla">
+      <thead><tr><th scope="col">Campo</th><th scope="col">Aplica a</th><th scope="col">Referencia</th><th scope="col" class="tabla__opcional">Vigente desde</th>{% if puede_referencias %}<th scope="col"><span class="visualmente-oculto">Acciones</span></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for valor in referencias %}
+        <tr{% if not valor.activo %} class="tabla__fila--inactiva"{% endif %}>
+          <td>{{ valor.etiqueta_campo }}{% if not valor.activo %} <span class="etiqueta etiqueta--inactivo">Inactivo</span>{% endif %}</td>
+          <td>{{ valor.aplica_a }}</td>
+          <td class="tabla__numero">{{ valor.rango }}</td>
+          <td class="tabla__opcional tabla__numero">{{ valor.vigente_desde|date:'j/m/Y' }}</td>
+          {% if puede_referencias %}
+          <td class="tabla__accion">
+            <a href="{% url 'estudios:referencia_editar' valor.pk %}">Editar</a>
+            <form method="post" action="{% url 'estudios:referencia_activo' valor.pk %}" class="en-linea">
+              {% csrf_token %}
+              <input type="hidden" name="activo" value="{% if valor.activo %}0{% else %}1{% endif %}">
+              <button type="submit" class="enlace">{% if valor.activo %}Desactivar{% else %}Reactivar{% endif %}</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="campo__ayuda">Al completar un estudio, la referencia que aplica al paciente se copia en sus resultados: cambiarla después no altera los resultados ya entregados.</p>
+  {% else %}
+  <p class="tenue">Sin valores de referencia.</p>
+  {% endif %}
+</section>
+
+<section class="tarjeta" aria-labelledby="titulo-alias">
+  <div class="tarjeta__encabezado">
+    <h2 id="titulo-alias">Alias</h2>
+    {% if puede_alias %}<a class="boton boton--secundario boton--chico" href="{% url 'estudios:alias_crear' estudio.pk %}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Agregar alias</a>{% endif %}
+  </div>
+  <p class="tenue">Nombres con que los doctores piden este estudio. Sirven para encontrarlo al armar un pedido.</p>
+  {% if alias %}
+  <ul class="lista-alias">
+    {% for item in alias %}
+    <li>
+      <span>{{ item.alias }}</span>
+      {% if puede_alias %}
+      <span class="lista-alias__acciones">
+        <a href="{% url 'estudios:alias_editar' item.pk %}">Editar<span class="visualmente-oculto"> {{ item.alias }}</span></a>
+        <form method="post" action="{% url 'estudios:alias_eliminar' item.pk %}" class="en-linea">
+          {% csrf_token %}
+          <button type="submit" class="enlace enlace--peligro" onclick="return confirm('¿Eliminar el alias «{{ item.alias|escapejs }}»?')">Eliminar<span class="visualmente-oculto"> {{ item.alias }}</span></button>
+        </form>
+      </span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="sin-resultados">Todavía no tiene alias.</p>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

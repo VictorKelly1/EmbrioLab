@@ -1,0 +1,28 @@
+{% if estudios %}
+{% regroup estudios by categoria as grupos %}
+{% for grupo in grupos %}
+<section class="seccion-catalogo" aria-labelledby="categoria-{{ grupo.grouper.pk }}">
+  <h2 id="categoria-{{ grupo.grouper.pk }}" class="encabezado--seccion">{{ grupo.grouper.nombre }}</h2>
+  <div class="tabla-marco">
+    <table class="tabla">
+      <thead><tr><th scope="col">Clave</th><th scope="col">Estudio</th><th scope="col" class="tabla__numero">Precio</th><th scope="col" class="tabla__opcional">Alias</th><th scope="col"><span class="visualmente-oculto">Ver</span></th></tr></thead>
+      <tbody>
+        {% for estudio in grupo.list %}
+        <tr>
+          <td class="tabla__clave">{{ estudio.clave }}</td>
+          <td>{{ estudio.nombre }}{% if not estudio.activo %} <span class="etiqueta etiqueta--inactivo">Inactivo</span>{% endif %}</td>
+          <td class="tabla__numero">${{ estudio.precio }}</td>
+          <td class="tabla__opcional tenue">{% for alias in estudio.alias.all|slice:':3' %}{{ alias.alias }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}{% if estudio.alias.all|length > 3 %} y {{ estudio.alias.all|length|add:'-3' }} más{% endif %}</td>
+          <td class="tabla__accion"><a href="{% url 'estudios:detalle' estudio.pk %}">Ver<span class="visualmente-oculto"> {{ estudio.nombre }}</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endfor %}
+{% elif termino %}
+<p class="sin-resultados">No hay estudios que coincidan con «{{ termino }}».</p>
+{% else %}
+<p class="sin-resultados">Todavía no hay estudios en el catálogo.</p>
+{% endif %}
