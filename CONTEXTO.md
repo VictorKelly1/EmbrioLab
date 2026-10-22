@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-10-21
+Última actualización: 2026-10-22
 
 ---
 
@@ -304,6 +304,13 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Cuándo pasa un estudio a «en proceso».** Provisional: al asignarle el primer químico (sin químicos queda pendiente). Mientras está en proceso se pueden agregar o quitar químicos, pero siempre debe quedar al menos uno; completado, ya no cambian.
 - **Estudio repetido en un pedido.** Provisional: no se permite el mismo estudio dos veces en un pedido.
 - **Quitar estudios.** Provisional: se puede quitar un estudio que aún no está completado, siempre que el pedido conserve al menos uno.
+
+### Químico (semana 7)
+- **Quién captura.** Provisional: solo los químicos asignados al estudio, y cualquiera de ellos puede capturarlo y completarlo (queda registrado quién lo completó). Los demás químicos y la recepción solo ven los resultados.
+- **Borrador.** Provisional: el químico puede guardar lo capturado sin completar; el estudio sigue en proceso. Para completarlo hacen falta todos los campos.
+- **Corregir un estudio completado.** Provisional: no se puede. ¿Hace falta reabrirlo (por ejemplo, antes de enviarlo)? ¿Quién lo autoriza?
+- **Fuera de rango.** Provisional: un valor menor al mínimo se marca como «bajo» y uno mayor al máximo como «alto», según la referencia copiada. Los textos de referencia no se marcan.
+- **Qué referencia se copia.** Provisional: la vigente el día de la cita, con la edad que tenía el paciente ese día (no la del día en que se completa).
 
 ## 9. Cómo cambiar una decisión
 

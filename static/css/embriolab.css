@@ -2317,6 +2317,11 @@ a.lateral__opcion:hover {
   gap: 0.75rem;
 }
 
+.trabajo__lista a > span:first-child {
+  display: grid;
+  gap: 0.0625rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
