@@ -20,6 +20,7 @@ from apps.pacientes.services import (
     crear_doctor,
     registrar_paciente,
 )
+from apps.pedidos.selectors import historial_de_paciente
 from apps.personas.selectors import contactos_principales
 
 POR_PAGINA = 25
@@ -49,6 +50,9 @@ class PacienteListaView(RolRequerido, TemplateView):
         return contexto
 
 
+HISTORIAL_MAXIMO = 20
+
+
 class PacienteDetalleView(RolRequerido, TemplateView):
     roles = [Rol.RECEPCIONISTA, Rol.QUIMICO]
     template_name = 'pacientes/detalle.html'
@@ -65,6 +69,8 @@ class PacienteDetalleView(RolRequerido, TemplateView):
             contactos=contactos_principales(paciente.persona),
             puede_editar=es_recepcion,
             citas=citas_de_paciente(paciente)[:10] if es_recepcion else None,
+            historial=historial_de_paciente(paciente)[:HISTORIAL_MAXIMO],
+            historial_maximo=HISTORIAL_MAXIMO,
         )
         return contexto
 

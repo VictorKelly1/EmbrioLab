@@ -59,6 +59,25 @@ class DefinicionEstudio:
         }
 
     @classmethod
+    def a_json(cls, valores: dict) -> dict:
+        """Valores → JSON. Los decimales van como texto para no perder precisión."""
+        return {
+            clave: str(valor) if isinstance(valor, Decimal) else valor
+            for clave, valor in valores.items()
+        }
+
+    @classmethod
+    def de_json(cls, datos: dict) -> dict:
+        """Lo contrario de `a_json`: los campos decimales vuelven a Decimal."""
+        valores = {}
+        for clave, valor in datos.items():
+            campo = cls.campo(clave)
+            if valor is not None and campo is not None and campo.tipo == 'decimal':
+                valor = Decimal(valor)
+            valores[clave] = valor
+        return valores
+
+    @classmethod
     def todos_los_campos(cls) -> tuple[Campo, ...]:
         return cls.campos + cls.calculados
 

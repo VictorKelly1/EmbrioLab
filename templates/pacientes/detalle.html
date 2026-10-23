@@ -79,6 +79,33 @@
 </section>
 {% endif %}
 
+<section class="seccion-citas" aria-labelledby="titulo-historial">
+  <div class="encabezado encabezado--seccion">
+    <h2 id="titulo-historial">Historial de estudios</h2>
+  </div>
+  {% if historial %}
+  <div class="tabla-marco">
+    <table class="tabla">
+      <thead><tr><th scope="col">Estudio</th><th scope="col">Pedido</th><th scope="col" class="tabla__opcional">Fecha</th><th scope="col">Estado</th><th scope="col"><span class="visualmente-oculto">Resultados</span></th></tr></thead>
+      <tbody>
+        {% for estudio in historial %}
+        <tr>
+          <td>{{ estudio.estudio.nombre }}</td>
+          <td><a href="{% url 'pedidos:detalle' estudio.pedido_id %}">{{ estudio.pedido.numero }}</a></td>
+          <td class="tabla__opcional tabla__numero">{{ estudio.pedido.fecha_inicio|date:'j/m/Y' }}</td>
+          <td><span class="etiqueta etiqueta--{{ estudio.estado }}">{{ estudio.get_estado_display }}</span></td>
+          <td class="tabla__accion">{% if estudio.estado == 'completado' %}<a href="{% url 'pedidos:resultados' estudio.pk %}">Resultados<span class="visualmente-oculto"> de {{ estudio.estudio.nombre }}, pedido {{ estudio.pedido.numero }}</span></a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if historial|length == historial_maximo %}<p class="campo__ayuda">Se muestran los {{ historial_maximo }} más recientes. <a href="{% url 'pedidos:lista' %}?q={{ paciente.folio }}">Ver todos sus pedidos</a>.</p>{% endif %}
+  {% else %}
+  <p class="tenue">Todavía no tiene estudios.</p>
+  {% endif %}
+</section>
+
 {% if puede_editar %}
 <section class="zona-baja">
   <form method="post" action="{% url 'pacientes:baja' paciente.pk %}">

@@ -31,6 +31,33 @@
     <p class="tenue">No hay citas para hoy. <a href="{% url 'citas:calendario' %}">Ver el calendario</a>.</p>
     {% endif %}
   </section>
+  {% elif trabajo is not None %}
+  <section class="hoy" aria-labelledby="titulo-trabajo">
+    <div class="encabezado encabezado--seccion">
+      <h2 id="titulo-trabajo">Su lista de trabajo</h2>
+      <div class="acciones">
+        <a class="boton boton--secundario boton--chico" href="{% url 'pedidos:lista' %}?quimico={{ quimico.pk }}">Historial de sus pedidos</a>
+      </div>
+    </div>
+    {% if trabajo %}
+    <p class="tenue">Estudios en proceso que tiene asignados, los más antiguos primero.</p>
+    <ol class="proximas__lista trabajo__lista">
+      {% for estudio in trabajo %}
+      <li>
+        <a href="{% url 'pedidos:resultados' estudio.pk %}">
+          <span>
+            <span class="proximas__nombre">{{ estudio.estudio.nombre }} · {{ estudio.pedido.cita.paciente.persona.nombre_completo }}</span>
+            <span class="proximas__asunto">Pedido {{ estudio.pedido.numero }}, del {{ estudio.pedido.fecha_inicio|date:'j/m/Y' }}</span>
+          </span>
+          {% if estudio.resultados %}<span class="etiqueta">Borrador</span>{% else %}<span class="etiqueta etiqueta--en_proceso">Por capturar</span>{% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="tenue">No tiene estudios en proceso. Cuando la recepción le asigne uno, aparecerá aquí.</p>
+    {% endif %}
+  </section>
   {% else %}
   <div class="vacio">
     {% include 'includes/embrion.html' %}

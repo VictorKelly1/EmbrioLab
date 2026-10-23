@@ -12,6 +12,7 @@ from apps.cuentas.forms import FormularioEntrar, UsuarioForm
 from apps.cuentas.models import Rol
 from apps.cuentas.selectors import listar_usuarios
 from apps.cuentas.services import registrar_usuario
+from apps.pedidos.selectors import lista_de_trabajo
 
 
 class EntrarView(LoginView):
@@ -32,6 +33,9 @@ class InicioView(RolRequerido, TemplateView):
         usuario = self.request.user
         if usuario.tiene_rol(Rol.RECEPCIONISTA):
             kwargs['citas_hoy'] = citas_del_dia(timezone.localdate())
+        if usuario.tiene_rol(Rol.QUIMICO):
+            kwargs['trabajo'] = list(lista_de_trabajo(usuario.quimico))
+            kwargs['quimico'] = usuario.quimico
         return super().get_context_data(rol=usuario.rol_principal, **kwargs)
 
 

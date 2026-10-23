@@ -59,6 +59,7 @@
           <th scope="col">Estudio</th>
           <th scope="col" class="tabla__numero">Precio</th>
           <th scope="col">Estado</th>
+          <th scope="col">Resultados</th>
           <th scope="col">Químicos</th>
           <th scope="col">Pago</th>
           {% if puede_editar %}<th scope="col"><span class="visualmente-oculto">Acciones</span></th>{% endif %}
@@ -73,6 +74,12 @@
           </td>
           <td class="tabla__numero">${{ estudio.precio }}</td>
           <td><span class="etiqueta etiqueta--{{ estudio.estado }}">{{ estudio.get_estado_display }}</span>{% if estudio.enviado %} <span class="etiqueta etiqueta--completado">Enviado</span>{% endif %}</td>
+          <td>
+            {% if estudio.puede_capturar %}<a class="boton boton--{% if estudio.resultados %}secundario{% else %}principal{% endif %} boton--chico" href="{% url 'pedidos:resultados' estudio.pk %}">{% if estudio.resultados %}Seguir captura{% else %}Capturar{% endif %}<span class="visualmente-oculto"> {{ estudio.estudio.nombre }}</span></a>
+            {% elif estudio.completado %}<a href="{% url 'pedidos:resultados' estudio.pk %}">Ver<span class="visualmente-oculto"> resultados de {{ estudio.estudio.nombre }}</span></a>
+            {% elif estudio.resultados %}<a href="{% url 'pedidos:resultados' estudio.pk %}">Borrador<span class="visualmente-oculto"> de {{ estudio.estudio.nombre }}</span></a>
+            {% else %}<span class="tenue">—</span>{% endif %}
+          </td>
           {% if puede_editar %}
           <td>
             {% if estudio.completado %}{% for quimico in estudio.quimicos %}{{ quimico.usuario.persona.nombre_completo }}{% if not forloop.last %}, {% endif %}{% endfor %}
@@ -105,7 +112,13 @@
       </tbody>
     </table>
   </div>
+  {% if not puede_editar %}<p class="campo__ayuda">Solo los químicos asignados capturan un estudio. Completado, ya no se corrige.</p>{% endif %}
   {% if puede_editar %}<p class="campo__ayuda">Asignar químicos pone el estudio en proceso: aparece en la lista de trabajo de cada uno. El envío de resultados no depende del pago.</p>{% endif %}
+</section>
+
+<section class="tarjeta respuestas" aria-labelledby="titulo-respuestas">
+  <h2 id="titulo-respuestas">Formulario de la visita</h2>
+  {% include 'formularios/_respuestas.html' with sin_llenar='El paciente todavía no llena el formulario de esta visita.' %}
 </section>
 
 {% if agregar_form %}

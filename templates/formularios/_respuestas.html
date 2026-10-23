@@ -1,0 +1,15 @@
+{% comment %}Respuestas del formulario de una visita. Recibe `llenado`, `respuestas` y `sin_llenar` (el texto si falta).{% endcomment %}
+{% if respuestas %}
+  {% regroup respuestas by seccion as secciones %}
+  {% for seccion in secciones %}
+  <h3>{{ seccion.grouper }}</h3>
+  <dl class="datos">
+    {% for respuesta in seccion.list %}<dt>{{ respuesta.etiqueta }}</dt><dd>{{ respuesta.valor|linebreaksbr }}</dd>{% endfor %}
+  </dl>
+  {% endfor %}
+  <p class="campo__ayuda">{{ llenado.version_formulario.formulario.nombre }}, versión {{ llenado.version_formulario.numero_version }}.</p>
+{% elif llenado %}
+  <p class="tenue">El paciente envió el formulario sin respuestas.</p>
+{% else %}
+  <p class="tenue">{{ sin_llenar }}</p>
+{% endif %}

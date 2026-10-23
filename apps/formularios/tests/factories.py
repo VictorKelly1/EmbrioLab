@@ -1,6 +1,6 @@
 import factory
 
-from apps.formularios.models import Formulario, VersionFormulario
+from apps.formularios.models import Formulario, FormularioLlenado, VersionFormulario
 
 ESQUEMA_MINIMO = {
     'secciones': [
@@ -45,3 +45,11 @@ class VersionFormularioFactory(factory.django.DjangoModelFactory):
     numero_version = 1
     esquema = factory.LazyFunction(lambda: ESQUEMA_MINIMO)
     publicada = True
+
+
+class FormularioLlenadoFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = FormularioLlenado
+
+    version_formulario = factory.SubFactory(VersionFormularioFactory, publicada=False)
+    respuestas = factory.LazyFunction(lambda: {'ayuno': True, 'horas': 10})

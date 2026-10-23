@@ -18,6 +18,11 @@ urlpatterns = [
         name='estudio_actualizar',
     ),
     path(
+        'estudios/<int:pk>/resultados/',
+        views.EstudioPedidoResultadosView.as_view(),
+        name='resultados',
+    ),
+    path(
         'estudios/<int:pk>/quitar/', views.EstudioPedidoQuitarView.as_view(), name='estudio_quitar'
     ),
 ]

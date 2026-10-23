@@ -1,8 +1,9 @@
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -10,7 +11,8 @@ from apps.citas.models import Cita, EstadoCita
 from apps.core.forms import aplicar_errores
 from apps.core.mixins import RolRequerido
 from apps.cuentas.models import Rol
-from apps.estudios.selectors import sugerir_estudios
+from apps.estudios.selectors import referencias_para, sugerir_estudios
+from apps.formularios.selectors import respuestas_de
 from apps.pedidos.forms import (
     DoctorPedidoForm,
     EstudioPedidoForm,
@@ -18,15 +20,24 @@ from apps.pedidos.forms import (
     LineaForm,
     LineaFormSet,
     PagoPedidoForm,
+    ResultadosForm,
 )
 from apps.pedidos.models import EstadoEstudio, EstadoPedido, EstudioPedido, Pedido
-from apps.pedidos.selectors import buscar_pedidos, obtener_pedido
+from apps.pedidos.resultados import filas
+from apps.pedidos.selectors import (
+    buscar_pedidos,
+    historial_de_paciente,
+    obtener_estudio_pedido,
+    obtener_pedido,
+)
 from apps.pedidos.services import (
     actualizar_estudio_pedido,
     agregar_estudio,
     cambiar_doctor,
     cambiar_pago_pedido,
+    completar_estudio,
     crear_pedido,
+    guardar_borrador,
     quitar_estudio,
 )
 
@@ -53,10 +64,17 @@ class PedidoListaView(RolRequerido, TemplateView):
             datos.get('q', ''),
             estado=datos.get('estado', ''),
             estado_pago=datos.get('estado_pago', ''),
+            quimico=datos.get('quimico'),
+            desde=datos.get('desde'),
+            hasta=datos.get('hasta'),
         )
+        usuario = self.request.user
+        es_quimico = usuario.tiene_rol(Rol.QUIMICO)
         return super().get_context_data(
             filtros=filtros,
             filtrado=any(datos.values()),
+            es_quimico=es_quimico,
+            mio=usuario.quimico.pk if es_quimico and not datos.get('quimico') else None,
             pagina=Paginator(pedidos, POR_PAGINA).get_page(self.request.GET.get('pagina')),
             **kwargs,
         )
@@ -135,11 +153,14 @@ class PedidoDetalleView(RolRequerido, TemplateView):
             pedido = obtener_pedido(self.kwargs['pk'])
         except Pedido.DoesNotExist as error:
             raise Http404 from error
-        puede_editar = self.request.user.tiene_rol(Rol.RECEPCIONISTA)
+        usuario = self.request.user
+        puede_editar = usuario.tiene_rol(Rol.RECEPCIONISTA)
+        quimico = usuario.quimico if usuario.tiene_rol(Rol.QUIMICO) else None
         estudios = list(pedido.estudios.all())
         for estudio in estudios:
             estudio.completado = estudio.estado == EstadoEstudio.COMPLETADO
             estudio.quimicos = list(estudio.quimicos_asignados.all())
+            estudio.puede_capturar = _puede_capturar(estudio, quimico, estudio.quimicos)
             if puede_editar:
                 estudio.form = EstudioPedidoForm(
                     prefix=f'fila{estudio.pk}',
@@ -150,13 +171,114 @@ class PedidoDetalleView(RolRequerido, TemplateView):
                 for campo in estudio.form.fields.values():
                     campo.widget.attrs['form'] = f'fila-{estudio.pk}'
         abierto = pedido.estado != EstadoPedido.COMPLETADO
+        llenado = getattr(pedido.cita, 'formulario_llenado', None)
         return super().get_context_data(
             pedido=pedido,
             estudios=estudios,
+            llenado=llenado,
+            respuestas=respuestas_de(llenado) if llenado else None,
             puede_editar=puede_editar,
             puede_quitar=puede_editar and len(estudios) > 1,
             doctor_form=DoctorPedidoForm(initial={'doctor': pedido.doctor}),
             agregar_form=LineaForm(prefix='nuevo') if puede_editar and abierto else None,
+            **kwargs,
+        )
+
+
+def _puede_capturar(estudio_pedido, quimico, quimicos_asignados) -> bool:
+    """El control por objeto de la captura; el servicio lo vuelve a revisar."""
+    return (
+        quimico is not None
+        and estudio_pedido.estado == EstadoEstudio.EN_PROCESO
+        and quimico in quimicos_asignados
+    )
+
+
+class EstudioPedidoResultadosView(RolRequerido, TemplateView):
+    """
+    Resultados de un estudio. Un químico asignado los captura mientras está en proceso
+    (borrador o completar); los demás solo los ven.
+    """
+
+    roles = [Rol.RECEPCIONISTA, Rol.QUIMICO]
+    template_name = 'pedidos/resultados.html'
+
+    def _cargar(self):
+        """Después de RolRequerido: sin el rol responde 403 antes de buscar el estudio."""
+        try:
+            self.estudio_pedido = obtener_estudio_pedido(self.kwargs['pk'])
+        except EstudioPedido.DoesNotExist as error:
+            raise Http404 from error
+        self.definicion = self.estudio_pedido.estudio.definicion
+        usuario = self.request.user
+        self.quimico = usuario.quimico if usuario.tiene_rol(Rol.QUIMICO) else None
+        self.quimicos = list(self.estudio_pedido.quimicos_asignados.all())
+        self.puede_capturar = self.definicion is not None and _puede_capturar(
+            self.estudio_pedido, self.quimico, self.quimicos
+        )
+
+    def get(self, request, *args, **kwargs):
+        self._cargar()
+        form = None
+        if self.puede_capturar:
+            guardados = (self.estudio_pedido.resultados or {}).get('valores', {})
+            form = ResultadosForm(
+                definicion=self.definicion, initial=self.definicion.de_json(guardados)
+            )
+        return self.render_to_response(self.get_context_data(form=form))
+
+    def _con_referencias(self, form):
+        """Muestra junto a cada campo la referencia que se copiará al completar."""
+        cita = self.estudio_pedido.pedido.cita
+        referencias = referencias_para(
+            self.estudio_pedido.estudio, cita.paciente, timezone.localdate(cita.fecha_hora)
+        )
+        for clave, referencia in referencias.items():
+            if clave in form.fields:
+                form.fields[clave].help_text = f'Referencia: {referencia.rango}'
+        return form
+
+    def post(self, request, *args, **kwargs):
+        self._cargar()
+        if not self.puede_capturar:
+            raise PermissionDenied
+        completar = request.POST.get('accion') == 'completar'
+        form = ResultadosForm(request.POST, definicion=self.definicion, completar=completar)
+        if form.is_valid():
+            servicio = completar_estudio if completar else guardar_borrador
+            try:
+                servicio(self.estudio_pedido, form.valores(), quimico=self.quimico)
+            except ValidationError as error:
+                aplicar_errores(form, error)
+            else:
+                if completar:
+                    messages.success(request, f'{self.estudio_pedido.estudio} completado.')
+                    return redirect('pedidos:detalle', pk=self.estudio_pedido.pedido_id)
+                messages.success(request, 'Borrador guardado. El estudio sigue en proceso.')
+                return redirect('pedidos:resultados', pk=self.estudio_pedido.pk)
+        return self.render_to_response(self.get_context_data(form=form))
+
+    def get_context_data(self, form=None, **kwargs):
+        if form is not None:
+            self._con_referencias(form)
+        estudio_pedido = self.estudio_pedido
+        paciente = estudio_pedido.pedido.cita.paciente
+        anteriores = historial_de_paciente(
+            paciente, estudio=estudio_pedido.estudio, excluir=estudio_pedido
+        )[:5]
+        for anterior in anteriores:
+            anterior.filas = filas(anterior)
+        return super().get_context_data(
+            estudio_pedido=estudio_pedido,
+            pedido=estudio_pedido.pedido,
+            paciente=paciente,
+            definicion=self.definicion,
+            quimicos=self.quimicos,
+            completado=estudio_pedido.estado == EstadoEstudio.COMPLETADO,
+            calculados=self.definicion.calculados if self.definicion else (),
+            filas=filas(estudio_pedido),
+            anteriores=anteriores,
+            form=form,
             **kwargs,
         )
 
