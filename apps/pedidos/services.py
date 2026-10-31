@@ -10,6 +10,7 @@ from apps.cuentas.models import Quimico, Recepcionista
 from apps.estudios.models import Estudio, EstudioAlias
 from apps.estudios.selectors import referencias_para
 from apps.estudios.services import registrar_alias
+from apps.notificaciones.services import notificar_resultados
 from apps.pacientes.models import Doctor
 from apps.pedidos.estados import (
     TransicionInvalida,
@@ -294,6 +295,41 @@ def completar_estudio(estudio_pedido: EstudioPedido, valores: dict, *, quimico: 
     )
     recalcular_pedido(estudio_pedido.pedido)
     return estudio_pedido
+
+
+@transaction.atomic
+def enviar_resultados(estudios, *, usuario) -> list[EstudioPedido]:
+    """
+    Envía al paciente los resultados de uno o varios estudios completados de un pedido,
+    en un solo mensaje por canal con un PDF (CONTEXTO.md §3). No depende del pago.
+
+    Queda registrado quién envió y cuándo. PROVISIONAL (CONTEXTO.md §8): se puede
+    reenviar un estudio ya enviado; la fecha y el usuario del primer envío no cambian.
+    """
+    pks = [e.pk for e in estudios]
+    if not pks:
+        raise ValidationError('Elija al menos un estudio para enviar.')
+    estudios = list(
+        EstudioPedido.objects.select_for_update(of=('self',))
+        .select_related('pedido__cita__paciente__persona')
+        .filter(pk__in=pks)
+        .order_by('id')
+    )
+    if len({e.pedido_id for e in estudios}) != 1:
+        raise ValidationError('Los estudios a enviar deben ser de un mismo pedido.')
+    pendientes = [e for e in estudios if e.estado != EstadoEstudio.COMPLETADO]
+    if pendientes:
+        nombres = ', '.join(str(e.estudio) for e in pendientes)
+        raise TransicionInvalida(f'Solo se envían estudios completados: {nombres}.')
+    notificar_resultados(estudios)
+    ahora = timezone.now()
+    for estudio_pedido in estudios:
+        if not estudio_pedido.enviado:
+            estudio_pedido.usuario_envio = usuario
+            estudio_pedido.fecha_envio = ahora
+            estudio_pedido.save(update_fields=['usuario_envio', 'fecha_envio'])
+    recalcular_pedido(estudios[0].pedido)
+    return estudios
 
 
 @transaction.atomic

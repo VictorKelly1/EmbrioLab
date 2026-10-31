@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import factory
 
 from apps.citas.models import EstadoCita
@@ -25,3 +27,16 @@ class EstudioPedidoFactory(factory.django.DjangoModelFactory):
     nombre_solicitado = 'glucosa'
     precio = factory.LazyAttribute(lambda o: o.estudio.precio)
     version_estudio = 1
+
+
+def estudio_completado(clave='GLU', valores=None, **extra) -> EstudioPedido:
+    """Un estudio asignado y completado por un químico, como lo deja la semana 7."""
+    from apps.cuentas.tests.factories import QuimicoFactory
+    from apps.pedidos.services import asignar_quimicos, completar_estudio
+
+    estudio_pedido = EstudioPedidoFactory(estudio=Estudio.objects.get(clave=clave), **extra)
+    quimico = QuimicoFactory()
+    asignar_quimicos(estudio_pedido, [quimico], usuario=RecepcionistaFactory().usuario)
+    completar_estudio(estudio_pedido, valores or {'glucosa': Decimal(120)}, quimico=quimico)
+    estudio_pedido.refresh_from_db()
+    return estudio_pedido

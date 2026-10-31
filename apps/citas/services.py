@@ -117,6 +117,8 @@ def reprogramar_cita(cita: Cita, *, fecha_hora: datetime.datetime) -> Cita:
     cita.fecha_hora = fecha_hora.replace(second=0, microsecond=0)
     if cita.token_qr:
         cita.token_expiracion = _expiracion(cita)
+    # El recordatorio se manda 24 h antes de la fecha nueva.
+    cita.recordatorio_enviado = False
     return _guardar(cita)
 
 
@@ -145,10 +147,18 @@ def marcar_no_atendida(cita: Cita) -> Cita:
     return cita
 
 
+@transaction.atomic
+def marcar_recordatorio_enviado(cita: Cita) -> Cita:
+    """Lo llama notificaciones al crear el recordatorio: no se vuelve a mandar."""
+    cita.recordatorio_enviado = True
+    cita.save(update_fields=['recordatorio_enviado', 'actualizado_en'])
+    return cita
+
+
 # Token del formulario (QR)
 
 
-def _tiene_formulario_llenado(cita: Cita) -> bool:
+def tiene_formulario_llenado(cita: Cita) -> bool:
     try:
         cita.formulario_llenado  # noqa: B018  relación inversa de formularios
     except ObjectDoesNotExist:
@@ -169,7 +179,7 @@ def generar_token_qr(cita: Cita) -> str:
     """
     if cita.estado == EstadoCita.NO_ATENDIDA:
         raise TransicionInvalida('La cita no fue atendida.')
-    if _tiene_formulario_llenado(cita):
+    if tiene_formulario_llenado(cita):
         raise TransicionInvalida('El paciente ya llenó el formulario de esta cita.')
     token = nuevo_token()
     cita.token_qr = hash_token(token)

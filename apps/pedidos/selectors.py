@@ -77,6 +77,21 @@ def obtener_pedido(pk: int) -> Pedido:
     )
 
 
+def estudios_completados(pedido: Pedido, ids=None) -> QuerySet[EstudioPedido]:
+    """Los que ya tienen resultados para entregar (PDF y envío); con `ids`, solo esos."""
+    estudios = EstudioPedido.objects.filter(
+        pedido=pedido, estado=EstadoEstudio.COMPLETADO
+    ).select_related(
+        'estudio__categoria',
+        'pedido__cita__paciente__persona',
+        'pedido__doctor',
+        'quimico_completo__usuario__persona',
+    )
+    if ids is not None:
+        estudios = estudios.filter(pk__in=ids)
+    return estudios.order_by('id')
+
+
 def _estudios_con_pedido() -> QuerySet[EstudioPedido]:
     return EstudioPedido.objects.select_related('estudio', 'pedido__cita__paciente__persona')
 
