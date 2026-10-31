@@ -13,4 +13,5 @@ urlpatterns = [
     path('<int:pk>/reprogramar/', views.ReprogramarView.as_view(), name='reprogramar'),
     path('<int:pk>/estado/', views.CitaAccionView.as_view(), name='accion'),
     path('<int:pk>/link-formulario/', views.GenerarQRView.as_view(), name='generar_qr'),
+    path('<int:pk>/enviar-link/', views.EnviarLinkView.as_view(), name='enviar_link'),
 ]

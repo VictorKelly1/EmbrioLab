@@ -13,6 +13,15 @@ def _almacenamiento_privado_temporal(settings, tmp_path):
     }
 
 
+@pytest.fixture(autouse=True)
+def _tareas_inmediatas(settings):
+    """
+    Las tareas corren en el mismo proceso al encolarse, sin worker. Como se encolan con
+    `on_commit`, una prueba que quiera ejecutarlas usa `django_capture_on_commit_callbacks`.
+    """
+    settings.TASKS = {'default': {'BACKEND': 'django.tasks.backends.immediate.ImmediateBackend'}}
+
+
 @pytest.fixture
 def imagen_png():
     """Una imagen PNG válida de 1×1 px, como archivo subido."""

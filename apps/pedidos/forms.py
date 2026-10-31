@@ -2,12 +2,13 @@ from decimal import Decimal
 
 from django import forms
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.cuentas.models import Quimico
 from apps.estudios.definiciones import Campo
 from apps.estudios.models import Estudio
 from apps.pacientes.models import Doctor
-from apps.pedidos.models import EstadoPago, EstadoPedido
+from apps.pedidos.models import EstadoPago, EstadoPedido, EstudioPedido
 from apps.pedidos.selectors import quimicos_activos
 from apps.pedidos.services import Linea
 
@@ -107,6 +108,28 @@ class EstudioPedidoForm(forms.Form):
 
 class PagoPedidoForm(forms.Form):
     estado_pago = forms.ChoiceField(choices=EstadoPago.choices)
+
+
+class EstudiosEnvioField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        if obj.enviado:
+            fecha = timezone.localtime(obj.fecha_envio)
+            return f'{obj.estudio.nombre} (enviado el {fecha:%d/%m/%Y})'
+        return obj.estudio.nombre
+
+
+class EnviarResultadosForm(forms.Form):
+    """Los estudios completados del pedido que se envían juntos."""
+
+    estudios = EstudiosEnvioField(
+        queryset=EstudioPedido.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        error_messages={'required': 'Elija al menos un estudio para enviar.'},
+    )
+
+    def __init__(self, *args, completados, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['estudios'].queryset = completados
 
 
 class QuimicoField(forms.ModelChoiceField):

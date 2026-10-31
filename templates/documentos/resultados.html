@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<title>Resultados · Pedido {{ pedido.numero }}</title>
+<style>
+  {% if fuente %}@font-face {
+    font-family: 'Figtree';
+    src: url('{{ fuente }}') format('woff2');
+    font-weight: 300 900;
+  }{% endif %}
+
+  @page {
+    size: letter;
+    margin: 18mm 16mm 20mm;
+    @bottom-left {
+      content: 'EmbrioLab · Pedido {{ pedido.numero }} · Folio {{ cita.numero_folio }}';
+      font: 8pt 'Figtree', sans-serif;
+      color: #646463;
+    }
+    @bottom-right {
+      content: 'Página ' counter(page) ' de ' counter(pages);
+      font: 8pt 'Figtree', sans-serif;
+      color: #646463;
+    }
+  }
+
+  body {
+    font: 9.5pt/1.45 'Figtree', sans-serif;
+    color: #2a2236;
+    margin: 0;
+  }
+
+  .membrete {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2pt solid #b57edc;
+    padding-bottom: 6pt;
+    margin-bottom: 12pt;
+  }
+  .membrete__nombre { font-size: 18pt; font-weight: 700; color: #6e3d96; letter-spacing: -0.01em; }
+  .membrete__titulo { font-size: 10pt; color: #4a3d63; text-align: right; }
+
+  .paciente {
+    background: #f6f6ff;
+    border-radius: 4pt;
+    margin-bottom: 14pt;
+  }
+  .paciente td { border: 0; padding: 4pt 10pt; width: 25%; }
+  .paciente tr:first-child td { padding-top: 8pt; }
+  .paciente tr:last-child td { padding-bottom: 8pt; }
+  .dato { display: block; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #646463; }
+  .paciente strong { font-weight: 600; }
+  .paciente__nombre strong { font-size: 12pt; }
+
+  .estudio { break-inside: avoid; margin-bottom: 16pt; }
+  .estudio h2 { font-size: 11.5pt; margin: 0 0 4pt; color: #2a2236; }
+  .estudio__categoria { font-size: 8pt; font-weight: 400; color: #646463; }
+
+  table { width: 100%; border-collapse: collapse; }
+  .resultados { table-layout: fixed; }
+  th {
+    text-align: left;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #646463;
+    font-weight: 600;
+    border-bottom: 1pt solid #ccccfe;
+    padding: 3pt 4pt;
+  }
+  td { padding: 4pt; border-bottom: 0.5pt solid #ebebff; vertical-align: top; }
+  .numero { text-align: right; font-variant-numeric: tabular-nums; }
+  .valor { font-weight: 700; }
+  .marca { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #8a4b00; }
+  .calculado { font-size: 7.5pt; color: #646463; }
+  .tenue { color: #646463; }
+
+  .firma { margin-top: 5pt; font-size: 8pt; color: #4a3d63; }
+
+  .nota {
+    margin-top: 18pt;
+    padding-top: 6pt;
+    border-top: 0.5pt solid #ccccfe;
+    font-size: 7.5pt;
+    color: #646463;
+  }
+</style>
+</head>
+<body>
+<header class="membrete">
+  <div class="membrete__nombre">EmbrioLab</div>
+  <div class="membrete__titulo">Reporte de resultados<br>Pedido {{ pedido.numero }}</div>
+</header>
+
+<table class="paciente">
+  <tr>
+    <td colspan="4" class="paciente__nombre"><span class="dato">Paciente</span><strong>{{ persona.nombre_completo }}</strong></td>
+  </tr>
+  <tr>
+    <td><span class="dato">Folio</span><strong>{{ cita.numero_folio }}</strong></td>
+    <td><span class="dato">Sexo y edad</span><strong>{{ persona.get_genero_display }}, {{ edad }} año{{ edad|pluralize }}</strong></td>
+    <td><span class="dato">Fecha de la cita</span><strong>{{ cita.fecha_hora|date:'j/m/Y' }}</strong></td>
+    <td><span class="dato">Médico solicitante</span><strong>{{ pedido.doctor|default:'—' }}</strong></td>
+  </tr>
+</table>
+
+{% for estudio in estudios %}
+<section class="estudio">
+  <h2>{{ estudio.estudio.nombre }} <span class="estudio__categoria">· {{ estudio.estudio.categoria }}</span></h2>
+  <table class="resultados">
+    <colgroup><col style="width: 44%"><col style="width: 16%"><col style="width: 14%"><col style="width: 26%"></colgroup>
+    <thead>
+      <tr><th>Prueba</th><th class="numero">Resultado</th><th>Unidad</th><th>Valores de referencia</th></tr>
+    </thead>
+    <tbody>
+      {% for fila in estudio.filas %}
+      <tr>
+        <td>{{ fila.etiqueta }}{% if fila.calculado %} <span class="calculado">(calculado)</span>{% endif %}</td>
+        <td class="numero"><span class="valor">{{ fila.valor }}</span>{% if fila.marca %} <span class="marca">{{ fila.marca }}</span>{% endif %}</td>
+        <td>{{ fila.unidad|default:'—' }}</td>
+        <td class="tenue">{{ fila.referencia|default:'—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="firma">Realizó: {{ estudio.quimico_completo.usuario.persona.nombre_completo }}{% if estudio.quimico_completo.cedula_profesional %}, cédula profesional {{ estudio.quimico_completo.cedula_profesional }}{% endif %} · {{ estudio.fecha_completado|date:'j/m/Y H:i' }}</p>
+</section>
+{% endfor %}
+
+<p class="nota">Los valores de referencia son los que aplicaban al paciente el día de la cita. «Alto» y «bajo» indican un resultado fuera de ese rango; la interpretación corresponde a su médico. Documento generado el {{ generado|date:'j/m/Y H:i' }}.</p>
+</body>
+</html>

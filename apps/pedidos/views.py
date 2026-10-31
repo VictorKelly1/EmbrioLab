@@ -13,8 +13,11 @@ from apps.core.mixins import RolRequerido
 from apps.cuentas.models import Rol
 from apps.estudios.selectors import referencias_para, sugerir_estudios
 from apps.formularios.selectors import respuestas_de
+from apps.notificaciones.selectors import notificaciones_de_pedido
+from apps.notificaciones.services import destinatarios
 from apps.pedidos.forms import (
     DoctorPedidoForm,
+    EnviarResultadosForm,
     EstudioPedidoForm,
     FiltroPedidosForm,
     LineaForm,
@@ -26,6 +29,7 @@ from apps.pedidos.models import EstadoEstudio, EstadoPedido, EstudioPedido, Pedi
 from apps.pedidos.resultados import filas
 from apps.pedidos.selectors import (
     buscar_pedidos,
+    estudios_completados,
     historial_de_paciente,
     obtener_estudio_pedido,
     obtener_pedido,
@@ -37,6 +41,7 @@ from apps.pedidos.services import (
     cambiar_pago_pedido,
     completar_estudio,
     crear_pedido,
+    enviar_resultados,
     guardar_borrador,
     quitar_estudio,
 )
@@ -172,9 +177,16 @@ class PedidoDetalleView(RolRequerido, TemplateView):
                     campo.widget.attrs['form'] = f'fila-{estudio.pk}'
         abierto = pedido.estado != EstadoPedido.COMPLETADO
         llenado = getattr(pedido.cita, 'formulario_llenado', None)
+        completados = estudios_completados(pedido)
         return super().get_context_data(
             pedido=pedido,
             estudios=estudios,
+            hay_completados=any(e.completado for e in estudios),
+            enviar_form=(
+                EnviarResultadosForm(completados=completados) if quimico is not None else None
+            ),
+            destinos=destinatarios(pedido.cita.paciente.persona),
+            notificaciones=notificaciones_de_pedido(pedido),
             llenado=llenado,
             respuestas=respuestas_de(llenado) if llenado else None,
             puede_editar=puede_editar,
@@ -360,3 +372,20 @@ class EstudioPedidoQuitarView(_AccionPedidoView):
     def ejecutar(self, estudio_pedido):
         quitar_estudio(estudio_pedido)
         return f'Se quitó {estudio_pedido.estudio}.'
+
+
+class PedidoEnviarResultadosView(_AccionPedidoView):
+    """El químico envía al paciente uno o varios estudios completados (CONTEXTO.md §2)."""
+
+    roles = [Rol.QUIMICO]
+    modelo = Pedido
+
+    def ejecutar(self, pedido):
+        form = self._form(EnviarResultadosForm, completados=estudios_completados(pedido))
+        estudios = enviar_resultados(form.cleaned_data['estudios'], usuario=self.request.user)
+        cuantos = len(estudios)
+        return (
+            f'Se {"enviará" if cuantos == 1 else "enviarán"} {cuantos} '
+            f'estudio{"" if cuantos == 1 else "s"} al paciente. '
+            'El estado de cada envío aparece abajo.'
+        )

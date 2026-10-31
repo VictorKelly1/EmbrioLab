@@ -8,6 +8,7 @@ urlpatterns = [
     path('', InicioView.as_view(), name='inicio'),
     path('', include('apps.cuentas.urls')),
     path('citas/', include('apps.citas.urls')),
+    path('documentos/', include('apps.documentos.urls')),
     path('estudios/', include('apps.estudios.urls')),
     path('formularios/', include('apps.formularios.urls')),
     # Públicas, sin sesión: el link/QR que recibe el paciente.

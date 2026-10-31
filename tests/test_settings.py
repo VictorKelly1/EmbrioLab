@@ -18,7 +18,12 @@ def test_base_de_datos_es_postgresql():
 def _check_prod(**env):
     return subprocess.run(
         [sys.executable, 'manage.py', 'check'],
-        env={**os.environ, 'DJANGO_SETTINGS_MODULE': 'embriolab.settings.prod', **env},
+        env={
+            **os.environ,
+            'DJANGO_SETTINGS_MODULE': 'embriolab.settings.prod',
+            'SITIO_URL': 'https://lab.example.com',
+            **env,
+        },
         capture_output=True,
         text=True,
     )
@@ -33,3 +38,9 @@ def test_prod_exige_allowed_hosts():
     resultado = _check_prod(DJANGO_ALLOWED_HOSTS='')
     assert resultado.returncode != 0
     assert 'DJANGO_ALLOWED_HOSTS' in resultado.stderr
+
+
+def test_prod_exige_sitio_url():
+    resultado = _check_prod(DJANGO_ALLOWED_HOSTS='lab.example.com', SITIO_URL='')
+    assert resultado.returncode != 0
+    assert 'SITIO_URL' in resultado.stderr

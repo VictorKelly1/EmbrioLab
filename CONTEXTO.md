@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-10-22
+Última actualización: 2026-10-30
 
 ---
 
@@ -312,6 +312,15 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Fuera de rango.** Provisional: un valor menor al mínimo se marca como «bajo» y uno mayor al máximo como «alto», según la referencia copiada. Los textos de referencia no se marcan.
 - **Qué referencia se copia.** Provisional: la vigente el día de la cita, con la edad que tenía el paciente ese día (no la del día en que se completa).
 
+### Resultados y notificaciones (semana 8)
+- **Quién envía los resultados.** Decidido (2026-10-30): solo los químicos (cualquiera, no solo los asignados), desde el pedido. La recepción ve el PDF y los envíos, pero no envía.
+- **Paciente sin correo ni WhatsApp.** Decidido (2026-10-30): todo paciente debe tener al menos un contacto para recibir resultados (correo o WhatsApp). Pendiente: exigirlo al registrar y editar al paciente. Mientras tanto, sin contacto no se pueden enviar sus resultados.
+- **Reenviar.** Provisional: se puede volver a enviar un estudio ya enviado; la fecha y el usuario del primer envío no cambian.
+- **WhatsApp.** Mientras no se integre la API, el envío por WhatsApp solo queda registrado en el log y cuenta como «enviado».
+- **Formato del PDF y redacción de los mensajes.** Provisional: un PDF con membrete de texto (sin logo), datos de la cita, una tabla por estudio, la referencia copiada y quién lo realizó con su cédula. Está en `templates/documentos/resultados.html` y `apps/notificaciones/mensajes.py`. El correo lleva el PDF adjunto.
+- **Reintentos.** Provisional: un envío fallido se reintenta a los 1, 5 y 30 minutos (`NOTIFICACIONES_REINTENTOS`); después queda «fallido» y se envía de nuevo a mano.
+- **Recordatorio.** Provisional: el timer revisa cada 15 minutos y manda el recordatorio con el link del formulario cuando faltan 24 h o menos. Si la cita se reprograma, se vuelve a mandar. Generar o enviar un link nuevo invalida el anterior, también el del recordatorio.
+
 ## 9. Cómo cambiar una decisión
 
 Si al implementar algo encuentras que una decisión de este documento no funciona:
@@ -325,3 +334,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-10-21: semana 3 — `Citas` agrega `FechaFin` para la restricción contra empalmes (no hace falta `btree_gist`).
 - 2026-10-21: semana 5 — el system check del catálogo corre solo con base de datos (`migrate` y `manage.py check --database default`), no en `runserver`; si `estudios` tiene migraciones pendientes no revisa nada, porque son las que cargan las filas nuevas.
 - 2026-10-21: semana 6 — un estudio del pedido puede tener **varios químicos responsables** (decisión del equipo): `EstudiosPedido.IdQuimicoAsignado` se reemplaza por la tabla `AsignacionesQuimico`, que guarda quién asignó a cada químico y cuándo. El índice `EstudiosPedido(estado, quimico_asignado)` pasa a `EstudiosPedido(estado)` más el de la FK de la asignación. Quien completa sigue siendo uno (`IdQuimicoCompleto`).
+- 2026-10-30: semana 8 — Django 6.1 trae la API `django.tasks` pero no un backend en BD: se usa `django-tasks-db` (`manage.py db_worker`). Los recordatorios los encola el servicio `recordatorios` de Docker Compose (un timer que corre `enviar_recordatorios` cada 15 minutos). El link de los correos se arma con `SITIO_URL` (obligatorio en producción). Decidido con el cliente: solo los químicos envían resultados y todo paciente debe tener al menos un correo o WhatsApp.

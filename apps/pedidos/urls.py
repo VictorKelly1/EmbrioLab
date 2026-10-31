@@ -12,6 +12,7 @@ urlpatterns = [
     path('<int:pk>/doctor/', views.PedidoDoctorView.as_view(), name='doctor'),
     path('<int:pk>/pago/', views.PedidoPagoView.as_view(), name='pago'),
     path('<int:pk>/estudios/', views.PedidoAgregarEstudioView.as_view(), name='agregar_estudio'),
+    path('<int:pk>/enviar/', views.PedidoEnviarResultadosView.as_view(), name='enviar'),
     path(
         'estudios/<int:pk>/',
         views.EstudioPedidoActualizarView.as_view(),

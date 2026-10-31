@@ -1,0 +1,34 @@
+{% comment %}Historial de envíos. Con `con_estudio`, agrega la columna del estudio.{% endcomment %}
+{% if notificaciones %}
+<div class="tabla-marco">
+  <table class="tabla">
+    <thead>
+      <tr>
+        <th scope="col">Creado</th>
+        {% if con_estudio %}<th scope="col">Estudio</th>{% else %}<th scope="col">Tipo</th>{% endif %}
+        <th scope="col">Canal</th>
+        <th scope="col" class="tabla__opcional">Destinatario</th>
+        <th scope="col">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for notificacion in notificaciones %}
+      <tr>
+        <td>{{ notificacion.creado_en|date:'j/m/Y H:i' }}</td>
+        {% if con_estudio %}<td>{{ notificacion.estudio_pedido.estudio.nombre|default:'—' }}</td>{% else %}<td>{{ notificacion.get_tipo_display }}</td>{% endif %}
+        <td>{{ notificacion.get_canal_display }}</td>
+        <td class="tabla__opcional">{{ notificacion.destinatario }}</td>
+        <td>
+          <span class="etiqueta etiqueta--{{ notificacion.estado }}">{{ notificacion.get_estado_display }}</span>
+          {% if notificacion.fecha_envio %}<span class="tabla__nota">{{ notificacion.fecha_envio|date:'j/m/Y H:i' }}</span>{% endif %}
+          {% if notificacion.estado == 'fallido' %}<span class="notificacion__error">{{ notificacion.error }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="campo__ayuda">Un envío fallido se reintenta solo unas veces. Si sigue fallando, revise el contacto del paciente y envíelo de nuevo.</p>
+{% else %}
+<p class="tenue">{{ vacio }}</p>
+{% endif %}

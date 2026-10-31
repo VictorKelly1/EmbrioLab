@@ -31,6 +31,8 @@ from apps.core.forms import aplicar_errores
 from apps.core.mixins import RolRequerido
 from apps.cuentas.models import Rol
 from apps.formularios.selectors import respuestas_de
+from apps.notificaciones.selectors import notificaciones_de_cita
+from apps.notificaciones.services import destinatarios, enviar_link_formulario
 from apps.pacientes.models import Paciente
 from apps.pacientes.selectors import buscar_pacientes
 from apps.pedidos.selectors import pedidos_de_cita
@@ -195,6 +197,8 @@ class CitaDetalleView(RolRequerido, TemplateView):
             llenado=llenado,
             respuestas=respuestas_de(llenado) if llenado else None,
             pedidos=pedidos_de_cita(cita),
+            destinos=destinatarios(cita.paciente.persona),
+            notificaciones=notificaciones_de_cita(cita),
             atendida=cita.estado == EstadoCita.ATENDIDA,
             programada=cita.estado == EstadoCita.PROGRAMADA,
             ya_empezo=cita.fecha_hora <= timezone.now(),
@@ -262,3 +266,21 @@ class GenerarQRView(CitaDetalleView):
         link = request.build_absolute_uri(reverse('formulario_publico', args=[token]))
         qr = segno.make(link, error='m').svg_inline(scale=5, dark='#2a2236', border=2)
         return self.render_to_response(self.get_context_data(link=link, qr=qr))
+
+
+class EnviarLinkView(CitaDetalleView):
+    """Manda el link del formulario por correo y WhatsApp; el worker genera el token."""
+
+    http_method_names = ['post']
+
+    def post(self, request, pk):
+        try:
+            enviadas = enviar_link_formulario(self.cita)
+        except ValidationError as error:
+            messages.error(request, ' '.join(error.messages))
+        else:
+            canales = ' y '.join(n.get_canal_display() for n in enviadas)
+            messages.success(
+                request, f'El link se enviará por {canales}. Los links anteriores dejan de servir.'
+            )
+        return redirect('citas:detalle', pk=pk)

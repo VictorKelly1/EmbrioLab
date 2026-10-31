@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'axes',
+    'django_tasks_db',
     'apps.core',
     'apps.personas',
     'apps.cuentas',
@@ -43,6 +44,8 @@ INSTALLED_APPS = [
     'apps.formularios',
     'apps.estudios',
     'apps.pedidos',
+    'apps.notificaciones',
+    'apps.documentos',
 ]
 
 AUTH_USER_MODEL = 'cuentas.Usuario'
@@ -203,8 +206,44 @@ FORMULARIO_LINKS_INVALIDOS_VENTANA = datetime.timedelta(hours=1)
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
+# En desarrollo los correos salen en la consola (docker compose logs worker).
 MAILERS = {
     'default': {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
+}
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'EmbrioLab <no-responder@localhost>')
+
+
+# Tareas en segundo plano (CONTEXTO.md §5): la cola vive en la BD y la atiende
+# `manage.py db_worker` (servicio `worker` de Docker Compose).
+# https://docs.djangoproject.com/en/6.1/topics/tasks/
+
+TASKS = {
+    'default': {
+        'BACKEND': 'django_tasks_db.DatabaseBackend',
+    },
+}
+
+
+# Notificaciones
+
+# Dirección pública del sistema: el worker arma con ella el link del formulario,
+# porque no tiene una petición de donde sacarla.
+SITIO_URL = os.environ.get('SITIO_URL', 'http://localhost:8000').rstrip('/')
+
+# Minutos de espera antes de cada reintento de un envío fallido. PROVISIONAL.
+NOTIFICACIONES_REINTENTOS = [1, 5, 30]
+
+# El recordatorio sale cuando faltan a lo más estas horas para la cita.
+RECORDATORIO_HORAS_ANTES = 24
+
+
+# Logs de la app a la consola (docker compose logs): ahí queda, por ejemplo, el registro
+# del canal de WhatsApp mientras no esté integrado.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'consola': {'class': 'logging.StreamHandler'}},
+    'loggers': {'apps': {'handlers': ['consola'], 'level': 'INFO'}},
 }
