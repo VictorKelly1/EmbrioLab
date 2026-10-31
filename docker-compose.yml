@@ -28,5 +28,31 @@ services:
       db:
         condition: service_healthy
 
+  # Envía las notificaciones (correo en la consola de este servicio, en desarrollo).
+  worker:
+    build: .
+    command: python manage.py db_worker
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Timer de los recordatorios de 24 h: cada 15 minutos encola los que tocan.
+  recordatorios:
+    build: .
+    command: sh -c "while true; do python manage.py enviar_recordatorios; sleep 900; done"
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:

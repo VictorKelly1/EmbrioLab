@@ -1,4 +1,4 @@
-# Producción: nginx + gunicorn + postgres. El worker de tareas se agrega en la semana 8.
+# Producción: nginx + gunicorn + postgres + worker de tareas + timer de recordatorios.
 # Uso: docker compose -f docker-compose.prod.yml up --build -d
 name: embriolab-prod
 
@@ -29,6 +29,30 @@ services:
     volumes:
       - static:/app/staticfiles
       - privado:/app/privado
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: python manage.py db_worker
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: embriolab.settings.prod
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  recordatorios:
+    build: .
+    command: sh -c "while true; do python manage.py enviar_recordatorios; sleep 900; done"
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: embriolab.settings.prod
+      POSTGRES_HOST: db
     depends_on:
       db:
         condition: service_healthy

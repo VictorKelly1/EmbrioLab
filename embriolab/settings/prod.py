@@ -59,4 +59,7 @@ MAILERS = {
         },
     },
 }
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+
+# Los links del formulario que salen por correo apuntan aquí.
+if not os.environ.get('SITIO_URL'):
+    raise ImproperlyConfigured('SITIO_URL es obligatorio en producción.')
