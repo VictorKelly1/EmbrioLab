@@ -2322,6 +2322,41 @@ a.lateral__opcion:hover {
   gap: 0.0625rem;
 }
 
+/* Notificaciones y envío de resultados */
+
+.etiqueta--enviado {
+  background: var(--exito-fondo);
+  color: var(--exito);
+}
+
+.etiqueta--fallido {
+  background: var(--error-fondo);
+  color: var(--error);
+}
+
+.envio {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.envio .opciones {
+  flex-direction: column;
+  gap: 0;
+}
+
+.envio__destinos {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--tinta-suave);
+}
+
+.notificacion__error {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--error);
+  overflow-wrap: anywhere;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

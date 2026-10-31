@@ -116,6 +116,34 @@
   {% if puede_editar %}<p class="campo__ayuda">Asignar químicos pone el estudio en proceso: aparece en la lista de trabajo de cada uno. El envío de resultados no depende del pago.</p>{% endif %}
 </section>
 
+{% if hay_completados %}
+<section class="tarjeta" aria-labelledby="titulo-entrega">
+  <div class="tarjeta__encabezado">
+    <h2 id="titulo-entrega">Entrega de resultados</h2>
+    <a class="boton boton--secundario boton--chico" href="{% url 'documentos:resultados' pedido.pk %}" target="_blank" rel="noopener">Ver PDF</a>
+  </div>
+  {% if enviar_form %}
+  <form method="post" action="{% url 'pedidos:enviar' pedido.pk %}" class="envio" novalidate>
+    {% csrf_token %}
+    <fieldset class="campo campo--opciones">
+      <legend>Estudios a enviar</legend>
+      <div class="opciones">{% for opcion in enviar_form.estudios %}<label>{{ opcion.tag }} {{ opcion.choice_label }}</label>{% endfor %}</div>
+    </fieldset>
+    {% if destinos %}
+    <p class="envio__destinos">Se envían en un solo PDF por {% if destinos.correo %}correo a <strong>{{ destinos.correo }}</strong>{% endif %}{% if destinos.correo and destinos.whatsapp %} y por {% endif %}{% if destinos.whatsapp %}WhatsApp al <strong>{{ destinos.whatsapp }}</strong>{% endif %}.</p>
+    <div class="acciones"><button type="submit" class="boton boton--principal">Enviar resultados</button></div>
+    {% else %}
+    <div class="aviso aviso--error" role="alert"><p>El paciente no tiene correo ni WhatsApp registrado. Pida a la recepción que lo agregue en su ficha.</p></div>
+    {% endif %}
+  </form>
+  {% elif puede_editar %}
+  <p class="tenue">Los químicos envían los resultados desde esta pantalla.</p>
+  {% endif %}
+  <h3>Envíos</h3>
+  {% include 'notificaciones/_lista.html' with con_estudio=True vacio='Todavía no se envían resultados de este pedido.' %}
+</section>
+{% endif %}
+
 <section class="tarjeta respuestas" aria-labelledby="titulo-respuestas">
   <h2 id="titulo-respuestas">Formulario de la visita</h2>
   {% include 'formularios/_respuestas.html' with sin_llenar='El paciente todavía no llena el formulario de esta visita.' %}

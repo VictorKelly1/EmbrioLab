@@ -65,6 +65,14 @@
       {% csrf_token %}
       <button type="submit" class="boton boton--secundario">{% if cita.token_qr %}Generar un link nuevo{% else %}Generar link del formulario{% endif %}</button>
     </form>
+    {% if destinos %}
+    <form method="post" action="{% url 'citas:enviar_link' cita.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="boton boton--secundario">Enviar link por {% if destinos.correo %}correo{% endif %}{% if destinos.correo and destinos.whatsapp %} y {% endif %}{% if destinos.whatsapp %}WhatsApp{% endif %}</button>
+    </form>
+    {% else %}
+    <p class="campo__ayuda">Para enviar el link por correo o WhatsApp, agregue un contacto en la <a href="{% url 'pacientes:editar' cita.paciente.pk %}">ficha del paciente</a>.</p>
+    {% endif %}
     {% endif %}
     {% if cita.estado == 'no_atendida' %}<p class="tenue">El paciente no asistió. Para una nueva visita, agende otra cita.</p>
     {% elif not programada and llenado %}<p class="tenue">Sin acciones pendientes: la cita se atendió y el formulario ya está respondido.</p>{% endif %}
@@ -74,6 +82,11 @@
 <section class="tarjeta respuestas" aria-labelledby="titulo-respuestas">
   <h2 id="titulo-respuestas">Formulario de la visita</h2>
   {% include 'formularios/_respuestas.html' with sin_llenar='Pendiente. Genere el link para que el paciente lo llene desde su celular.' %}
+</section>
+
+<section class="tarjeta pedidos-cita" aria-labelledby="titulo-envios">
+  <h2 id="titulo-envios">Recordatorio y link del formulario</h2>
+  {% include 'notificaciones/_lista.html' with vacio=cita.recordatorio_enviado|yesno:'Recordatorio en cola.,Sin envíos todavía. El recordatorio sale solo 24 h antes de la cita.' %}
 </section>
 
 <section class="tarjeta pedidos-cita" aria-labelledby="titulo-pedidos">
