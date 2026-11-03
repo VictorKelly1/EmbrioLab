@@ -52,11 +52,10 @@ def _crear_url(cita):
     return f'{reverse("pedidos:crear")}?cita={cita.pk}'
 
 
-def _linea(i, estudio, nombre='', alias=False, quimicos=()):
+def _linea(i, estudio, nombre='', alias=False):
     datos = {
         f'form-{i}-nombre_solicitado': nombre,
         f'form-{i}-estudio': estudio.pk,
-        f'form-{i}-quimicos': [q.pk for q in quimicos],
     }
     if alias:
         datos[f'form-{i}-guardar_alias'] = 'on'
@@ -124,11 +123,10 @@ def test_cita_no_atendida_regresa_a_la_cita(recepcion):
 
 
 def test_armar_pedido(recepcion, recepcionista, cita, catalogo):
-    uno, dos = QuimicoFactory(), QuimicoFactory()
     respuesta = recepcion.post(
         _crear_url(cita),
         _formset(
-            _linea(0, catalogo['ESP'], 'Seminograma', quimicos=(uno, dos)),
+            _linea(0, catalogo['ESP'], 'Seminograma'),
             _linea(1, catalogo['PLIP'], 'Lípidos y más', alias=True),
         ),
     )
@@ -137,8 +135,8 @@ def test_armar_pedido(recepcion, recepcionista, cita, catalogo):
     assert respuesta.url == reverse('pedidos:detalle', args=[pedido.pk])
     assert pedido.recepcionista == recepcionista
     assert pedido.estudios.count() == 2
-    esperma = pedido.estudios.get(estudio__clave='ESP')
-    assert set(esperma.quimicos_asignados.all()) == {uno, dos}
+    # Los estudios esperan en la cola de los químicos: la recepción ya no asigna.
+    assert set(pedido.estudios.values_list('estado', 'quimico_encargado')) == {('pendiente', None)}
     assert EstudioAlias.objects.filter(alias='lipidos y mas', estudio=catalogo['PLIP']).exists()
 
 
@@ -183,21 +181,25 @@ def test_la_cita_muestra_sus_pedidos(recepcion, pedido):
     assert 'Armar pedido' in respuesta.text
 
 
-def test_asignar_quimicos_y_pago_desde_la_fila(recepcion, pedido):
+def test_pago_desde_la_fila(recepcion, pedido):
     estudio = pedido.estudios.get(estudio__clave='GLU')
-    uno, dos = QuimicoFactory(), QuimicoFactory()
-    recepcion.post(
+    respuesta = recepcion.post(
         reverse('pedidos:estudio_actualizar', args=[estudio.pk]),
-        {
-            f'fila{estudio.pk}-quimicos': [uno.pk, dos.pk],
-            f'fila{estudio.pk}-estado_pago': 'pagado',
-        },
+        {f'fila{estudio.pk}-estado_pago': 'pagado'},
+        follow=True,
     )
+    assert 'Pago actualizado' in respuesta.text
     estudio.refresh_from_db()
-    assert (estudio.estado, estudio.estado_pago) == ('en_proceso', 'pagado')
-    assert set(estudio.quimicos_asignados.all()) == {uno, dos}
+    assert (estudio.estado, estudio.estado_pago) == ('pendiente', 'pagado')
     pedido.refresh_from_db()
-    assert (pedido.estado, pedido.estado_pago) == ('en_proceso', 'abonado')
+    assert (pedido.estado, pedido.estado_pago) == ('pendiente', 'abonado')
+
+
+def test_la_recepcion_no_toma_estudios(recepcion, pedido):
+    estudio = pedido.estudios.first()
+    respuesta = recepcion.post(reverse('pedidos:estudio_tomar', args=[estudio.pk]))
+    assert respuesta.status_code == 403
+    assert recepcion.get(reverse('pedidos:cola')).status_code == 403
 
 
 def test_pagar_todo(recepcion, pedido):
@@ -251,40 +253,21 @@ def test_pedido_de_otra_fabrica_se_ve(recepcion):
     assert recepcion.get(reverse('pedidos:detalle', args=[pedido.pk])).status_code == 200
 
 
-def test_quitar_a_todos_los_quimicos_muestra_el_error(recepcion, pedido):
-    estudio = pedido.estudios.get(estudio__clave='GLU')
-    recepcion.post(
-        reverse('pedidos:estudio_actualizar', args=[estudio.pk]),
-        {
-            f'fila{estudio.pk}-quimicos': [QuimicoFactory().pk],
-            f'fila{estudio.pk}-estado_pago': 'pendiente',
-        },
-    )
-    respuesta = recepcion.post(
-        reverse('pedidos:estudio_actualizar', args=[estudio.pk]),
-        {f'fila{estudio.pk}-estado_pago': 'pendiente'},
-        follow=True,
-    )
-    assert 'al menos un químico' in respuesta.text
+def test_el_detalle_muestra_el_encargado_sin_casillas(recepcion, pedido):
+    from apps.pedidos.services import tomar_estudio
 
-
-def test_el_detalle_muestra_casillas_de_quimicos(recepcion, pedido):
+    estudio, otro = pedido.estudios.order_by('id')
     quimico = QuimicoFactory()
+    tomar_estudio(estudio, quimico=quimico)
     respuesta = recepcion.get(reverse('pedidos:detalle', args=[pedido.pk]))
-    estudio = pedido.estudios.first()
-    assert f'name="fila{estudio.pk}-quimicos" value="{quimico.pk}"' in respuesta.text
-    assert f'form="fila-{estudio.pk}"' in respuesta.text
+    assert quimico.usuario.persona.nombre_completo in respuesta.text
+    assert 'En la cola' in respuesta.text
+    assert 'quimicos' not in respuesta.text
+    assert f'form="fila-{otro.pk}"' in respuesta.text
+    # Tomar es solo del químico.
+    assert reverse('pedidos:estudio_tomar', args=[otro.pk]) not in respuesta.text
 
 
-def test_un_quimico_dado_de_baja_sigue_marcado_en_su_estudio(recepcion, pedido, recepcionista):
-    from apps.pedidos.services import asignar_quimicos
-
-    estudio = pedido.estudios.first()
-    quimico = QuimicoFactory()
-    asignar_quimicos(estudio, [quimico], usuario=recepcionista.usuario)
-    quimico.estado_actividad = False
-    quimico.save()
-    respuesta = recepcion.get(reverse('pedidos:detalle', args=[pedido.pk]))
-    assert f'name="fila{estudio.pk}-quimicos" value="{quimico.pk}"' in respuesta.text
-    otro = pedido.estudios.last()
-    assert f'name="fila{otro.pk}-quimicos" value="{quimico.pk}"' not in respuesta.text
+def test_armar_pedido_ya_no_pide_quimicos(recepcion, cita):
+    respuesta = recepcion.get(_crear_url(cita))
+    assert 'quimicos' not in respuesta.text

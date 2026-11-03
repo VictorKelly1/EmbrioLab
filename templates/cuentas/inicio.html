@@ -37,10 +37,11 @@
       <h2 id="titulo-trabajo">Su lista de trabajo</h2>
       <div class="acciones">
         <a class="boton boton--secundario boton--chico" href="{% url 'pedidos:lista' %}?quimico={{ quimico.pk }}">Historial de sus pedidos</a>
+        <a class="boton boton--principal boton--chico" href="{% url 'pedidos:cola' %}">Cola de pedidos{% if en_cola %} ({{ en_cola }}){% endif %}</a>
       </div>
     </div>
     {% if trabajo %}
-    <p class="tenue">Estudios en proceso que tiene asignados, los más antiguos primero.</p>
+    <p class="tenue">Estudios en proceso a su cargo, los más antiguos primero.</p>
     <ol class="proximas__lista trabajo__lista">
       {% for estudio in trabajo %}
       <li>
@@ -55,7 +56,7 @@
       {% endfor %}
     </ol>
     {% else %}
-    <p class="tenue">No tiene estudios en proceso. Cuando la recepción le asigne uno, aparecerá aquí.</p>
+    <p class="tenue">No tiene estudios en proceso. Tome uno de la <a href="{% url 'pedidos:cola' %}">cola de pedidos</a> y aparecerá aquí.</p>
     {% endif %}
   </section>
   {% else %}

@@ -13,11 +13,7 @@ from apps.pedidos.selectors import quimicos_activos
 from apps.pedidos.services import Linea
 
 
-class QuimicosField(forms.ModelMultipleChoiceField):
-    """Uno o varios químicos responsables, como casillas."""
-
-    widget = forms.CheckboxSelectMultiple
-
+class QuimicoField(forms.ModelChoiceField):
     def label_from_instance(self, quimico):
         return quimico.usuario.persona.nombre_completo
 
@@ -50,17 +46,10 @@ class LineaForm(forms.Form):
     guardar_alias = forms.BooleanField(
         label='Guardar el nombre como alias de este estudio', required=False
     )
-    quimicos = QuimicosField(
-        label='Químicos responsables',
-        queryset=None,
-        required=False,
-        help_text='Puede elegir uno o varios. Sin químico, el estudio queda pendiente.',
-    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['estudio'].queryset = _estudios()
-        self.fields['quimicos'].queryset = quimicos_activos()
         self.fields['nombre_solicitado'].widget.attrs.update(
             {
                 'hx-get': reverse('pedidos:sugerencias'),
@@ -76,7 +65,6 @@ class LineaForm(forms.Form):
             estudio=datos['estudio'],
             nombre_solicitado=datos['nombre_solicitado'],
             guardar_alias=datos['guardar_alias'],
-            quimicos=tuple(datos['quimicos']),
         )
 
 
@@ -93,17 +81,19 @@ class DoctorPedidoForm(forms.Form):
 
 
 class EstudioPedidoForm(forms.Form):
-    """La fila de un estudio en el detalle del pedido."""
+    """La fila de un estudio en el detalle del pedido: la recepción cambia el pago."""
 
-    quimicos = QuimicosField(label='Químicos', queryset=None, required=False)
     estado_pago = forms.ChoiceField(label='Pago', choices=EstadoPago.choices)
 
-    def __init__(self, *args, quimicos_asignados=(), **kwargs):
+
+class ReasignarForm(forms.Form):
+    """El encargado pasa el estudio a otro químico activo."""
+
+    quimico = QuimicoField(label='Pasar a', queryset=None, empty_label='Elija un químico')
+
+    def __init__(self, *args, quimico, **kwargs):
         super().__init__(*args, **kwargs)
-        # Los activos más los ya asignados, aunque se hayan dado de baja después.
-        activos = quimicos_activos()
-        asignados = activos.model.objects.filter(pk__in=[q.pk for q in quimicos_asignados])
-        self.fields['quimicos'].queryset = (activos | asignados).distinct()
+        self.fields['quimico'].queryset = quimicos_activos().exclude(pk=quimico.pk)
 
 
 class PagoPedidoForm(forms.Form):
@@ -132,11 +122,6 @@ class EnviarResultadosForm(forms.Form):
         self.fields['estudios'].queryset = completados
 
 
-class QuimicoField(forms.ModelChoiceField):
-    def label_from_instance(self, quimico):
-        return quimico.usuario.persona.nombre_completo
-
-
 class FiltroPedidosForm(forms.Form):
     q = forms.CharField(label='Buscar por número, folio o paciente', required=False)
     estado = forms.ChoiceField(
@@ -149,7 +134,7 @@ class FiltroPedidosForm(forms.Form):
     )
     # Todos, no solo los activos: el historial incluye a los que se dieron de baja.
     quimico = QuimicoField(
-        label='Químico asignado',
+        label='Químico encargado',
         required=False,
         empty_label='Todos',
         queryset=Quimico.objects.select_related('usuario__persona').order_by(

@@ -24,7 +24,7 @@
 <section class="tarjeta" aria-labelledby="titulo-resultados">
   <h2 id="titulo-resultados">Resultados</h2>
   <dl class="datos">
-    <dt>Químicos</dt><dd>{% for quimico in quimicos %}{{ quimico.usuario.persona.nombre_completo }}{% if not forloop.last %}, {% endif %}{% empty %}Sin asignar{% endfor %}</dd>
+    <dt>Encargado</dt><dd>{% if estudio_pedido.quimico_encargado %}{{ estudio_pedido.quimico_encargado.usuario.persona.nombre_completo }}, desde el {{ estudio_pedido.fecha_toma|date:'j/m/Y H:i' }}{% else %}En la cola, sin encargado{% endif %}</dd>
     {% if estudio_pedido.nombre_solicitado != estudio_pedido.estudio.nombre %}<dt>En la orden</dt><dd>«{{ estudio_pedido.nombre_solicitado }}»</dd>{% endif %}
     {% if completado %}<dt>Completó</dt><dd>{{ estudio_pedido.quimico_completo.usuario.persona.nombre_completo }}, {{ estudio_pedido.fecha_completado|date:'j/m/Y H:i' }}</dd>{% endif %}
   </dl>
@@ -69,7 +69,15 @@
   {% if completado %}<p class="campo__ayuda">La referencia es la que aplicaba al paciente el día de la cita y quedó guardada con el resultado.</p>{% endif %}
 
   {% else %}
-  <p class="tenue">{% if estudio_pedido.estado == 'pendiente' %}Sin químico asignado: la recepción lo asigna desde el pedido.{% else %}Todavía no hay resultados capturados.{% endif %}</p>
+  {% if estudio_pedido.estado == 'pendiente' %}
+  <p class="tenue">Nadie ha tomado este estudio: espera en la cola de los químicos.</p>
+  {% if puede_tomar %}
+  <form method="post" action="{% url 'pedidos:estudio_tomar' estudio_pedido.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="boton boton--principal">Tomar el estudio</button>
+  </form>
+  {% endif %}
+  {% else %}<p class="tenue">Todavía no hay resultados capturados.</p>{% endif %}
   {% endif %}
 </section>
 

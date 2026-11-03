@@ -26,6 +26,7 @@ def test_opciones_de_la_recepcionista():
 def test_opciones_del_quimico():
     assert _etiquetas(QuimicoFactory().usuario) == [
         'Inicio',
+        'Cola de pedidos',
         'Pedidos',
         'Pacientes',
         'Catálogo de estudios',
@@ -65,3 +66,12 @@ def test_el_layout_muestra_el_menu_del_rol(client):
     assert 'Catálogo de estudios' in respuesta.text
     assert 'Doctores' not in respuesta.text
     assert 'aria-current="page"' in respuesta.text
+
+
+@pytest.mark.parametrize(
+    ('vista', 'activa'),
+    [('pedidos:cola', 'Cola de pedidos'), ('pedidos:detalle', 'Pedidos')],
+)
+def test_opcion_activa_del_quimico(vista, activa):
+    opciones = opciones_para(QuimicoFactory().usuario, vista)
+    assert [o['etiqueta'] for o in opciones if o['activa']] == [activa]

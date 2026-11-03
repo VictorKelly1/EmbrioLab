@@ -60,7 +60,7 @@
           <th scope="col" class="tabla__numero">Precio</th>
           <th scope="col">Estado</th>
           <th scope="col">Resultados</th>
-          <th scope="col">Químicos</th>
+          <th scope="col">Encargado</th>
           <th scope="col">Pago</th>
           {% if puede_editar %}<th scope="col"><span class="visualmente-oculto">Acciones</span></th>{% endif %}
         </tr>
@@ -80,16 +80,8 @@
             {% elif estudio.resultados %}<a href="{% url 'pedidos:resultados' estudio.pk %}">Borrador<span class="visualmente-oculto"> de {{ estudio.estudio.nombre }}</span></a>
             {% else %}<span class="tenue">—</span>{% endif %}
           </td>
+          <td>{% include 'pedidos/_encargado.html' %}</td>
           {% if puede_editar %}
-          <td>
-            {% if estudio.completado %}{% for quimico in estudio.quimicos %}{{ quimico.usuario.persona.nombre_completo }}{% if not forloop.last %}, {% endif %}{% endfor %}
-            {% else %}
-            <fieldset class="quimicos-fila">
-              <legend class="visualmente-oculto">Químicos de {{ estudio.estudio.nombre }}</legend>
-              {% for opcion in estudio.form.quimicos %}<label>{{ opcion.tag }} {{ opcion.choice_label }}</label>{% endfor %}
-            </fieldset>
-            {% endif %}
-          </td>
           <td><label class="visualmente-oculto" for="{{ estudio.form.estado_pago.id_for_label }}">Pago de {{ estudio.estudio.nombre }}</label>{{ estudio.form.estado_pago.as_widget }}</td>
           <td class="tabla__accion">
             <form method="post" action="{% url 'pedidos:estudio_actualizar' estudio.pk %}" id="fila-{{ estudio.pk }}" class="en-linea">
@@ -104,7 +96,6 @@
             {% endif %}
           </td>
           {% else %}
-          <td>{% for quimico in estudio.quimicos %}{{ quimico.usuario.persona.nombre_completo }}{% if not forloop.last %}, {% endif %}{% empty %}Sin asignar{% endfor %}</td>
           <td><span class="etiqueta etiqueta--pago-{{ estudio.estado_pago }}">{{ estudio.get_estado_pago_display }}</span></td>
           {% endif %}
         </tr>
@@ -112,8 +103,8 @@
       </tbody>
     </table>
   </div>
-  {% if not puede_editar %}<p class="campo__ayuda">Solo los químicos asignados capturan un estudio. Completado, ya no se corrige.</p>{% endif %}
-  {% if puede_editar %}<p class="campo__ayuda">Asignar químicos pone el estudio en proceso: aparece en la lista de trabajo de cada uno. El envío de resultados no depende del pago.</p>{% endif %}
+  {% if not puede_editar %}<p class="campo__ayuda">Solo el químico encargado captura un estudio. Puede soltarlo o pasarlo a otro químico mientras no haya capturado nada. Completado, ya no se corrige.</p>{% endif %}
+  {% if puede_editar %}<p class="campo__ayuda">Los estudios sin encargado esperan en la cola de los químicos; al tomarlo, uno queda a cargo y el estudio pasa a en proceso. El envío de resultados no depende del pago.</p>{% endif %}
 </section>
 
 {% if hay_completados %}
