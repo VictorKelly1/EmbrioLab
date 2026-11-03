@@ -17,6 +17,7 @@ def test_opciones_de_la_recepcionista():
         'Calendario de citas',
         'Pedidos',
         'Pacientes',
+        'Cotizaciones',
         'Formularios',
         'Catálogo de estudios',
         'Doctores',

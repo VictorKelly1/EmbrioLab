@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<title>Cotización · EmbrioLab</title>
+<style>
+  {% if fuente %}@font-face {
+    font-family: 'Figtree';
+    src: url('{{ fuente }}') format('woff2');
+    font-weight: 300 900;
+  }{% endif %}
+
+  @page {
+    size: letter;
+    margin: 18mm 16mm 20mm;
+    @bottom-left {
+      content: 'EmbrioLab · Cotización del {{ cotizacion.fecha|date:"j/m/Y" }}';
+      font: 8pt 'Figtree', sans-serif;
+      color: #646463;
+    }
+    @bottom-right {
+      content: 'Página ' counter(page) ' de ' counter(pages);
+      font: 8pt 'Figtree', sans-serif;
+      color: #646463;
+    }
+  }
+
+  body { font: 9.5pt/1.45 'Figtree', sans-serif; color: #2a2236; margin: 0; }
+
+  .membrete {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2pt solid #b57edc;
+    padding-bottom: 6pt;
+    margin-bottom: 12pt;
+  }
+  .membrete__nombre { font-size: 18pt; font-weight: 700; color: #6e3d96; letter-spacing: -0.01em; }
+  .membrete__titulo { font-size: 10pt; color: #4a3d63; text-align: right; }
+
+  .cliente { background: #f6f6ff; border-radius: 4pt; margin-bottom: 14pt; }
+  .cliente td { border: 0; padding: 8pt 10pt; }
+  .dato { display: block; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #646463; }
+  .cliente strong { font-weight: 600; font-size: 11pt; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #646463;
+    font-weight: 600;
+    border-bottom: 1pt solid #ccccfe;
+    padding: 3pt 4pt;
+  }
+  td { padding: 5pt 4pt; border-bottom: 0.5pt solid #ebebff; vertical-align: top; }
+  .numero { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tenue { color: #646463; }
+  .total td { border-bottom: 0; border-top: 1pt solid #b57edc; font-size: 11pt; font-weight: 700; padding-top: 7pt; }
+
+  .nota { margin-top: 18pt; padding-top: 6pt; border-top: 0.5pt solid #ccccfe; font-size: 7.5pt; color: #646463; }
+</style>
+</head>
+<body>
+<header class="membrete">
+  <div class="membrete__nombre">EmbrioLab</div>
+  <div class="membrete__titulo">Cotización de estudios<br>{{ cotizacion.fecha|date:'j \d\e F \d\e Y' }}</div>
+</header>
+
+{% if cotizacion.cliente %}
+<table class="cliente"><tr><td><span class="dato">Para</span><strong>{{ cotizacion.cliente }}</strong></td></tr></table>
+{% endif %}
+
+<table>
+  <thead>
+    <tr><th>Estudio</th><th>Categoría</th><th class="numero">Precio</th></tr>
+  </thead>
+  <tbody>
+    {% for renglon in cotizacion.renglones %}
+    <tr>
+      <td>{{ renglon.nombre }}</td>
+      <td class="tenue">{{ renglon.categoria }}</td>
+      <td class="numero">${{ renglon.precio|floatformat:"2g" }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total">
+      <td colspan="2">Total ({{ cotizacion.renglones|length }} estudio{{ cotizacion.renglones|length|pluralize }})</td>
+      <td class="numero">${{ cotizacion.total|floatformat:"2g" }} MXN</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="nota">Precios vigentes al {{ cotizacion.fecha|date:'j/m/Y' }}, en pesos mexicanos, sujetos a cambio sin previo aviso. Esta cotización no es un comprobante de pago. Documento generado el {{ generado|date:'j/m/Y H:i' }}.</p>
+</body>
+</html>
