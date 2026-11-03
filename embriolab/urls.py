@@ -8,6 +8,7 @@ urlpatterns = [
     path('', InicioView.as_view(), name='inicio'),
     path('', include('apps.cuentas.urls')),
     path('citas/', include('apps.citas.urls')),
+    path('cotizaciones/', include('apps.cotizaciones.urls')),
     path('documentos/', include('apps.documentos.urls')),
     path('estudios/', include('apps.estudios.urls')),
     path('formularios/', include('apps.formularios.urls')),
