@@ -2,11 +2,11 @@ import datetime
 
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q, QuerySet
 
-from apps.citas.models import Cita
+from apps.citas.models import Cita, EstadoCita
 from apps.core.texto import normalizar
 from apps.cuentas.models import Quimico
 from apps.pacientes.models import Paciente
-from apps.pedidos.models import AsignacionQuimico, EstadoEstudio, EstudioPedido, Pedido
+from apps.pedidos.models import EstadoEstudio, EstudioPedido, Pedido
 
 
 def _con_paciente(pedidos: QuerySet[Pedido]) -> QuerySet[Pedido]:
@@ -26,7 +26,7 @@ def buscar_pedidos(
 ) -> QuerySet[Pedido]:
     """
     Por número de pedido, folio o nombre del paciente; con filtros de estado, pago,
-    químico asignado (a cualquiera de sus estudios) y fecha del pedido (ambas incluidas).
+    químico encargado (de cualquiera de sus estudios) y fecha del pedido (ambas incluidas).
     """
     pedidos = _con_paciente(Pedido.objects.order_by('-fecha_inicio', '-id'))
     if estado:
@@ -36,11 +36,7 @@ def buscar_pedidos(
     if quimico:
         # Exists y no un join: el join duplicaría filas y el conteo de estudios.
         pedidos = pedidos.filter(
-            Exists(
-                AsignacionQuimico.objects.filter(
-                    estudio_pedido__pedido=OuterRef('pk'), quimico=quimico
-                )
-            )
+            Exists(EstudioPedido.objects.filter(pedido=OuterRef('pk'), quimico_encargado=quimico))
         )
     if desde:
         pedidos = pedidos.filter(fecha_inicio__date__gte=desde)
@@ -68,8 +64,8 @@ def obtener_pedido(pk: int) -> Pedido:
         .prefetch_related(
             Prefetch(
                 'estudios',
-                queryset=EstudioPedido.objects.select_related('estudio').prefetch_related(
-                    'quimicos_asignados__usuario__persona'
+                queryset=EstudioPedido.objects.select_related(
+                    'estudio', 'quimico_encargado__usuario__persona'
                 ),
             )
         )
@@ -97,19 +93,35 @@ def _estudios_con_pedido() -> QuerySet[EstudioPedido]:
 
 
 def lista_de_trabajo(quimico: Quimico) -> QuerySet[EstudioPedido]:
-    """Estudios en proceso donde el químico es uno de los responsables; los más viejos primero."""
+    """Estudios en proceso a cargo del químico; los más viejos primero."""
     return (
         _estudios_con_pedido()
-        .filter(estado=EstadoEstudio.EN_PROCESO, asignaciones__quimico=quimico)
+        .filter(estado=EstadoEstudio.EN_PROCESO, quimico_encargado=quimico)
         .order_by('pedido__fecha_inicio', 'id')
+    )
+
+
+def cola_de_estudios() -> QuerySet[EstudioPedido]:
+    """
+    Estudios sin encargado que esperan a que un químico los tome, de citas atendidas
+    (CONTEXTO.md §3). Ordenados por pedido, los más viejos primero, para agruparlos.
+    """
+    return (
+        _estudios_con_pedido()
+        .select_related('pedido__doctor')
+        .filter(
+            estado=EstadoEstudio.PENDIENTE,
+            quimico_encargado__isnull=True,
+            pedido__cita__estado=EstadoCita.ATENDIDA,
+        )
+        .order_by('pedido__fecha_inicio', 'pedido_id', 'id')
     )
 
 
 def obtener_estudio_pedido(pk: int) -> EstudioPedido:
     return (
         _estudios_con_pedido()
-        .select_related('quimico_completo__usuario__persona')
-        .prefetch_related('quimicos_asignados__usuario__persona')
+        .select_related('quimico_completo__usuario__persona', 'quimico_encargado__usuario__persona')
         .get(pk=pk)
     )
 

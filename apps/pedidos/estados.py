@@ -1,7 +1,10 @@
 """
 Máquina de estados de EstudioPedido (CONTEXTO.md §5) y reglas de los derivados del pedido.
 
-    pendiente ──asignar químico──▶ en_proceso ──completar──▶ completado ──enviar──▶ (fecha_envio)
+    pendiente ──un químico lo toma──▶ en_proceso ──completar──▶ completado ──enviar──▶ (fecha_envio)
+
+Soltar un estudio sin captura (en_proceso → pendiente) no es una transición de la
+máquina: es deshacer la toma, y solo lo hace `services.soltar_estudio`.
 
 Las reglas de los derivados son PROVISIONALES (CONTEXTO.md §8): están aisladas aquí.
 """

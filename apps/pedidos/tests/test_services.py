@@ -1,29 +1,34 @@
 import datetime
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.utils import timezone
 
 from apps.citas.models import EstadoCita
 from apps.citas.tests.factories import CitaFactory
 from apps.cuentas.tests.factories import QuimicoFactory, RecepcionistaFactory
 from apps.estudios.models import Estudio, EstudioAlias
+from apps.estudios.tests.factories import EstudioFactory
 from apps.pacientes.tests.factories import DoctorFactory
 from apps.pedidos.estados import TransicionInvalida
 from apps.pedidos.models import EstudioPedido
 from apps.pedidos.services import (
     Linea,
-    actualizar_estudio_pedido,
     agregar_estudio,
-    asignar_quimicos,
     cambiar_doctor,
     cambiar_estado_pago,
     cambiar_pago_pedido,
     crear_pedido,
+    guardar_borrador,
     quitar_estudio,
+    reasignar_estudio,
     recalcular_pedido,
+    soltar_estudio,
+    tomar_estudio,
 )
 from apps.pedidos.tests.factories import EstudioPedidoFactory, PedidoFactory
 
@@ -152,83 +157,168 @@ def test_no_guarda_alias_igual_al_nombre(cita, recepcionista, catalogo):
     assert EstudioAlias.objects.count() == antes
 
 
-# Químico
+# Cola de químicos: tomar, soltar y pasar
 
 
-def _quimicos(estudio):
-    return set(estudio.quimicos_asignados.all())
-
-
-def test_asignar_varios_quimicos_lo_pone_en_proceso(cita, recepcionista, catalogo):
-    uno, dos = QuimicoFactory(), QuimicoFactory()
+def test_tomar_un_estudio_lo_deja_a_su_cargo_y_en_proceso(cita, recepcionista, catalogo):
+    quimico = QuimicoFactory()
     pedido = _pedido(cita, recepcionista, Linea(catalogo['GLU']), Linea(catalogo['PLIP']))
     glu = pedido.estudios.get(estudio__clave='GLU')
-    asignar_quimicos(glu, [uno, dos], usuario=recepcionista.usuario)
+    tomar_estudio(glu, quimico=quimico)
     glu.refresh_from_db()
     pedido.refresh_from_db()
-    assert glu.estado == 'en_proceso'
-    assert _quimicos(glu) == {uno, dos}
-    asignacion = glu.asignaciones.get(quimico=uno)
-    assert asignacion.usuario_asignacion == recepcionista.usuario
-    assert asignacion.fecha_asignacion is not None
+    assert (glu.estado, glu.quimico_encargado) == ('en_proceso', quimico)
+    assert glu.fecha_toma is not None
     assert pedido.estado == 'en_proceso'
 
 
-def test_asignar_al_crear(cita, recepcionista, catalogo):
-    uno, dos = QuimicoFactory(), QuimicoFactory()
-    pedido = _pedido(cita, recepcionista, Linea(catalogo['GLU'], quimicos=(uno, dos)))
-    assert _quimicos(pedido.estudios.get()) == {uno, dos}
-    assert pedido.estado == 'en_proceso'
+def test_un_quimico_puede_tomar_varios_estudios_del_mismo_pedido(cita, recepcionista, catalogo):
+    quimico = QuimicoFactory()
+    pedido = _pedido(cita, recepcionista, Linea(catalogo['GLU']), Linea(catalogo['PLIP']))
+    for estudio in pedido.estudios.all():
+        tomar_estudio(estudio, quimico=quimico)
+    assert set(pedido.estudios.values_list('quimico_encargado', flat=True)) == {quimico.pk}
 
 
-def test_cambiar_el_equipo_en_proceso_conserva_a_los_que_siguen(recepcionista):
+def test_el_pedido_nace_sin_encargados(cita, recepcionista, catalogo):
+    pedido = _pedido(cita, recepcionista, Linea(catalogo['GLU']))
+    estudio = pedido.estudios.get()
+    assert (estudio.estado, estudio.quimico_encargado) == ('pendiente', None)
+
+
+def test_no_se_toma_un_estudio_que_ya_tiene_encargado():
     estudio = EstudioPedidoFactory()
-    uno, dos, tres = QuimicoFactory(), QuimicoFactory(), QuimicoFactory()
-    asignar_quimicos(estudio, [uno, dos], usuario=recepcionista.usuario)
-    original = estudio.asignaciones.get(quimico=uno)
-    asignar_quimicos(estudio, [uno, tres], usuario=recepcionista.usuario)
-    assert _quimicos(estudio) == {uno, tres}
-    assert estudio.asignaciones.get(quimico=uno) == original
+    quimico = QuimicoFactory()
+    tomar_estudio(estudio, quimico=quimico)
+    with pytest.raises(ValidationError, match='Otro químico ya tomó'):
+        tomar_estudio(estudio, quimico=QuimicoFactory())
+    with pytest.raises(ValidationError, match='Ya tiene este estudio'):
+        tomar_estudio(estudio, quimico=quimico)
 
 
-def test_en_proceso_no_se_queda_sin_quimicos(recepcionista):
-    estudio = EstudioPedidoFactory()
-    asignar_quimicos(estudio, [QuimicoFactory()], usuario=recepcionista.usuario)
-    with pytest.raises(ValidationError, match='al menos un químico'):
-        asignar_quimicos(estudio, [], usuario=recepcionista.usuario)
-
-
-def test_pendiente_sin_quimicos_sigue_pendiente(recepcionista):
-    estudio = asignar_quimicos(EstudioPedidoFactory(), [], usuario=recepcionista.usuario)
-    assert estudio.estado == 'pendiente'
-
-
-def test_no_cambia_quimicos_de_un_completado(recepcionista):
+def test_no_se_toma_un_completado():
     estudio = EstudioPedidoFactory(
         estado='completado', resultados={'glucosa': '90'}, fecha_completado=timezone.now()
     )
     with pytest.raises(TransicionInvalida):
-        asignar_quimicos(estudio, [QuimicoFactory()], usuario=recepcionista.usuario)
+        tomar_estudio(estudio, quimico=QuimicoFactory())
 
 
-def test_un_quimico_dado_de_baja_puede_quedarse_pero_no_agregarse(recepcionista):
+def test_un_quimico_dado_de_baja_no_toma_estudios():
+    with pytest.raises(ValidationError, match='baja'):
+        tomar_estudio(EstudioPedidoFactory(), quimico=QuimicoFactory(estado_actividad=False))
+
+
+def test_no_se_toma_un_estudio_de_una_cita_no_atendida():
+    estudio = EstudioPedidoFactory(pedido__cita__estado=EstadoCita.PROGRAMADA)
+    with pytest.raises(ValidationError, match='atendida'):
+        tomar_estudio(estudio, quimico=QuimicoFactory())
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dos_quimicos_toman_el_mismo_estudio_a_la_vez():
+    """El bloqueo de la fila deja entrar a uno; el otro recibe el aviso."""
+    estudio = EstudioPedidoFactory(estudio=EstudioFactory(), version_estudio=1)
+    quimicos = [QuimicoFactory() for _ in range(4)]
+    salida = threading.Barrier(len(quimicos))
+
+    def tomar(quimico):
+        try:
+            salida.wait()
+            tomar_estudio(estudio, quimico=quimico)
+            return 'tomado'
+        except ValidationError:
+            return 'rechazado'
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=len(quimicos)) as hilos:
+        resultados = list(hilos.map(tomar, quimicos))
+    assert sorted(resultados) == ['rechazado'] * 3 + ['tomado']
+    estudio.refresh_from_db()
+    assert estudio.quimico_encargado == quimicos[resultados.index('tomado')]
+
+
+def test_soltar_lo_regresa_a_la_cola():
     estudio = EstudioPedidoFactory()
     quimico = QuimicoFactory()
-    asignar_quimicos(estudio, [quimico], usuario=recepcionista.usuario)
-    quimico.estado_actividad = False
-    quimico.save()
-    otro = QuimicoFactory()
-    asignar_quimicos(estudio, [quimico, otro], usuario=recepcionista.usuario)
-    assert _quimicos(estudio) == {quimico, otro}
+    tomar_estudio(estudio, quimico=quimico)
+    soltar_estudio(estudio, quimico=quimico)
+    estudio.refresh_from_db()
+    estudio.pedido.refresh_from_db()
+    assert (estudio.estado, estudio.quimico_encargado, estudio.fecha_toma) == (
+        'pendiente',
+        None,
+        None,
+    )
+    assert estudio.pedido.estado == 'pendiente'
+    # Ya en la cola, otro lo puede tomar.
+    tomar_estudio(estudio, quimico=QuimicoFactory())
 
 
-def test_no_asigna_quimico_dado_de_baja(recepcionista):
+def test_solo_el_encargado_suelta_o_pasa_el_estudio():
+    estudio = EstudioPedidoFactory()
+    tomar_estudio(estudio, quimico=QuimicoFactory())
+    intruso = QuimicoFactory()
+    with pytest.raises(ValidationError, match='no está a su cargo'):
+        soltar_estudio(estudio, quimico=intruso)
+    with pytest.raises(ValidationError, match='no está a su cargo'):
+        reasignar_estudio(estudio, intruso, quimico=intruso)
+
+
+def test_con_borrador_ya_no_se_suelta_ni_se_pasa():
+    estudio = EstudioPedidoFactory()
+    quimico = QuimicoFactory()
+    tomar_estudio(estudio, quimico=quimico)
+    guardar_borrador(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
+    with pytest.raises(ValidationError, match='borrador'):
+        soltar_estudio(estudio, quimico=quimico)
+    with pytest.raises(ValidationError, match='borrador'):
+        reasignar_estudio(estudio, QuimicoFactory(), quimico=quimico)
+
+
+def test_un_borrador_vacio_no_impide_soltarlo():
+    estudio = EstudioPedidoFactory()
+    quimico = QuimicoFactory()
+    tomar_estudio(estudio, quimico=quimico)
+    guardar_borrador(estudio, {}, quimico=quimico)
+    estudio.refresh_from_db()
+    assert estudio.resultados == {'version': 1, 'valores': {}}
+    soltar_estudio(estudio, quimico=quimico)
+
+
+def test_no_se_suelta_un_pendiente():
+    with pytest.raises(TransicionInvalida, match='pendiente'):
+        soltar_estudio(EstudioPedidoFactory(), quimico=QuimicoFactory())
+
+
+def test_pasar_el_estudio_a_otro_quimico():
+    estudio = EstudioPedidoFactory()
+    quimico, otro = QuimicoFactory(), QuimicoFactory()
+    tomar_estudio(estudio, quimico=quimico)
+    reasignar_estudio(estudio, otro, quimico=quimico)
+    estudio.refresh_from_db()
+    assert (estudio.estado, estudio.quimico_encargado) == ('en_proceso', otro)
+
+
+def test_no_se_pasa_a_si_mismo_ni_a_uno_dado_de_baja():
+    estudio = EstudioPedidoFactory()
+    quimico = QuimicoFactory()
+    tomar_estudio(estudio, quimico=quimico)
+    with pytest.raises(ValidationError, match='otro químico'):
+        reasignar_estudio(estudio, quimico, quimico=quimico)
     with pytest.raises(ValidationError, match='baja'):
-        asignar_quimicos(
-            EstudioPedidoFactory(),
-            [QuimicoFactory(estado_actividad=False)],
-            usuario=recepcionista.usuario,
-        )
+        reasignar_estudio(estudio, QuimicoFactory(estado_actividad=False), quimico=quimico)
+
+
+def test_la_bd_exige_encargado_en_proceso():
+    with pytest.raises(IntegrityError):
+        EstudioPedidoFactory(estado='en_proceso')
+
+
+def test_la_bd_no_deja_encargado_en_un_pendiente():
+    with pytest.raises(IntegrityError):
+        EstudioPedidoFactory(quimico_encargado=QuimicoFactory(), fecha_toma=timezone.now())
 
 
 # Pago
@@ -255,21 +345,6 @@ def test_pagar_todo_el_pedido(cita, recepcionista, catalogo):
     pedido = cambiar_pago_pedido(pedido, 'pagado')
     assert pedido.estado_pago == 'pagado'
     assert set(pedido.estudios.values_list('estado_pago', flat=True)) == {'pagado'}
-
-
-def test_actualizar_fila_solo_cambia_lo_distinto(recepcionista):
-    estudio = EstudioPedidoFactory()
-    quimico = QuimicoFactory()
-    actualizar_estudio_pedido(
-        estudio, quimicos=[quimico], estado_pago='abonado', usuario=recepcionista.usuario
-    )
-    asignacion = estudio.asignaciones.get()
-    actualizar_estudio_pedido(
-        estudio, quimicos=[quimico], estado_pago='pagado', usuario=recepcionista.usuario
-    )
-    estudio.refresh_from_db()
-    assert (_quimicos(estudio), estudio.estado_pago) == ({quimico}, 'pagado')
-    assert estudio.asignaciones.get() == asignacion
 
 
 # Agregar, quitar y doctor

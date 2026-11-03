@@ -5,12 +5,17 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from apps.cuentas.tests.factories import QuimicoFactory, RecepcionistaFactory
+from apps.cuentas.tests.factories import QuimicoFactory
 from apps.estudios.models import Estudio
 from apps.estudios.tests.factories import EstudioFactory, ValorReferenciaFactory
 from apps.pedidos.estados import TransicionInvalida
 from apps.pedidos.resultados import ALTO, BAJO, filas, fuera_de_rango
-from apps.pedidos.services import asignar_quimicos, completar_estudio, guardar_borrador
+from apps.pedidos.services import (
+    completar_estudio,
+    guardar_borrador,
+    reasignar_estudio,
+    tomar_estudio,
+)
 from apps.pedidos.tests.factories import EstudioPedidoFactory
 
 pytestmark = pytest.mark.django_db
@@ -21,9 +26,9 @@ def quimico():
     return QuimicoFactory()
 
 
-def _asignado(quimico, clave='GLU', **extra):
+def _tomado(quimico, clave='GLU', **extra):
     estudio = EstudioPedidoFactory(estudio=Estudio.objects.get(clave=clave), **extra)
-    asignar_quimicos(estudio, [quimico], usuario=RecepcionistaFactory().usuario)
+    tomar_estudio(estudio, quimico=quimico)
     estudio.refresh_from_db()
     return estudio
 
@@ -37,7 +42,7 @@ def _plip(**valores):
 
 
 def test_borrador_guarda_lo_capturado_sin_completar(quimico):
-    estudio = _asignado(quimico, 'PLIP')
+    estudio = _tomado(quimico, 'PLIP')
     guardar_borrador(estudio, {'colesterol_total': Decimal(210), 'hdl': None}, quimico=quimico)
     estudio.refresh_from_db()
     assert estudio.estado == 'en_proceso'
@@ -46,7 +51,7 @@ def test_borrador_guarda_lo_capturado_sin_completar(quimico):
 
 
 def test_borrador_se_puede_volver_a_guardar(quimico):
-    estudio = _asignado(quimico)
+    estudio = _tomado(quimico)
     guardar_borrador(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
     guardar_borrador(estudio, {'glucosa': Decimal(95)}, quimico=quimico)
     estudio.refresh_from_db()
@@ -55,22 +60,24 @@ def test_borrador_se_puede_volver_a_guardar(quimico):
 
 def test_no_acepta_campos_ajenos_al_estudio(quimico):
     with pytest.raises(ValidationError, match='no son del estudio: ldl'):
-        guardar_borrador(_asignado(quimico, 'PLIP'), {'ldl': Decimal(1)}, quimico=quimico)
+        guardar_borrador(_tomado(quimico, 'PLIP'), {'ldl': Decimal(1)}, quimico=quimico)
 
 
 # Quién y cuándo captura
 
 
-def test_solo_captura_un_quimico_asignado(quimico):
-    estudio = _asignado(quimico)
-    with pytest.raises(ValidationError, match='no le fue asignado'):
+def test_solo_captura_su_encargado(quimico):
+    estudio = _tomado(quimico)
+    with pytest.raises(ValidationError, match='no está a su cargo'):
         guardar_borrador(estudio, {'glucosa': Decimal(90)}, quimico=QuimicoFactory())
 
 
-def test_cualquiera_de_los_asignados_puede_completar(quimico):
+def test_quien_recibe_el_estudio_lo_completa(quimico):
     otro = QuimicoFactory()
-    estudio = _asignado(quimico)
-    asignar_quimicos(estudio, [quimico, otro], usuario=RecepcionistaFactory().usuario)
+    estudio = _tomado(quimico)
+    reasignar_estudio(estudio, otro, quimico=quimico)
+    with pytest.raises(ValidationError, match='no está a su cargo'):
+        guardar_borrador(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
     completar_estudio(estudio, {'glucosa': Decimal(90)}, quimico=otro)
     estudio.refresh_from_db()
     assert estudio.quimico_completo == otro
@@ -82,7 +89,7 @@ def test_no_captura_un_estudio_pendiente(quimico):
 
 
 def test_un_completado_no_se_corrige(quimico):
-    estudio = _asignado(quimico)
+    estudio = _tomado(quimico)
     completar_estudio(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
     with pytest.raises(TransicionInvalida, match='completado'):
         completar_estudio(estudio, {'glucosa': Decimal(91)}, quimico=quimico)
@@ -92,7 +99,7 @@ def test_un_completado_no_se_corrige(quimico):
 
 def test_sin_definicion_en_codigo(quimico):
     estudio = EstudioPedidoFactory(estudio=EstudioFactory(), version_estudio=1)
-    asignar_quimicos(estudio, [quimico], usuario=RecepcionistaFactory().usuario)
+    tomar_estudio(estudio, quimico=quimico)
     with pytest.raises(ValidationError, match='definición'):
         guardar_borrador(estudio, {}, quimico=quimico)
 
@@ -101,7 +108,7 @@ def test_sin_definicion_en_codigo(quimico):
 
 
 def test_completar_calcula_y_copia_las_referencias(quimico):
-    estudio = _asignado(quimico, 'PLIP')
+    estudio = _tomado(quimico, 'PLIP')
     completar_estudio(estudio, _plip(), quimico=quimico)
     estudio.refresh_from_db()
     estudio.pedido.refresh_from_db()
@@ -127,7 +134,7 @@ def test_completar_calcula_y_copia_las_referencias(quimico):
 
 
 def test_completar_exige_todos_los_campos(quimico):
-    estudio = _asignado(quimico, 'PLIP')
+    estudio = _tomado(quimico, 'PLIP')
     with pytest.raises(ValidationError) as error:
         completar_estudio(estudio, {'colesterol_total': Decimal(200)}, quimico=quimico)
     assert set(error.value.message_dict) == {'hdl', 'trigliceridos'}
@@ -136,7 +143,7 @@ def test_completar_exige_todos_los_campos(quimico):
 
 
 def test_completar_aplica_las_reglas_de_la_definicion(quimico):
-    estudio = _asignado(quimico, 'ESP')
+    estudio = _tomado(quimico, 'ESP')
     valores = {
         'volumen': Decimal('2.5'),
         'concentracion': Decimal(40),
@@ -150,7 +157,7 @@ def test_completar_aplica_las_reglas_de_la_definicion(quimico):
 
 
 def test_la_referencia_es_la_vigente_el_dia_de_la_cita(quimico):
-    estudio = _asignado(quimico)
+    estudio = _tomado(quimico)
     dia_cita = timezone.localdate(estudio.pedido.cita.fecha_hora)
     ValorReferenciaFactory(valor_minimo=60, vigente_desde=dia_cita + datetime.timedelta(days=1))
     completar_estudio(estudio, {'glucosa': Decimal(65)}, quimico=quimico)
@@ -159,7 +166,7 @@ def test_la_referencia_es_la_vigente_el_dia_de_la_cita(quimico):
 
 
 def test_cambiar_la_referencia_despues_no_cambia_lo_completado(quimico):
-    estudio = _asignado(quimico)
+    estudio = _tomado(quimico)
     completar_estudio(estudio, {'glucosa': Decimal(120)}, quimico=quimico)
     referencia = estudio.estudio.valores_referencia.get()
     referencia.valor_maximo = 130
@@ -186,7 +193,7 @@ def test_fuera_de_rango_con_un_solo_limite_o_sin_referencia():
 
 
 def test_filas_en_orden_de_la_definicion(quimico):
-    estudio = _asignado(quimico, 'PLIP')
+    estudio = _tomado(quimico, 'PLIP')
     completar_estudio(estudio, _plip(hdl=35, trigliceridos=450), quimico=quimico)
     estudio.refresh_from_db()
     por_clave = {f.clave: f for f in filas(estudio)}
@@ -205,7 +212,7 @@ def test_filas_en_orden_de_la_definicion(quimico):
 
 
 def test_filas_de_un_borrador_y_de_campos_viejos(quimico):
-    estudio = _asignado(quimico)
+    estudio = _tomado(quimico)
     estudio.resultados = {'version': 1, 'valores': {'glucosa': '88', 'campo_viejo': '1'}}
     assert [(f.etiqueta, f.valor) for f in filas(estudio)] == [
         ('Glucosa en ayuno', '88'),
