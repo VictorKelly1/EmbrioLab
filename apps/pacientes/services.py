@@ -60,8 +60,12 @@ def actualizar_paciente(
     return paciente
 
 
-def _guardar_doctor(doctor: Doctor, nombre: str, contacto: str) -> Doctor:
+def _guardar_doctor(
+    doctor: Doctor, nombre: str, correo: str, whatsapp: str, contacto: str
+) -> Doctor:
     doctor.nombre = ' '.join(nombre.split())
+    doctor.correo = correo.strip().lower()
+    doctor.whatsapp = whatsapp.strip()
     doctor.contacto = contacto.strip()
     doctor.full_clean()
     doctor.save()
@@ -69,10 +73,15 @@ def _guardar_doctor(doctor: Doctor, nombre: str, contacto: str) -> Doctor:
 
 
 @transaction.atomic
-def crear_doctor(*, nombre: str, contacto: str = '') -> Doctor:
-    return _guardar_doctor(Doctor(), nombre, contacto)
+def crear_doctor(
+    *, nombre: str, correo: str = '', whatsapp: str = '', contacto: str = ''
+) -> Doctor:
+    """Lo hacen la recepción y los químicos (cambio del cliente, 2026-11-03)."""
+    return _guardar_doctor(Doctor(), nombre, correo, whatsapp, contacto)
 
 
 @transaction.atomic
-def actualizar_doctor(doctor: Doctor, *, nombre: str, contacto: str = '') -> Doctor:
-    return _guardar_doctor(doctor, nombre, contacto)
+def actualizar_doctor(
+    doctor: Doctor, *, nombre: str, correo: str = '', whatsapp: str = '', contacto: str = ''
+) -> Doctor:
+    return _guardar_doctor(doctor, nombre, correo, whatsapp, contacto)

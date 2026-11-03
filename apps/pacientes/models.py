@@ -1,7 +1,9 @@
+from django.core.validators import RegexValidator
 from django.db import models
 
 from apps.core.models import ModeloBorradoLogico, ModeloConTiempos
 from apps.pacientes.folio import generar_folio
+from apps.personas.models import TELEFONO_REGEX
 
 # El número se toma de esta secuencia de PostgreSQL (migración 0001): es seguro con
 # registros simultáneos y no se repite aunque se reviertan transacciones.
@@ -31,10 +33,25 @@ class Paciente(ModeloBorradoLogico):
 
 
 class Doctor(ModeloConTiempos):
-    """El doctor que firma la orden. Se relaciona con los pedidos (semana 6)."""
+    """
+    El doctor que firma la orden. Se relaciona con los pedidos (semana 6). Con correo o
+    WhatsApp, el químico puede enviarle también los resultados del pedido.
+    """
 
     nombre = models.CharField(max_length=200)
-    contacto = models.CharField(max_length=200, blank=True)
+    correo = models.EmailField(blank=True)
+    whatsapp = models.CharField(
+        'WhatsApp',
+        max_length=16,
+        blank=True,
+        validators=[
+            RegexValidator(
+                TELEFONO_REGEX, 'Escriba el número con lada: 10 dígitos (o +código de país).'
+            )
+        ],
+    )
+    # Otros datos en texto libre: teléfono del consultorio, dirección, horario…
+    contacto = models.CharField('otros datos de contacto', max_length=200, blank=True)
 
     class Meta:
         verbose_name_plural = 'doctores'

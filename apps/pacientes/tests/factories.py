@@ -18,4 +18,4 @@ class DoctorFactory(factory.django.DjangoModelFactory):
         model = Doctor
 
     nombre = factory.Faker('name', locale='es_MX')
-    contacto = '3312345678'
+    contacto = ''
