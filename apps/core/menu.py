@@ -54,7 +54,9 @@ OPCIONES = (
     Opcion(
         'Catálogo de estudios', 'estudios', RECEPCION + QUIMICO, 'estudios:lista', ('estudios:',)
     ),
-    Opcion('Doctores', 'doctores', RECEPCION, 'pacientes:doctores', ('pacientes:doctor',)),
+    Opcion(
+        'Doctores', 'doctores', RECEPCION + QUIMICO, 'pacientes:doctores', ('pacientes:doctor',)
+    ),
     Opcion('Usuarios', 'usuarios', (Rol.ADMIN,), 'cuentas:usuarios', ('cuentas:usuario',)),
     Opcion('Reportes', 'reportes', (Rol.ADMIN,)),
 )

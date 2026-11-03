@@ -17,7 +17,7 @@
         <td>{{ notificacion.creado_en|date:'j/m/Y H:i' }}</td>
         {% if con_estudio %}<td>{{ notificacion.estudio_pedido.estudio.nombre|default:'—' }}</td>{% else %}<td>{{ notificacion.get_tipo_display }}</td>{% endif %}
         <td>{{ notificacion.get_canal_display }}</td>
-        <td class="tabla__opcional">{{ notificacion.destinatario }}</td>
+        <td class="tabla__opcional">{{ notificacion.destinatario }}{% if notificacion.destino_tipo == 'doctor' %} <span class="etiqueta">Doctor</span>{% endif %}</td>
         <td>
           <span class="etiqueta etiqueta--{{ notificacion.estado }}">{{ notificacion.get_estado_display }}</span>
           {% if notificacion.fecha_envio %}<span class="tabla__nota">{{ notificacion.fecha_envio|date:'j/m/Y H:i' }}</span>{% endif %}
@@ -28,7 +28,7 @@
     </tbody>
   </table>
 </div>
-<p class="campo__ayuda">Un envío fallido se reintenta solo unas veces. Si sigue fallando, revise el contacto del paciente y envíelo de nuevo.</p>
+<p class="campo__ayuda">Un envío fallido se reintenta solo unas veces. Si sigue fallando, revise el contacto del paciente (o del doctor) y envíelo de nuevo.</p>
 {% else %}
 <p class="tenue">{{ vacio }}</p>
 {% endif %}

@@ -122,6 +122,11 @@
     </fieldset>
     {% if destinos %}
     <p class="envio__destinos">Se envían en un solo PDF por {% if destinos.correo %}correo a <strong>{{ destinos.correo }}</strong>{% endif %}{% if destinos.correo and destinos.whatsapp %} y por {% endif %}{% if destinos.whatsapp %}WhatsApp al <strong>{{ destinos.whatsapp }}</strong>{% endif %}.</p>
+    {% if destinos_doctor %}
+    <label class="envio__doctor">{{ enviar_form.al_doctor }} Enviar también a {{ pedido.doctor.nombre }} ({% if destinos_doctor.correo %}{{ destinos_doctor.correo }}{% endif %}{% if destinos_doctor.correo and destinos_doctor.whatsapp %} y {% endif %}{% if destinos_doctor.whatsapp %}WhatsApp {{ destinos_doctor.whatsapp }}{% endif %})</label>
+    {% elif pedido.doctor %}
+    <p class="campo__ayuda">{{ pedido.doctor.nombre }} no tiene correo ni WhatsApp: solo se envía al paciente. <a href="{% url 'pacientes:doctor_editar' pedido.doctor.pk %}">Agregar su contacto</a>.</p>
+    {% endif %}
     <div class="acciones"><button type="submit" class="boton boton--principal">Enviar resultados</button></div>
     {% else %}
     <div class="aviso aviso--error" role="alert"><p>El paciente no tiene correo ni WhatsApp registrado. Pida a la recepción que lo agregue en su ficha.</p></div>

@@ -17,6 +17,7 @@ from apps.citas.models import Cita, EstadoCita
 from apps.citas.services import marcar_recordatorio_enviado, tiene_formulario_llenado
 from apps.notificaciones.models import (
     Canal,
+    DestinoTipo,
     EstadoNotificacion,
     Notificacion,
     TipoNotificacion,
@@ -55,11 +56,31 @@ def _encolar(ids: list[int]) -> None:
     encolar(ids)
 
 
-def _crear(tipo: str, destinos: dict[str, str], *, cita=None, estudios=()) -> list[Notificacion]:
+def destinatarios_doctor(doctor) -> dict[str, str]:
+    """{canal: destinatario} con el correo y el WhatsApp del doctor, si los tiene."""
+    if doctor is None:
+        return {}
+    contactos = {Canal.CORREO: doctor.correo, Canal.WHATSAPP: doctor.whatsapp}
+    return {canal: destino for canal, destino in contactos.items() if destino}
+
+
+def _crear(
+    tipo: str,
+    destinos: dict[str, str],
+    *,
+    cita=None,
+    estudios=(),
+    destino_tipo: str = DestinoTipo.PACIENTE,
+) -> list[Notificacion]:
     """Una fila por canal (y por estudio, en resultados). Se encolan juntas al confirmar."""
     filas = [
         Notificacion(
-            tipo=tipo, canal=canal, destinatario=destino, cita=cita, estudio_pedido=estudio
+            tipo=tipo,
+            canal=canal,
+            destinatario=destino,
+            destino_tipo=destino_tipo,
+            cita=cita,
+            estudio_pedido=estudio,
         )
         for canal, destino in destinos.items()
         for estudio in (estudios or [None])
@@ -118,14 +139,29 @@ def programar_recordatorios(ahora: datetime.datetime | None = None) -> int:
 
 
 @transaction.atomic
-def notificar_resultados(estudios) -> list[Notificacion]:
+def notificar_resultados(estudios, *, al_doctor: bool = False) -> list[Notificacion]:
     """
     Lo llama `pedidos.services.enviar_resultados`. Una fila por estudio y canal; el worker
     junta los de un mismo envío en un solo mensaje con un solo PDF.
+
+    Con `al_doctor`, también al doctor del pedido si tiene correo o WhatsApp; si no tiene,
+    solo al paciente (cambio del cliente, 2026-11-03). El paciente siempre lo recibe.
     """
     estudios = list(estudios)
-    persona = estudios[0].pedido.cita.paciente.persona
-    return _crear(TipoNotificacion.RESULTADOS, _destinatarios_o_error(persona), estudios=estudios)
+    pedido = estudios[0].pedido
+    filas = _crear(
+        TipoNotificacion.RESULTADOS,
+        _destinatarios_o_error(pedido.cita.paciente.persona),
+        estudios=estudios,
+    )
+    if al_doctor:
+        filas += _crear(
+            TipoNotificacion.RESULTADOS,
+            destinatarios_doctor(pedido.doctor),
+            estudios=estudios,
+            destino_tipo=DestinoTipo.DOCTOR,
+        )
+    return filas
 
 
 # Lo que escribe el worker

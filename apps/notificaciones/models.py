@@ -13,6 +13,11 @@ class Canal(models.TextChoices):
     WHATSAPP = 'whatsapp', 'WhatsApp'
 
 
+class DestinoTipo(models.TextChoices):
+    PACIENTE = 'paciente', 'Paciente'
+    DOCTOR = 'doctor', 'Doctor'
+
+
 class EstadoNotificacion(models.TextChoices):
     PENDIENTE = 'pendiente', 'Pendiente'
     ENVIADO = 'enviado', 'Enviado'
@@ -31,6 +36,10 @@ class Notificacion(models.Model):
     tipo = models.CharField(max_length=12, choices=TipoNotificacion.choices)
     canal = models.CharField(max_length=10, choices=Canal.choices)
     destinatario = models.CharField(max_length=254)
+    # A quién va: los resultados también pueden ir al doctor del pedido.
+    destino_tipo = models.CharField(
+        'destino', max_length=10, choices=DestinoTipo.choices, default=DestinoTipo.PACIENTE
+    )
     cita = models.ForeignKey(
         'citas.Cita',
         null=True,
@@ -62,6 +71,10 @@ class Notificacion(models.Model):
             ),
             models.CheckConstraint(
                 condition=Q(canal__in=Canal.values), name='notificacion_canal_valido'
+            ),
+            models.CheckConstraint(
+                condition=Q(destino_tipo__in=DestinoTipo.values),
+                name='notificacion_destino_tipo_valido',
             ),
             models.CheckConstraint(
                 condition=Q(estado__in=EstadoNotificacion.values),

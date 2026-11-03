@@ -55,6 +55,20 @@ def resultados(destinatario: str, estudios, pdf: bytes) -> Mensaje:
     return Mensaje(destinatario, 'Sus resultados de EmbrioLab', texto + FIRMA, (adjunto,))
 
 
+def resultados_doctor(destinatario: str, estudios, pdf: bytes) -> Mensaje:
+    """Al doctor que firmó la orden: los mismos resultados y PDF que recibe el paciente."""
+    pedido = estudios[0].pedido
+    paciente = pedido.cita.paciente.persona.nombre_completo
+    nombres = '\n'.join(f'- {e.estudio.nombre}' for e in estudios)
+    texto = (
+        f'Estimado(a) {pedido.doctor.nombre}:\n\nLe enviamos los resultados de su paciente '
+        f'{paciente} (pedido {pedido.numero}):\n{nombres}'
+    )
+    adjunto = Adjunto(nombre_archivo(estudios), pdf, 'application/pdf')
+    asunto = f'Resultados de su paciente {paciente} · EmbrioLab'
+    return Mensaje(destinatario, asunto, texto + FIRMA, (adjunto,))
+
+
 def cotizacion(destinatario: str, cotizacion, pdf: bytes) -> Mensaje:
     saludo = f'Hola, {cotizacion.cliente}:' if cotizacion.cliente else 'Hola:'
     nombres = '\n'.join(f'- {r.nombre}: ${r.precio:,.2f}' for r in cotizacion.renglones)

@@ -31,6 +31,7 @@ def test_opciones_del_quimico():
         'Pedidos',
         'Pacientes',
         'Catálogo de estudios',
+        'Doctores',
     ]
 
 
@@ -65,7 +66,8 @@ def test_el_layout_muestra_el_menu_del_rol(client):
     respuesta = client.get(reverse('pacientes:lista'))
     assert 'id="menu-lateral"' in respuesta.text
     assert 'Catálogo de estudios' in respuesta.text
-    assert 'Doctores' not in respuesta.text
+    assert 'Doctores' in respuesta.text
+    assert 'Calendario de citas' not in respuesta.text
     assert 'aria-current="page"' in respuesta.text
 
 

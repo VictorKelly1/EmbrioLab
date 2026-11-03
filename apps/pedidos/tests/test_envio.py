@@ -173,3 +173,68 @@ def test_sin_completados_no_hay_seccion_de_entrega(client, pedido, usuario):
     client.force_login(usuario)
     detalle = client.get(reverse('pedidos:detalle', args=[pedido.pk])).content.decode()
     assert 'Entrega de resultados' not in detalle
+
+
+# Al doctor (cambio del cliente, 2026-11-03)
+
+
+@pytest.fixture
+def con_doctor(pedido):
+    from apps.pacientes.tests.factories import DoctorFactory
+
+    pedido.doctor = DoctorFactory(nombre='Dr. Juan Pérez', correo='juan@example.com')
+    pedido.save()
+    return pedido
+
+
+def test_el_servicio_envia_al_doctor_solo_si_se_pide(con_doctor, usuario):
+    estudio = estudio_completado(pedido=con_doctor)
+    enviar_resultados([estudio], usuario=usuario)
+    assert not Notificacion.objects.filter(destino_tipo='doctor').exists()
+    enviar_resultados([estudio], usuario=usuario, al_doctor=True)
+    assert list(
+        Notificacion.objects.filter(destino_tipo='doctor').values_list('destinatario', flat=True)
+    ) == ['juan@example.com']
+
+
+def test_la_casilla_del_doctor_viene_marcada_y_envia(
+    client, con_doctor, usuario, django_capture_on_commit_callbacks
+):
+    estudio = estudio_completado(pedido=con_doctor)
+    client.force_login(usuario)
+    detalle = client.get(reverse('pedidos:detalle', args=[con_doctor.pk])).content.decode()
+    assert 'Enviar también a Dr. Juan Pérez (juan@example.com)' in detalle
+    assert 'id="id_al_doctor" checked' in detalle
+    with django_capture_on_commit_callbacks(execute=True):
+        client.post(
+            reverse('pedidos:enviar', args=[con_doctor.pk]),
+            {'estudios': [estudio.pk], 'al_doctor': 'on'},
+        )
+    assert {c.to[0] for c in mail.outbox} == {CORREO, 'juan@example.com'}
+    detalle = client.get(reverse('pedidos:detalle', args=[con_doctor.pk])).content.decode()
+    assert 'Se enviará 1 estudio al paciente y al doctor' in detalle
+    assert '<span class="etiqueta">Doctor</span>' in detalle
+
+
+def test_desmarcar_la_casilla_solo_envia_al_paciente(client, con_doctor, usuario):
+    estudio = estudio_completado(pedido=con_doctor)
+    client.force_login(usuario)
+    _enviar(client, con_doctor, estudio)
+    assert set(Notificacion.objects.values_list('destino_tipo', flat=True)) == {'paciente'}
+
+
+def test_doctor_sin_contacto_avisa_y_no_ofrece_la_casilla(client, pedido, usuario):
+    from apps.pacientes.tests.factories import DoctorFactory
+
+    pedido.doctor = DoctorFactory(nombre='Dr. Sin Datos')
+    pedido.save()
+    estudio = estudio_completado(pedido=pedido)
+    client.force_login(usuario)
+    detalle = client.get(reverse('pedidos:detalle', args=[pedido.pk])).content.decode()
+    assert 'Dr. Sin Datos no tiene correo ni WhatsApp' in detalle
+    assert 'name="al_doctor"' not in detalle
+    # Aunque llegue la casilla, sin contacto del doctor solo sale al paciente.
+    client.post(
+        reverse('pedidos:enviar', args=[pedido.pk]), {'estudios': [estudio.pk], 'al_doctor': 'on'}
+    )
+    assert set(Notificacion.objects.values_list('destino_tipo', flat=True)) == {'paciente'}
