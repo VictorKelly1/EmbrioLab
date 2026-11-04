@@ -2500,6 +2500,20 @@ a.lateral__opcion:hover {
   color: var(--tinta-suave);
 }
 
+.envio__doctor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-weight: 400;
+}
+
+.envio__doctor input {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--orquidea-fuerte);
+}
+
 .notificacion__error {
   display: block;
   font-size: 0.8125rem;

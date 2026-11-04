@@ -328,10 +328,11 @@ def completar_estudio(estudio_pedido: EstudioPedido, valores: dict, *, quimico: 
 
 
 @transaction.atomic
-def enviar_resultados(estudios, *, usuario) -> list[EstudioPedido]:
+def enviar_resultados(estudios, *, usuario, al_doctor: bool = False) -> list[EstudioPedido]:
     """
     Envía al paciente los resultados de uno o varios estudios completados de un pedido,
     en un solo mensaje por canal con un PDF (CONTEXTO.md §3). No depende del pago.
+    Con `al_doctor`, también al doctor del pedido si tiene correo o WhatsApp.
 
     Queda registrado quién envió y cuándo. PROVISIONAL (CONTEXTO.md §8): se puede
     reenviar un estudio ya enviado; la fecha y el usuario del primer envío no cambian.
@@ -341,7 +342,7 @@ def enviar_resultados(estudios, *, usuario) -> list[EstudioPedido]:
         raise ValidationError('Elija al menos un estudio para enviar.')
     estudios = list(
         EstudioPedido.objects.select_for_update(of=('self',))
-        .select_related('pedido__cita__paciente__persona')
+        .select_related('pedido__cita__paciente__persona', 'pedido__doctor')
         .filter(pk__in=pks)
         .order_by('id')
     )
@@ -351,7 +352,7 @@ def enviar_resultados(estudios, *, usuario) -> list[EstudioPedido]:
     if pendientes:
         nombres = ', '.join(str(e.estudio) for e in pendientes)
         raise TransicionInvalida(f'Solo se envían estudios completados: {nombres}.')
-    notificar_resultados(estudios)
+    notificar_resultados(estudios, al_doctor=al_doctor)
     ahora = timezone.now()
     for estudio_pedido in estudios:
         if not estudio_pedido.enviado:

@@ -177,3 +177,60 @@ def test_si_el_correo_falla_fallan_todas_sus_filas(whatsapp):
     assert set(Notificacion.objects.filter(canal='whatsapp').values_list('estado', flat=True)) == {
         'enviado'
     }
+
+
+# Al doctor del pedido (cambio del cliente, 2026-11-03)
+
+
+def test_resultados_tambien_al_doctor_en_su_propio_mensaje(whatsapp):
+    from apps.pacientes.tests.factories import DoctorFactory
+
+    estudios = _resultados()
+    pedido = estudios[0].pedido
+    pedido.doctor = DoctorFactory(
+        nombre='Dra. Laura Gómez', correo='laura@example.com', whatsapp='3399998888'
+    )
+    pedido.save()
+    filas = notificar_resultados(estudios, al_doctor=True)
+    assert sorted({(f.destino_tipo, f.canal) for f in filas}) == [
+        ('doctor', 'correo'),
+        ('doctor', 'whatsapp'),
+        ('paciente', 'correo'),
+        ('paciente', 'whatsapp'),
+    ]
+    envio.procesar([f.pk for f in filas])
+    al_doctor = next(c for c in mail.outbox if c.to == ['laura@example.com'])
+    persona = pedido.cita.paciente.persona
+    assert al_doctor.subject == f'Resultados de su paciente {persona.nombre_completo} · EmbrioLab'
+    assert 'Estimado(a) Dra. Laura Gómez' in al_doctor.body
+    assert al_doctor.attachments[0][2] == 'application/pdf'
+    assert len(mail.outbox) == 2 and len(whatsapp) == 2
+    assert set(Notificacion.objects.values_list('estado', flat=True)) == {'enviado'}
+
+
+def test_mismo_correo_para_paciente_y_doctor_sale_dos_veces(whatsapp):
+    from apps.notificaciones.tests.utils import CORREO
+    from apps.pacientes.tests.factories import DoctorFactory
+
+    estudios = _resultados()
+    pedido = estudios[0].pedido
+    pedido.doctor = DoctorFactory(correo=CORREO)
+    pedido.save()
+    envio.procesar([f.pk for f in notificar_resultados(estudios, al_doctor=True)])
+    asuntos = sorted(c.subject for c in mail.outbox)
+    assert len(asuntos) == 2 and asuntos[1] == 'Sus resultados de EmbrioLab'
+
+
+def test_doctor_sin_contacto_solo_el_paciente():
+    from apps.pacientes.tests.factories import DoctorFactory
+
+    estudios = _resultados()
+    estudios[0].pedido.doctor = DoctorFactory()
+    estudios[0].pedido.save()
+    filas = notificar_resultados(estudios, al_doctor=True)
+    assert {f.destino_tipo for f in filas} == {'paciente'}
+
+
+def test_sin_doctor_en_el_pedido_solo_el_paciente():
+    filas = notificar_resultados(_resultados(), al_doctor=True)
+    assert {f.destino_tipo for f in filas} == {'paciente'}

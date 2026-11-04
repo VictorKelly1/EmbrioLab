@@ -4,7 +4,8 @@ Lo que hace el worker con un grupo de notificaciones creadas juntas (notificacio
 - Link del formulario y recordatorio: se genera UN token para todo el grupo, así el
   correo y el WhatsApp llevan el mismo link. Al reintentar se genera otro y se manda a
   todos los canales del grupo: el link anterior ya no sirve (en la BD solo queda el hash).
-- Resultados: un mensaje por canal con un solo PDF de todos los estudios del grupo.
+- Resultados: un mensaje por canal y destinatario (paciente o doctor) con un solo PDF de
+  todos los estudios del grupo.
 
 Devuelve los ids que hay que reintentar; los errores definitivos (la cita se canceló,
 el formulario ya se llenó) no se reintentan.
@@ -22,7 +23,7 @@ from apps.citas.services import generar_token_qr
 from apps.documentos.pdf import pdf_resultados
 from apps.notificaciones import mensajes
 from apps.notificaciones.canales import canal
-from apps.notificaciones.models import Notificacion, TipoNotificacion
+from apps.notificaciones.models import DestinoTipo, Notificacion, TipoNotificacion
 from apps.notificaciones.services import marcar_enviada, marcar_fallida
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ def _procesar_resultados(filas: list[Notificacion]) -> list[int]:
         if fila.estudio_pedido is None:
             marcar_fallida(fila, 'El estudio ya no existe.')
         else:
-            por_destino[fila.canal, fila.destinatario].append(fila)
+            por_destino[fila.destino_tipo, fila.canal, fila.destinatario].append(fila)
     pdfs = {}
     fallidas = []
     for grupo in por_destino.values():
@@ -96,7 +97,10 @@ def _procesar_resultados(filas: list[Notificacion]) -> list[int]:
                 marcar_fallida(fila, f'No se pudo generar el PDF. {type(error).__name__}: {error}')
             fallidas += [f.pk for f in grupo]
             continue
-        mensaje = mensajes.resultados(grupo[0].destinatario, estudios, pdfs[clave])
+        if grupo[0].destino_tipo == DestinoTipo.DOCTOR:
+            mensaje = mensajes.resultados_doctor(grupo[0].destinatario, estudios, pdfs[clave])
+        else:
+            mensaje = mensajes.resultados(grupo[0].destinatario, estudios, pdfs[clave])
         # Un solo mensaje por canal y destinatario; cuenta para todas sus filas.
         if _enviar(grupo[0], mensaje):
             for fila in grupo[1:]:

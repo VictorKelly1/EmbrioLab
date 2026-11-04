@@ -143,6 +143,21 @@ class PacienteForm(forms.Form):
 
 class DoctorForm(forms.Form):
     nombre = forms.CharField(max_length=200)
+    correo = forms.EmailField(
+        required=False,
+        help_text='Para enviarle los resultados de sus pacientes.',
+        error_messages={'invalid': 'Escriba un correo válido.'},
+    )
+    whatsapp = forms.CharField(
+        label='WhatsApp',
+        max_length=16,
+        required=False,
+        help_text='Con lada: 10 dígitos (o +código de país).',
+        widget=forms.TextInput(attrs={'inputmode': 'tel', 'autocomplete': 'off'}),
+    )
     contacto = forms.CharField(
-        max_length=200, required=False, help_text='Teléfono, correo o consultorio.'
+        label='Otros datos de contacto',
+        max_length=200,
+        required=False,
+        help_text='Teléfono del consultorio, dirección, horario…',
     )

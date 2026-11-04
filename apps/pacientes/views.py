@@ -141,7 +141,8 @@ class PacienteBajaView(RolRequerido, View):
 
 
 class DoctorListaView(RolRequerido, TemplateView):
-    roles = [Rol.RECEPCIONISTA]
+    # Los químicos también ven, registran y editan doctores (cambio del cliente, 2026-11-03).
+    roles = [Rol.RECEPCIONISTA, Rol.QUIMICO]
     template_name = 'pacientes/doctores.html'
 
     def get_template_names(self):
@@ -162,7 +163,7 @@ class DoctorListaView(RolRequerido, TemplateView):
 
 
 class _DoctorFormView(RolRequerido, FormView):
-    roles = [Rol.RECEPCIONISTA]
+    roles = [Rol.RECEPCIONISTA, Rol.QUIMICO]
     form_class = DoctorForm
     template_name = 'pacientes/doctor_formulario.html'
     doctor = None
@@ -195,7 +196,10 @@ class DoctorEditarView(_DoctorFormView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self):
-        return {'nombre': self.doctor.nombre, 'contacto': self.doctor.contacto}
+        return {
+            campo: getattr(self.doctor, campo)
+            for campo in ('nombre', 'correo', 'whatsapp', 'contacto')
+        }
 
     def guardar(self, **datos):
         return actualizar_doctor(self.doctor, **datos)

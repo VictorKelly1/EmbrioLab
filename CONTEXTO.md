@@ -30,7 +30,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
 | **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias). **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
-| **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto. Consulta al paciente y el catálogo. |
+| **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
 **Fuera de la Fase 1** (dejar preparado, NO implementar):
@@ -103,7 +103,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 - Al completar un estudio, la referencia que se usó **se copia dentro del JSON de resultados**.
 
 ### Notificaciones
-- Se envían por **correo y WhatsApp**. La API de WhatsApp se integra después: deja la abstracción lista.
+- Se envían por **correo y WhatsApp**. Los resultados van al paciente y, si el químico lo elige, también al doctor del pedido. La API de WhatsApp se integra después: deja la abstracción lista.
 - Todo envío queda registrado en la tabla `Notificaciones`, **excepto las cotizaciones** (ver abajo).
 
 ## 4. Base de datos
@@ -124,7 +124,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 | Tabla | Campos |
 |---|---|
 | **Pacientes** | Id, IdPersona (unique), Numero (unique), EstadoActividad, FechaRegistro |
-| **Doctores** | Id, Nombre, Contacto |
+| **Doctores** | Id, Nombre, Correo (opcional), WhatsApp (opcional), Contacto (otros datos en texto libre) |
 | **Donadores** | ⏸ PENDIENTE (falta información del cliente). Es un tipo especial de paciente con un inventario de muestras de esperma: código, fecha, disponible/usada y doctor al que se envió. **No implementar.** |
 
 ### Citas y formularios
@@ -153,7 +153,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 ### Notificaciones
 | Tabla | Campos |
 |---|---|
-| **Notificaciones** | Id, Tipo (recordatorio/qr/resultados), Canal (correo/whatsapp), Destinatario, IdCita (null), IdEstudioPedido (null), Estado (pendiente/enviado/fallido), Error, FechaEnvio |
+| **Notificaciones** | Id, Tipo (recordatorio/qr/resultados), Canal (correo/whatsapp), Destinatario, DestinoTipo (paciente/doctor), IdCita (null), IdEstudioPedido (null), Estado (pendiente/enviado/fallido), Error, FechaEnvio |
 
 ### Índices mínimos
 - `Citas(fecha_hora)`
@@ -324,6 +324,8 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 
 ### Resultados y notificaciones (semana 8)
 - **Quién envía los resultados.** Decidido (2026-10-30): solo los químicos (cualquiera, no solo el encargado), desde el pedido. La recepción ve el PDF y los envíos, pero no envía.
+- **Resultados al doctor.** Decidido (2026-11-03): al enviar, el químico decide con la casilla «Enviar también al doctor», marcada por omisión. Sale solo si el pedido tiene doctor y este tiene correo o WhatsApp; si no, solo al paciente. El doctor recibe su propio mensaje con el mismo PDF.
+- **Contacto del doctor.** Provisional: la migración pasó a `correo` el texto que era un correo y a `whatsapp` el que era un número de 10 a 15 dígitos (se asumió que es WhatsApp); lo demás quedó en «otros datos de contacto».
 - **Paciente sin correo ni WhatsApp.** Decidido (2026-10-30): todo paciente debe tener al menos un contacto para recibir resultados (correo o WhatsApp). Pendiente: exigirlo al registrar y editar al paciente. Mientras tanto, sin contacto no se pueden enviar sus resultados.
 - **Reenviar.** Provisional: se puede volver a enviar un estudio ya enviado; la fecha y el usuario del primer envío no cambian.
 - **WhatsApp.** Mientras no se integre la API, el envío por WhatsApp solo queda registrado en el log y cuenta como «enviado».
@@ -353,3 +355,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-10-30: semana 8 — Django 6.1 trae la API `django.tasks` pero no un backend en BD: se usa `django-tasks-db` (`manage.py db_worker`). Los recordatorios los encola el servicio `recordatorios` de Docker Compose (un timer que corre `enviar_recordatorios` cada 15 minutos). El link de los correos se arma con `SITIO_URL` (obligatorio en producción). Decidido con el cliente: solo los químicos envían resultados y todo paciente debe tener al menos un correo o WhatsApp.
 - 2026-11-03: cambio del cliente tras la demo — **cola de químicos**: la recepción ya no asigna químicos; los químicos toman los estudios pendientes desde la «Cola de pedidos» y cada estudio tiene **un solo encargado**. La tabla `AsignacionesQuimico` se reemplaza por `EstudiosPedido.IdQuimicoEncargado` + `FechaToma` (una migración de datos conserva al primer químico asignado de cada estudio). El encargado puede soltar el estudio o pasarlo a otro químico mientras no haya capturado nada.
 - 2026-11-03: cambio del cliente — **cotizaciones**: app `cotizaciones` sin modelos; la recepción arma un paquete temporal de estudios, descarga el PDF o lo envía por correo y WhatsApp a un paciente o a un contacto escrito a mano. Decidido: el envío es directo y no queda en `Notificaciones` (excepción a §3).
+- 2026-11-03: cambio del cliente — **doctores para químicos y envío al doctor**: los químicos ven, registran y editan doctores. `Doctores.Contacto` se separa en `Correo` y `WhatsApp` (más «otros datos»), con migración de datos. `Notificaciones` agrega `DestinoTipo` (paciente/doctor) y los resultados pueden ir también al doctor del pedido.

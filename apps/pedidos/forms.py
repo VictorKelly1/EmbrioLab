@@ -117,6 +117,9 @@ class EnviarResultadosForm(forms.Form):
         error_messages={'required': 'Elija al menos un estudio para enviar.'},
     )
 
+    # Solo se muestra si el doctor del pedido tiene correo o WhatsApp.
+    al_doctor = forms.BooleanField(label='Enviar también al doctor', required=False, initial=True)
+
     def __init__(self, *args, completados, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['estudios'].queryset = completados

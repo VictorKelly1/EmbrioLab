@@ -1,6 +1,8 @@
 import datetime
+import importlib
 
 import pytest
+from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
@@ -115,13 +117,49 @@ def test_la_bd_exige_numero_unico():
 
 
 def test_crear_y_actualizar_doctor():
-    doctor = crear_doctor(nombre='  Dr.  Juan   Pérez ', contacto=' 3312345678 ')
+    doctor = crear_doctor(
+        nombre='  Dr.  Juan   Pérez ',
+        correo=' Juan@Consultorio.MX ',
+        whatsapp=' 3312345678 ',
+        contacto=' Consultorio 4, Torre Médica ',
+    )
     assert doctor.nombre == 'Dr. Juan Pérez'
-    assert doctor.contacto == '3312345678'
+    assert (doctor.correo, doctor.whatsapp) == ('juan@consultorio.mx', '3312345678')
+    assert doctor.contacto == 'Consultorio 4, Torre Médica'
 
     actualizar_doctor(doctor, nombre='Dra. Laura Gómez')
-    assert Doctor.objects.get().nombre == 'Dra. Laura Gómez'
-    assert Doctor.objects.get().contacto == ''
+    guardado = Doctor.objects.get()
+    assert guardado.nombre == 'Dra. Laura Gómez'
+    assert (guardado.correo, guardado.whatsapp, guardado.contacto) == ('', '', '')
+
+
+@pytest.mark.parametrize(
+    ('campo', 'valor'), [('correo', 'no-es-correo'), ('whatsapp', '12-34'), ('whatsapp', '123')]
+)
+def test_doctor_con_contacto_invalido(campo, valor):
+    with pytest.raises(ValidationError) as error:
+        crear_doctor(nombre='Dr. Juan', **{campo: valor})
+    assert campo in error.value.message_dict
+
+
+@pytest.mark.parametrize(
+    ('contacto', 'esperado'),
+    [
+        ('Juan@Example.com', ('juan@example.com', '', '')),
+        ('33 1234-5678', ('', '3312345678', '')),
+        ('(33) 1234 5678', ('', '3312345678', '')),
+        ('Consultorio 4, tel. 3312345678', ('', '', 'Consultorio 4, tel. 3312345678')),
+    ],
+)
+def test_migracion_separa_el_contacto_del_doctor(contacto, esperado):
+    migracion = importlib.import_module('apps.pacientes.migrations.0003_separar_contacto_doctor')
+    doctor = Doctor.objects.create(nombre='Dr. Juan', contacto=contacto)
+    migracion.separar(django_apps, None)
+    doctor.refresh_from_db()
+    assert (doctor.correo, doctor.whatsapp, doctor.contacto) == esperado
+    migracion.juntar(django_apps, None)
+    doctor.refresh_from_db()
+    assert doctor.contacto == next(d for d in esperado if d)
 
 
 def test_doctor_requiere_nombre():

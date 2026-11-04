@@ -76,7 +76,8 @@ def test_quimico_consulta_pero_no_edita(quimico):
     assert quimico.get(CREAR).status_code == 403
     assert quimico.get(reverse('pacientes:editar', args=[paciente.pk])).status_code == 403
     assert quimico.post(reverse('pacientes:baja', args=[paciente.pk])).status_code == 403
-    assert quimico.get(reverse('pacientes:doctores')).status_code == 403
+    # Doctores sí: los químicos los ven y editan (cambio del cliente, 2026-11-03).
+    assert quimico.get(reverse('pacientes:doctores')).status_code == 200
 
 
 # Lista y búsqueda
@@ -207,10 +208,43 @@ def test_registrar_y_editar_doctor(recepcion):
 
     recepcion.post(
         reverse('pacientes:doctor_editar', args=[doctor.pk]),
-        {'nombre': 'Dr. Juan Pérez Ruiz', 'contacto': '3312345678'},
+        {'nombre': 'Dr. Juan Pérez Ruiz', 'correo': 'juan@example.com', 'whatsapp': '3312345678'},
     )
     doctor.refresh_from_db()
     assert doctor.nombre == 'Dr. Juan Pérez Ruiz'
+    assert (doctor.correo, doctor.whatsapp) == ('juan@example.com', '3312345678')
+
+
+def test_el_quimico_ve_registra_y_edita_doctores(client):
+    from apps.cuentas.tests.factories import QuimicoFactory
+
+    client.force_login(QuimicoFactory().usuario)
+    existente = DoctorFactory(nombre='Dra. Laura Gómez', correo='laura@example.com')
+    lista = client.get(reverse('pacientes:doctores')).text
+    assert 'Dra. Laura Gómez' in lista and 'laura@example.com' in lista
+    client.post(reverse('pacientes:doctor_crear'), {'nombre': 'Dr. Nuevo'})
+    assert Doctor.objects.filter(nombre='Dr. Nuevo').exists()
+    editar = reverse('pacientes:doctor_editar', args=[existente.pk])
+    assert 'laura@example.com' in client.get(editar).text
+    client.post(editar, {'nombre': 'Dra. Laura Gómez', 'whatsapp': '3311112222'})
+    existente.refresh_from_db()
+    assert (existente.correo, existente.whatsapp) == ('', '3311112222')
+
+
+def test_el_admin_no_entra_a_doctores(client):
+    from apps.cuentas.tests.factories import AdminFactory
+
+    client.force_login(AdminFactory().usuario)
+    assert client.get(reverse('pacientes:doctores')).status_code == 403
+
+
+def test_whatsapp_invalido_del_doctor_muestra_el_error(recepcion):
+    respuesta = recepcion.post(
+        reverse('pacientes:doctor_crear'), {'nombre': 'Dr. Juan', 'whatsapp': '123'}
+    )
+    assert respuesta.status_code == 200
+    assert '10 dígitos' in respuesta.text
+    assert not Doctor.objects.exists()
 
 
 def test_lista_de_doctores(recepcion):

@@ -14,7 +14,7 @@ from apps.cuentas.models import Rol
 from apps.estudios.selectors import referencias_para, sugerir_estudios
 from apps.formularios.selectors import respuestas_de
 from apps.notificaciones.selectors import notificaciones_de_pedido
-from apps.notificaciones.services import destinatarios
+from apps.notificaciones.services import destinatarios, destinatarios_doctor
 from apps.pedidos.forms import (
     DoctorPedidoForm,
     EnviarResultadosForm,
@@ -193,6 +193,7 @@ class PedidoDetalleView(RolRequerido, TemplateView):
                 EnviarResultadosForm(completados=completados) if quimico is not None else None
             ),
             destinos=destinatarios(pedido.cita.paciente.persona),
+            destinos_doctor=destinatarios_doctor(pedido.doctor),
             notificaciones=notificaciones_de_pedido(pedido),
             llenado=llenado,
             respuestas=respuestas_de(llenado) if llenado else None,
@@ -442,10 +443,13 @@ class PedidoEnviarResultadosView(_AccionPedidoView):
 
     def ejecutar(self, pedido):
         form = self._form(EnviarResultadosForm, completados=estudios_completados(pedido))
-        estudios = enviar_resultados(form.cleaned_data['estudios'], usuario=self.request.user)
+        al_doctor = form.cleaned_data['al_doctor'] and bool(destinatarios_doctor(pedido.doctor))
+        estudios = enviar_resultados(
+            form.cleaned_data['estudios'], usuario=self.request.user, al_doctor=al_doctor
+        )
         cuantos = len(estudios)
         return (
             f'Se {"enviará" if cuantos == 1 else "enviarán"} {cuantos} '
-            f'estudio{"" if cuantos == 1 else "s"} al paciente. '
-            'El estado de cada envío aparece abajo.'
+            f'estudio{"" if cuantos == 1 else "s"} al paciente'
+            f'{" y al doctor" if al_doctor else ""}. El estado de cada envío aparece abajo.'
         )
