@@ -3,6 +3,7 @@ import datetime
 from django import forms
 from django.core.validators import RegexValidator
 
+from apps.pacientes.services import FALTA_CONTACTO
 from apps.personas.models import CURP_REGEX, TELEFONO_REGEX, Genero, TipoContacto
 from apps.personas.selectors import contactos_principales
 from apps.personas.services import CAMPOS_DIRECCION, CAMPOS_PERSONA
@@ -14,6 +15,14 @@ CAMPOS_CONTACTO = tuple(TipoContacto.values)
 _telefono = RegexValidator(
     TELEFONO_REGEX, 'Escriba el número con lada: 10 dígitos (o +código de país).'
 )
+
+
+def _exigir_contacto(form: forms.Form, datos: dict) -> None:
+    """Correo o WhatsApp obligatorio (el servicio también lo revisa)."""
+    con_error = {'correo', 'whatsapp'} & set(form.errors)
+    if not con_error and not (datos.get('correo') or datos.get('whatsapp')):
+        for campo in ('whatsapp', 'correo'):
+            form.add_error(campo, FALTA_CONTACTO)
 
 
 def _sin_separadores(valor: str) -> str:
@@ -51,6 +60,7 @@ class PacienteForm(forms.Form):
         label='WhatsApp',
         max_length=20,
         required=False,
+        help_text='Escriba al menos un WhatsApp o un correo para enviarle sus resultados.',
         widget=forms.TextInput(attrs={'inputmode': 'tel', 'autocomplete': 'off'}),
     )
     telefono = forms.CharField(
@@ -107,6 +117,11 @@ class PacienteForm(forms.Form):
     def clean_telefono(self):
         return self._clean_telefono('telefono')
 
+    def clean(self):
+        datos = super().clean()
+        _exigir_contacto(self, datos)
+        return datos
+
     def __init__(self, *args, tiene_foto=False, **kwargs):
         super().__init__(*args, **kwargs)
         if not tiene_foto:
@@ -145,7 +160,7 @@ class DoctorForm(forms.Form):
     nombre = forms.CharField(max_length=200)
     correo = forms.EmailField(
         required=False,
-        help_text='Para enviarle los resultados de sus pacientes.',
+        help_text='Escriba al menos un correo o un WhatsApp para enviarle los resultados.',
         error_messages={'invalid': 'Escriba un correo válido.'},
     )
     whatsapp = forms.CharField(
@@ -161,3 +176,8 @@ class DoctorForm(forms.Form):
         required=False,
         help_text='Teléfono del consultorio, dirección, horario…',
     )
+
+    def clean(self):
+        datos = super().clean()
+        _exigir_contacto(self, {c: (datos.get(c) or '').strip() for c in ('correo', 'whatsapp')})
+        return datos
