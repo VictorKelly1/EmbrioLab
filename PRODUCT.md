@@ -8,8 +8,8 @@ web
 
 ## Users
 
-- **Recepcionista:** en el mostrador del laboratorio. Agenda citas en un calendario, registra pacientes, arma los pedidos de estudios a partir de la orden del doctor, asigna un químico a cada estudio y registra el estado de pago.
-- **Químico:** en el laboratorio. Revisa todos los pedidos con filtros, captura resultados (el sistema hace los cálculos), completa estudios y envía los resultados.
+- **Recepcionista:** en el mostrador del laboratorio. Agenda citas en un calendario, registra pacientes, arma los pedidos de estudios a partir de la orden del doctor y registra el estado de pago.
+- **Químico:** en el laboratorio. Toma estudios de la cola de pedidos (cada estudio queda a cargo de uno solo), revisa todos los pedidos con filtros, captura resultados (el sistema hace los cálculos), completa estudios y envía los resultados.
 - **Administrador:** registra usuarios y consulta reportes generales.
 - **Paciente:** no inicia sesión. Solo abre una página pública por QR para llenar un formulario de su visita y recibe sus resultados.
 

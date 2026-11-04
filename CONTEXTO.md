@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-10-30
+Última actualización: 2026-11-03
 
 ---
 
@@ -29,8 +29,8 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 | Rol | Qué hace |
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
-| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y **asigna uno o varios químicos** a cada estudio. Registra el estado de pago. |
-| **Químico** | Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico asignado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto. Consulta al paciente y el catálogo. |
+| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias). **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
+| **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto. Consulta al paciente y el catálogo. |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
 **Fuera de la Fase 1** (dejar preparado, NO implementar):
@@ -71,10 +71,12 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 - Una cita puede tener **varios pedidos** (1:N). Un pedido tiene N estudios (tabla EstudiosPedido).
 - **Estados de un estudio:** `pendiente → en_proceso → completado`.
   - "Enviado" = `fecha_envio` no nula, y **solo es posible después de completado**.
-  - La lista de trabajo del químico son los estudios `en_proceso`.
+  - **Cola de químicos:** un estudio `pendiente` no tiene encargado y espera en la cola. Un químico lo **toma** y queda como su **único encargado**; el estudio pasa a `en_proceso`. Un químico puede tomar varios estudios del mismo pedido.
+  - El encargado puede **soltarlo** (vuelve a la cola, `pendiente`) o **pasarlo** a otro químico, solo mientras no haya capturado nada.
+  - La lista de trabajo del químico son los estudios `en_proceso` a su cargo.
 - Un pedido está **completado** cuando todos sus estudios están completados **y** enviados, estén pagados o no.
 - `Pedido.estado`, `Pedido.estado_pago` y `Pedido.total_pago` son **derivados**. Se guardan en la tabla, pero **solo los actualiza un servicio** (ver §6).
-- Se registra **quién asignó, quién completó y quién envió** cada estudio.
+- Se registra **quién lo tomó (y cuándo), quién lo completó y quién lo envió**.
 - No hay validador aparte: el químico es el responsable.
 
 ### Pagos
@@ -139,8 +141,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 | Tabla | Campos |
 |---|---|
 | **Pedidos** | Id, IdCita, IdRecepcionista, IdDoctor (null), Numero, FechaInicio, Estado\*, EstadoPago\*, TotalPago\*, FechaCompletado, FechaEnvio. *(\* derivados)* |
-| **EstudiosPedido** | Id, IdPedido, IdEstudio, NombreSolicitado, Precio (copia al momento del pedido), **VersionEstudio**, Estado, EstadoPago, Resultados (JSON), IdQuimicoCompleto, FechaCompletado, IdUsuarioEnvio, FechaEnvio |
-| **AsignacionesQuimico** | Id, IdEstudioPedido, IdQuimico, IdUsuarioAsignacion, FechaAsignacion. *Uno o varios químicos responsables por estudio; único por (estudio, químico).* |
+| **EstudiosPedido** | Id, IdPedido, IdEstudio, NombreSolicitado, Precio (copia al momento del pedido), **VersionEstudio**, Estado, EstadoPago, Resultados (JSON), **IdQuimicoEncargado (null), FechaToma (null)**, IdQuimicoCompleto, FechaCompletado, IdUsuarioEnvio, FechaEnvio. *Un `CHECK` exige: pendiente sin encargado, en proceso con encargado.* |
 | **Abonos** | ⏸ FASE POSTERIOR, no crear. Diseño previsto: Id, IdEstudioPedido, Monto, Fecha, MetodoPago, IdRecepcionista |
 
 ### Notificaciones
@@ -150,7 +151,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 
 ### Índices mínimos
 - `Citas(fecha_hora)`
-- `EstudiosPedido(estado)` (los estudios de un químico se buscan por `AsignacionesQuimico(quimico)`, índice de su FK)
+- `EstudiosPedido(estado)` (los estudios de un químico se buscan por el índice de la FK `quimico_encargado`)
 - Trigram (`pg_trgm`) sobre el nombre completo de la persona
 - Único parcial en la versión publicada de cada formulario
 
@@ -301,19 +302,21 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Desde qué cita se arma un pedido.** Provisional: solo desde una cita atendida (la espontánea ya nace atendida). ¿También desde una programada, antes de que llegue el paciente?
 - **Estado de pago del pedido.** Provisional: pagado si todos sus estudios están pagados, pendiente si ninguno tiene pago y abonado en cualquier otro caso. Está en `apps/pedidos/estados.py`.
 - **`TotalPago`.** Provisional: lo que cuesta el pedido (la suma de los precios copiados), no lo pagado. Cuando existan los abonos se podrá mostrar también lo pagado y el saldo.
-- **Cuándo pasa un estudio a «en proceso».** Provisional: al asignarle el primer químico (sin químicos queda pendiente). Mientras está en proceso se pueden agregar o quitar químicos, pero siempre debe quedar al menos uno; completado, ya no cambian.
+- **Cuándo pasa un estudio a «en proceso».** Decidido (2026-11-03): cuando un químico lo toma de la cola (ver §3).
 - **Estudio repetido en un pedido.** Provisional: no se permite el mismo estudio dos veces en un pedido.
 - **Quitar estudios.** Provisional: se puede quitar un estudio que aún no está completado, siempre que el pedido conserve al menos uno.
 
 ### Químico (semana 7)
-- **Quién captura.** Provisional: solo los químicos asignados al estudio, y cualquiera de ellos puede capturarlo y completarlo (queda registrado quién lo completó). Los demás químicos y la recepción solo ven los resultados.
+- **Quién captura.** Decidido (2026-11-03): solo el químico encargado. Los demás químicos y la recepción solo ven los resultados.
+- **Soltar o pasar con borrador.** Decidido: solo sin captura. Provisional: un borrador sin ningún valor no cuenta como captura.
+- **Cola.** Provisional: muestra solo los estudios de citas atendidas (los pedidos solo se arman de citas atendidas). Pasar un estudio no le pide permiso al químico que lo recibe.
 - **Borrador.** Provisional: el químico puede guardar lo capturado sin completar; el estudio sigue en proceso. Para completarlo hacen falta todos los campos.
 - **Corregir un estudio completado.** Provisional: no se puede. ¿Hace falta reabrirlo (por ejemplo, antes de enviarlo)? ¿Quién lo autoriza?
 - **Fuera de rango.** Provisional: un valor menor al mínimo se marca como «bajo» y uno mayor al máximo como «alto», según la referencia copiada. Los textos de referencia no se marcan.
 - **Qué referencia se copia.** Provisional: la vigente el día de la cita, con la edad que tenía el paciente ese día (no la del día en que se completa).
 
 ### Resultados y notificaciones (semana 8)
-- **Quién envía los resultados.** Decidido (2026-10-30): solo los químicos (cualquiera, no solo los asignados), desde el pedido. La recepción ve el PDF y los envíos, pero no envía.
+- **Quién envía los resultados.** Decidido (2026-10-30): solo los químicos (cualquiera, no solo el encargado), desde el pedido. La recepción ve el PDF y los envíos, pero no envía.
 - **Paciente sin correo ni WhatsApp.** Decidido (2026-10-30): todo paciente debe tener al menos un contacto para recibir resultados (correo o WhatsApp). Pendiente: exigirlo al registrar y editar al paciente. Mientras tanto, sin contacto no se pueden enviar sus resultados.
 - **Reenviar.** Provisional: se puede volver a enviar un estudio ya enviado; la fecha y el usuario del primer envío no cambian.
 - **WhatsApp.** Mientras no se integre la API, el envío por WhatsApp solo queda registrado en el log y cuenta como «enviado».
@@ -335,3 +338,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-10-21: semana 5 — el system check del catálogo corre solo con base de datos (`migrate` y `manage.py check --database default`), no en `runserver`; si `estudios` tiene migraciones pendientes no revisa nada, porque son las que cargan las filas nuevas.
 - 2026-10-21: semana 6 — un estudio del pedido puede tener **varios químicos responsables** (decisión del equipo): `EstudiosPedido.IdQuimicoAsignado` se reemplaza por la tabla `AsignacionesQuimico`, que guarda quién asignó a cada químico y cuándo. El índice `EstudiosPedido(estado, quimico_asignado)` pasa a `EstudiosPedido(estado)` más el de la FK de la asignación. Quien completa sigue siendo uno (`IdQuimicoCompleto`).
 - 2026-10-30: semana 8 — Django 6.1 trae la API `django.tasks` pero no un backend en BD: se usa `django-tasks-db` (`manage.py db_worker`). Los recordatorios los encola el servicio `recordatorios` de Docker Compose (un timer que corre `enviar_recordatorios` cada 15 minutos). El link de los correos se arma con `SITIO_URL` (obligatorio en producción). Decidido con el cliente: solo los químicos envían resultados y todo paciente debe tener al menos un correo o WhatsApp.
+- 2026-11-03: cambio del cliente tras la demo — **cola de químicos**: la recepción ya no asigna químicos; los químicos toman los estudios pendientes desde la «Cola de pedidos» y cada estudio tiene **un solo encargado**. La tabla `AsignacionesQuimico` se reemplaza por `EstudiosPedido.IdQuimicoEncargado` + `FechaToma` (una migración de datos conserva al primer químico asignado de cada estudio). El encargado puede soltar el estudio o pasarlo a otro químico mientras no haya capturado nada.

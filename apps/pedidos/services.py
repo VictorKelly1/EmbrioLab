@@ -20,7 +20,6 @@ from apps.pedidos.estados import (
     validar_transicion,
 )
 from apps.pedidos.models import (
-    AsignacionQuimico,
     EstadoEstudio,
     EstadoPago,
     EstadoPedido,
@@ -37,7 +36,6 @@ class Linea:
     estudio: Estudio
     nombre_solicitado: str = ''
     guardar_alias: bool = False
-    quimicos: tuple[Quimico, ...] = ()
 
 
 @transaction.atomic
@@ -97,16 +95,13 @@ def _agregar(pedido: Pedido, linea: Linea, usuario) -> EstudioPedido:
     nombre = ' '.join(linea.nombre_solicitado.split()) or estudio.nombre
     if linea.guardar_alias:
         _guardar_alias(estudio, nombre, usuario)
-    estudio_pedido = EstudioPedido.objects.create(
+    return EstudioPedido.objects.create(
         pedido=pedido,
         estudio=estudio,
         nombre_solicitado=nombre,
         precio=estudio.precio,
         version_estudio=estudio.version_definicion,
     )
-    if linea.quimicos:
-        _asignar(estudio_pedido, linea.quimicos, usuario)
-    return estudio_pedido
 
 
 def _guardar_alias(estudio: Estudio, nombre: str, usuario) -> None:
@@ -124,42 +119,90 @@ def _guardar_alias(estudio: Estudio, nombre: str, usuario) -> None:
         )
 
 
+def _bloquear_estudio(estudio_pedido: EstudioPedido) -> EstudioPedido:
+    return (
+        EstudioPedido.objects.select_for_update(of=('self',))
+        .select_related('estudio', 'pedido__cita')
+        .get(pk=estudio_pedido.pk)
+    )
+
+
+def _validar_activo(quimico: Quimico) -> None:
+    if not (quimico.estado_actividad and quimico.usuario.is_active):
+        raise ValidationError(f'{quimico.usuario.persona.nombre_completo} está dado de baja.')
+
+
+def tiene_captura(estudio_pedido: EstudioPedido) -> bool:
+    """Si ya hay algún valor capturado (un borrador vacío no cuenta)."""
+    return bool((estudio_pedido.resultados or {}).get('valores'))
+
+
+def _validar_sin_captura(estudio_pedido: EstudioPedido, quimico: Quimico) -> None:
+    """Soltar o pasar un estudio: solo su encargado y solo si aún no captura nada."""
+    if estudio_pedido.estado != EstadoEstudio.EN_PROCESO:
+        raise TransicionInvalida(
+            f'El estudio está {estudio_pedido.get_estado_display().lower()}: '
+            'solo se suelta o se pasa un estudio en proceso.'
+        )
+    if estudio_pedido.quimico_encargado_id != quimico.pk:
+        raise ValidationError('Este estudio no está a su cargo.')
+    if tiene_captura(estudio_pedido):
+        raise ValidationError(
+            'El estudio ya tiene un borrador de resultados: ya no se puede soltar ni pasar.'
+        )
+
+
 @transaction.atomic
-def asignar_quimicos(estudio_pedido: EstudioPedido, quimicos, *, usuario) -> EstudioPedido:
+def tomar_estudio(estudio_pedido: EstudioPedido, *, quimico: Quimico) -> EstudioPedido:
     """
-    Deja exactamente esos químicos como responsables del estudio. Asignar el primero lo
-    pasa de pendiente a en proceso; en proceso se puede cambiar el equipo, pero no dejarlo
-    sin nadie. Completado ya no cambia.
+    El químico toma un estudio de la cola y queda como su único encargado: pasa de
+    pendiente a en proceso (CONTEXTO.md §3). El bloqueo evita que dos químicos tomen el
+    mismo estudio a la vez; el segundo recibe el aviso de que ya lo tomó alguien.
     """
-    estudio_pedido = EstudioPedido.objects.select_for_update().get(pk=estudio_pedido.pk)
-    _asignar(estudio_pedido, quimicos, usuario)
+    estudio_pedido = _bloquear_estudio(estudio_pedido)
+    if estudio_pedido.quimico_encargado_id is not None:
+        if estudio_pedido.quimico_encargado_id == quimico.pk:
+            raise ValidationError('Ya tiene este estudio a su cargo.')
+        raise ValidationError(f'Otro químico ya tomó {estudio_pedido.estudio}.')
+    if estudio_pedido.pedido.cita.estado != EstadoCita.ATENDIDA:
+        raise ValidationError('La cita del pedido todavía no está atendida.')
+    _validar_activo(quimico)
+    validar_transicion(estudio_pedido.estado, EstadoEstudio.EN_PROCESO)
+    estudio_pedido.estado = EstadoEstudio.EN_PROCESO
+    estudio_pedido.quimico_encargado = quimico
+    estudio_pedido.fecha_toma = timezone.now()
+    estudio_pedido.save(update_fields=['estado', 'quimico_encargado', 'fecha_toma'])
     recalcular_pedido(estudio_pedido.pedido)
     return estudio_pedido
 
 
-def _asignar(estudio_pedido: EstudioPedido, quimicos, usuario) -> None:
-    if estudio_pedido.estado == EstadoEstudio.COMPLETADO:
-        raise TransicionInvalida(
-            'El estudio ya está completado: no se pueden cambiar sus químicos.'
-        )
-    nuevos = {q.pk: q for q in quimicos}
-    if not nuevos and estudio_pedido.estado == EstadoEstudio.EN_PROCESO:
-        raise ValidationError('Un estudio en proceso necesita al menos un químico.')
-    actuales = set(estudio_pedido.asignaciones.values_list('quimico_id', flat=True))
-    # Solo se revisa a los que se agregan: uno ya asignado que se dio de baja puede quedarse.
-    for pk in nuevos.keys() - actuales:
-        quimico = nuevos[pk]
-        if not (quimico.estado_actividad and quimico.usuario.is_active):
-            raise ValidationError(f'{quimico.usuario.persona.nombre_completo} está dado de baja.')
-    estudio_pedido.asignaciones.exclude(quimico_id__in=nuevos).delete()
-    AsignacionQuimico.objects.bulk_create(
-        AsignacionQuimico(estudio_pedido=estudio_pedido, quimico_id=pk, usuario_asignacion=usuario)
-        for pk in nuevos.keys() - actuales
-    )
-    if nuevos and estudio_pedido.estado == EstadoEstudio.PENDIENTE:
-        validar_transicion(estudio_pedido.estado, EstadoEstudio.EN_PROCESO)
-        estudio_pedido.estado = EstadoEstudio.EN_PROCESO
-        estudio_pedido.save(update_fields=['estado'])
+@transaction.atomic
+def soltar_estudio(estudio_pedido: EstudioPedido, *, quimico: Quimico) -> EstudioPedido:
+    """El encargado regresa el estudio a la cola (vuelve a pendiente) si aún no captura nada."""
+    estudio_pedido = _bloquear_estudio(estudio_pedido)
+    _validar_sin_captura(estudio_pedido, quimico)
+    estudio_pedido.estado = EstadoEstudio.PENDIENTE
+    estudio_pedido.quimico_encargado = None
+    estudio_pedido.fecha_toma = None
+    estudio_pedido.save(update_fields=['estado', 'quimico_encargado', 'fecha_toma'])
+    recalcular_pedido(estudio_pedido.pedido)
+    return estudio_pedido
+
+
+@transaction.atomic
+def reasignar_estudio(
+    estudio_pedido: EstudioPedido, nuevo: Quimico, *, quimico: Quimico
+) -> EstudioPedido:
+    """El encargado pasa el estudio a otro químico, si aún no captura nada. Sigue en proceso."""
+    estudio_pedido = _bloquear_estudio(estudio_pedido)
+    _validar_sin_captura(estudio_pedido, quimico)
+    if nuevo.pk == quimico.pk:
+        raise ValidationError('Elija a otro químico.')
+    _validar_activo(nuevo)
+    estudio_pedido.quimico_encargado = nuevo
+    estudio_pedido.fecha_toma = timezone.now()
+    estudio_pedido.save(update_fields=['quimico_encargado', 'fecha_toma'])
+    return estudio_pedido
 
 
 @transaction.atomic
@@ -185,23 +228,10 @@ def cambiar_pago_pedido(pedido: Pedido, estado_pago: str) -> Pedido:
     return recalcular_pedido(pedido)
 
 
-@transaction.atomic
-def actualizar_estudio_pedido(
-    estudio_pedido: EstudioPedido, *, quimicos, estado_pago: str, usuario
-) -> EstudioPedido:
-    """Lo que la recepción cambia desde la fila del estudio: químicos y pago."""
-    actuales = set(estudio_pedido.asignaciones.values_list('quimico_id', flat=True))
-    if {q.pk for q in quimicos} != actuales:
-        estudio_pedido = asignar_quimicos(estudio_pedido, quimicos, usuario=usuario)
-    if estado_pago != estudio_pedido.estado_pago:
-        estudio_pedido = cambiar_estado_pago(estudio_pedido, estado_pago)
-    return estudio_pedido
-
-
 def _para_capturar(estudio_pedido: EstudioPedido, quimico: Quimico):
     """
     Bloquea el estudio y revisa que se pueda capturar. PROVISIONAL (CONTEXTO.md §8):
-    solo un químico asignado y solo mientras está en proceso.
+    solo su químico encargado y solo mientras está en proceso.
     """
     estudio_pedido = (
         EstudioPedido.objects.select_for_update(of=('self',))
@@ -213,8 +243,8 @@ def _para_capturar(estudio_pedido: EstudioPedido, quimico: Quimico):
             f'El estudio está {estudio_pedido.get_estado_display().lower()}: '
             'solo se capturan resultados de un estudio en proceso.'
         )
-    if not estudio_pedido.asignaciones.filter(quimico=quimico).exists():
-        raise ValidationError('Este estudio no le fue asignado.')
+    if estudio_pedido.quimico_encargado_id != quimico.pk:
+        raise ValidationError('Este estudio no está a su cargo.')
     definicion = estudio_pedido.estudio.definicion
     if definicion is None:
         raise ValidationError('El estudio no tiene definición en el código.')
