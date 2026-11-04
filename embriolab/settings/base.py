@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'apps.pedidos',
     'apps.notificaciones',
     'apps.documentos',
+    'apps.cotizaciones',
 ]
 
 AUTH_USER_MODEL = 'cuentas.Usuario'

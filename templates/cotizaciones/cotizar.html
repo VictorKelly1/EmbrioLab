@@ -1,0 +1,117 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Cotizaciones · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Cotizaciones</h1>
+    <p class="encabezado__descripcion">Elija los estudios para ver el total con los precios vigentes. Descargue el PDF o envíelo al paciente o a un correo. La cotización no se guarda.</p>
+  </div>
+</div>
+
+<form method="post" class="cotizador" novalidate data-cotizador>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="aviso aviso--error cotizador__aviso" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+
+  <section class="tarjeta cotizador__estudios" aria-labelledby="titulo-estudios">
+    <h2 id="titulo-estudios">Estudios</h2>
+    <div class="campo campo--buscar">
+      <label for="filtrar-estudios" class="visualmente-oculto">Filtrar estudios</label>
+      <svg class="icono" aria-hidden="true"><use href="#icono-buscar"/></svg>
+      <input type="search" id="filtrar-estudios" placeholder="Filtrar por nombre o clave" autocomplete="off" data-filtrar>
+    </div>
+    {% for error in form.estudios.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+    <fieldset class="cotizador__lista">
+      <legend class="visualmente-oculto">Estudios a cotizar</legend>
+      {% regroup estudios by categoria as grupos %}
+      {% for grupo in grupos %}
+      <div class="cotizador__grupo" data-grupo>
+        <h3>{{ grupo.grouper }}</h3>
+        {% for estudio in grupo.list %}
+        <label class="cotizador__estudio" data-estudio data-buscar="{{ estudio.nombre|lower }} {{ estudio.clave|lower }}">
+          <input type="checkbox" name="estudios" value="{{ estudio.pk }}" data-precio="{{ estudio.precio }}" data-nombre="{{ estudio.nombre }}"{% if estudio.pk|stringformat:'s' in elegidos %} checked{% endif %}>
+          <span>{{ estudio.nombre }} <span class="tenue">{{ estudio.clave }}</span></span>
+          <span class="cotizador__precio">${{ estudio.precio|floatformat:"2g" }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      <p class="tenue" data-sin-coincidencias hidden>Ningún estudio coincide con el filtro.</p>
+    </fieldset>
+  </section>
+
+  <div class="cotizador__lateral">
+    <section class="tarjeta" aria-labelledby="titulo-resumen">
+      <h2 id="titulo-resumen">Resumen</h2>
+      <ul class="cotizador__resumen" data-resumen>
+        {% for estudio in renglones %}<li><span>{{ estudio.nombre }}</span><span>${{ estudio.precio|floatformat:"2g" }}</span></li>{% endfor %}
+      </ul>
+      <p class="tenue" data-vacio{% if renglones %} hidden{% endif %}>Todavía no elige estudios.</p>
+      <p class="cotizador__total"><span>Total</span><strong data-total aria-live="polite">${{ total|floatformat:"2g" }}</strong></p>
+      <button type="submit" name="accion" value="pdf" class="boton boton--secundario">Descargar PDF</button>
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-envio">
+      <h2 id="titulo-envio">Enviar</h2>
+      {% include 'citas/_selector_paciente.html' with ayuda_paciente='Opcional. Si no está registrado, escriba su correo o WhatsApp abajo.' %}
+      {% if paciente_elegido %}
+      <p class="campo__ayuda">{% if destinos %}Se enviará a{% if destinos.correo %} {{ destinos.correo }}{% endif %}{% if destinos.correo and destinos.whatsapp %} y{% endif %}{% if destinos.whatsapp %} WhatsApp {{ destinos.whatsapp }}{% endif %}, salvo lo que escriba abajo.{% else %}El paciente no tiene correo ni WhatsApp: escríbalos abajo.{% endif %}</p>
+      {% endif %}
+      {% with campo=form.cliente %}{% include 'includes/campo.html' %}{% endwith %}
+      {% with campo=form.correo %}{% include 'includes/campo.html' %}{% endwith %}
+      {% with campo=form.whatsapp %}{% include 'includes/campo.html' %}{% endwith %}
+      <button type="submit" name="accion" value="enviar" class="boton boton--principal">Enviar cotización</button>
+    </section>
+  </div>
+</form>
+<script>
+  (() => {
+    const form = document.querySelector('[data-cotizador]');
+    const resumen = form.querySelector('[data-resumen]');
+    const total = form.querySelector('[data-total]');
+    const vacio = form.querySelector('[data-vacio]');
+    const pesos = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Solo es la vista previa: el total que vale lo calcula el servidor al generar el PDF.
+    const actualizar = () => {
+      const marcados = [...form.querySelectorAll('input[name=estudios]:checked')];
+      resumen.replaceChildren(...marcados.map((casilla) => {
+        const li = document.createElement('li');
+        const nombre = document.createElement('span');
+        const precio = document.createElement('span');
+        nombre.textContent = casilla.dataset.nombre;
+        precio.textContent = `$${pesos.format(Number(casilla.dataset.precio))}`;
+        li.append(nombre, precio);
+        return li;
+      }));
+      const suma = marcados.reduce((acc, casilla) => acc + Number(casilla.dataset.precio), 0);
+      total.textContent = `$${pesos.format(suma)}`;
+      vacio.hidden = marcados.length > 0;
+    };
+    form.addEventListener('change', (evento) => {
+      if (evento.target.name === 'estudios') actualizar();
+    });
+    const filtro = form.querySelector('[data-filtrar]');
+    const sinAcentos = (texto) => texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    filtro.addEventListener('input', () => {
+      const buscado = sinAcentos(filtro.value.trim());
+      let visibles = 0;
+      form.querySelectorAll('[data-grupo]').forEach((grupo) => {
+        let enGrupo = 0;
+        grupo.querySelectorAll('[data-estudio]').forEach((fila) => {
+          const coincide = !buscado || sinAcentos(fila.dataset.buscar).includes(buscado);
+          fila.hidden = !coincide;
+          enGrupo += coincide;
+        });
+        grupo.hidden = enGrupo === 0;
+        visibles += enGrupo;
+      });
+      form.querySelector('[data-sin-coincidencias]').hidden = visibles > 0;
+    });
+    // Enter en el filtro no debe enviar el formulario.
+    filtro.addEventListener('keydown', (evento) => { if (evento.key === 'Enter') evento.preventDefault(); });
+  })();
+</script>
+{% endblock %}

@@ -49,6 +49,7 @@ OPCIONES = (
             'pacientes:editar',
         ),
     ),
+    Opcion('Cotizaciones', 'cotizaciones', RECEPCION, 'cotizaciones:cotizar', ('cotizaciones:',)),
     Opcion('Formularios', 'formularios', RECEPCION, 'formularios:lista', ('formularios:',)),
     Opcion(
         'Catálogo de estudios', 'estudios', RECEPCION + QUIMICO, 'estudios:lista', ('estudios:',)

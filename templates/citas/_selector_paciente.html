@@ -1,7 +1,7 @@
 {% comment %}Buscador de paciente para formularios de cita. Llena el campo oculto `paciente`.{% endcomment %}
 {% with campo=form.paciente %}
 <div class="campo selector-paciente{% if campo.errors %} campo--error{% endif %}" data-selector-paciente>
-  <label for="buscar-paciente">Paciente <span class="obligatorio" aria-hidden="true">*</span></label>
+  <label for="buscar-paciente">Paciente{% if campo.field.required %} <span class="obligatorio" aria-hidden="true">*</span>{% endif %}</label>
   {{ campo }}
   <div class="selector-paciente__elegido" data-elegido{% if not paciente_elegido %} hidden{% endif %}>
     <span>
@@ -16,7 +16,7 @@
            hx-get="{% url 'citas:buscar_paciente' %}" hx-trigger="input changed delay:250ms" hx-target="#resultados-paciente" hx-include="this"
            aria-controls="resultados-paciente" aria-describedby="ayuda-paciente">
   </div>
-  <p class="campo__ayuda" id="ayuda-paciente" data-buscador{% if paciente_elegido %} hidden{% endif %}>¿No aparece? <a href="{% url 'pacientes:crear' %}">Regístrelo primero</a>.</p>
+  <p class="campo__ayuda" id="ayuda-paciente" data-buscador{% if paciente_elegido %} hidden{% endif %}>{% if ayuda_paciente %}{{ ayuda_paciente }}{% else %}¿No aparece? <a href="{% url 'pacientes:crear' %}">Regístrelo primero</a>.{% endif %}</p>
   <div id="resultados-paciente" class="selector-paciente__resultados" aria-live="polite"></div>
   {% for error in campo.errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
 </div>

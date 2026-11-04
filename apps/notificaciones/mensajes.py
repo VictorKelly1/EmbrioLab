@@ -5,7 +5,7 @@ revise la redacción. Tono «usted». Nunca llevan más datos del paciente que s
 
 from django.utils import formats, timezone
 
-from apps.documentos.pdf import nombre_archivo
+from apps.documentos.pdf import nombre_archivo, nombre_cotizacion
 from apps.notificaciones.canales import Adjunto, Mensaje
 
 FIRMA = '\n\nAtentamente,\nEmbrioLab'
@@ -53,3 +53,16 @@ def resultados(destinatario: str, estudios, pdf: bytes) -> Mensaje:
     )
     adjunto = Adjunto(nombre_archivo(estudios), pdf, 'application/pdf')
     return Mensaje(destinatario, 'Sus resultados de EmbrioLab', texto + FIRMA, (adjunto,))
+
+
+def cotizacion(destinatario: str, cotizacion, pdf: bytes) -> Mensaje:
+    saludo = f'Hola, {cotizacion.cliente}:' if cotizacion.cliente else 'Hola:'
+    nombres = '\n'.join(f'- {r.nombre}: ${r.precio:,.2f}' for r in cotizacion.renglones)
+    texto = (
+        f'{saludo}\n\nLe compartimos la cotización que nos pidió:\n{nombres}'
+        f'\n\nTotal: ${cotizacion.total:,.2f} MXN'
+        '\n\nLos precios son los vigentes a la fecha y pueden cambiar. '
+        'Para agendar su cita, comuníquese con nosotros.'
+    )
+    adjunto = Adjunto(nombre_cotizacion(cotizacion), pdf, 'application/pdf')
+    return Mensaje(destinatario, 'Su cotización de EmbrioLab', texto + FIRMA, (adjunto,))

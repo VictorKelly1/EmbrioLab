@@ -29,7 +29,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 | Rol | Qué hace |
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
-| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias). **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
+| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias). **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
 | **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto. Consulta al paciente y el catálogo. |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
@@ -89,8 +89,14 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 
 ### Estudios
 - Son **~30 estudios fijos, definidos en código**, porque tienen cálculos internos. El cliente entrega un Excel con sus campos, operaciones y claves.
-- No hay paquetes de estudios.
+- No hay paquetes de estudios guardados. Para cotizar se arma un **paquete temporal** (ver «Cotizaciones»).
 - La recepcionista guarda **alias**: el nombre que usa el doctor → el estudio del catálogo.
+
+### Cotizaciones
+- La recepción elige un conjunto de estudios (un paquete temporal) y obtiene el total con los **precios vigentes**.
+- **No se guarda en la BD:** es una función (`apps/cotizaciones/cotizacion.py`). El PDF se genera al vuelo.
+- Se descarga en PDF o se **envía** por correo y WhatsApp a un paciente registrado o a un correo/WhatsApp escrito a mano (para quien no está registrado).
+- El envío sale **directo**, sin fila en `Notificaciones` ni worker (decidido con el cliente): si un canal falla, la recepción ve el error y puede reintentar o descargar el PDF.
 
 ### Valores de referencia
 - El cliente los cambia seguido, a veces se los proporcionan terceros y varían por estudio. Por eso van **en la BD** y no en código. La tabla es **provisional**.
@@ -98,7 +104,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 
 ### Notificaciones
 - Se envían por **correo y WhatsApp**. La API de WhatsApp se integra después: deja la abstracción lista.
-- Todo envío queda registrado en la tabla `Notificaciones`.
+- Todo envío queda registrado en la tabla `Notificaciones`, **excepto las cotizaciones** (ver abajo).
 
 ## 4. Base de datos
 
@@ -187,7 +193,8 @@ apps/
     definiciones/  una clase de Python por estudio + registro
   pedidos/         Pedido, EstudioPedido, estados, pagos
   notificaciones/  Notificacion, canales, tareas
-  documentos/      PDF de resultados
+  documentos/      PDF de resultados y de cotizaciones
+  cotizaciones/    sin modelos: cotizar() + envío directo
 templates/ · static/
 ```
 
@@ -324,6 +331,12 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Reintentos.** Provisional: un envío fallido se reintenta a los 1, 5 y 30 minutos (`NOTIFICACIONES_REINTENTOS`); después queda «fallido» y se envía de nuevo a mano.
 - **Recordatorio.** Provisional: el timer revisa cada 15 minutos y manda el recordatorio con el link del formulario cuando faltan 24 h o menos. Si la cita se reprograma, se vuelve a mandar. Generar o enviar un link nuevo invalida el anterior, también el del recordatorio.
 
+### Cotizaciones (cambio del cliente, 2026-11-03)
+- **Quién.** Decidido: solo la recepción.
+- **Destino.** Decidido: un paciente registrado (sus contactos principales) o un correo/WhatsApp escrito a mano. Provisional: lo escrito reemplaza al contacto del paciente en ese canal; con paciente se usa su nombre.
+- **Formato.** Provisional: PDF con membrete de texto, la lista de estudios con su categoría y precio vigente, el total en MXN y la nota «precios sujetos a cambio». Está en `templates/documentos/cotizacion.html` y el texto del mensaje en `apps/notificaciones/mensajes.py`.
+- **Descuentos y vigencia.** Provisional: no hay.
+
 ## 9. Cómo cambiar una decisión
 
 Si al implementar algo encuentras que una decisión de este documento no funciona:
@@ -339,3 +352,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-10-21: semana 6 — un estudio del pedido puede tener **varios químicos responsables** (decisión del equipo): `EstudiosPedido.IdQuimicoAsignado` se reemplaza por la tabla `AsignacionesQuimico`, que guarda quién asignó a cada químico y cuándo. El índice `EstudiosPedido(estado, quimico_asignado)` pasa a `EstudiosPedido(estado)` más el de la FK de la asignación. Quien completa sigue siendo uno (`IdQuimicoCompleto`).
 - 2026-10-30: semana 8 — Django 6.1 trae la API `django.tasks` pero no un backend en BD: se usa `django-tasks-db` (`manage.py db_worker`). Los recordatorios los encola el servicio `recordatorios` de Docker Compose (un timer que corre `enviar_recordatorios` cada 15 minutos). El link de los correos se arma con `SITIO_URL` (obligatorio en producción). Decidido con el cliente: solo los químicos envían resultados y todo paciente debe tener al menos un correo o WhatsApp.
 - 2026-11-03: cambio del cliente tras la demo — **cola de químicos**: la recepción ya no asigna químicos; los químicos toman los estudios pendientes desde la «Cola de pedidos» y cada estudio tiene **un solo encargado**. La tabla `AsignacionesQuimico` se reemplaza por `EstudiosPedido.IdQuimicoEncargado` + `FechaToma` (una migración de datos conserva al primer químico asignado de cada estudio). El encargado puede soltar el estudio o pasarlo a otro químico mientras no haya capturado nada.
+- 2026-11-03: cambio del cliente — **cotizaciones**: app `cotizaciones` sin modelos; la recepción arma un paquete temporal de estudios, descarga el PDF o lo envía por correo y WhatsApp a un paciente o a un contacto escrito a mano. Decidido: el envío es directo y no queda en `Notificaciones` (excepción a §3).

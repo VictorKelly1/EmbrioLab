@@ -61,3 +61,21 @@ def nombre_archivo(estudios) -> str:
     if len(estudios) == 1:
         nombre += f'-{estudios[0].estudio.clave}'
     return f'{nombre}.pdf'.lower()
+
+
+def pdf_cotizacion(cotizacion) -> bytes:
+    """PDF de una cotización (apps/cotizaciones), al vuelo y sin guardarse. Formato PROVISIONAL."""
+    fuente = finders.find(FUENTE)
+    html = render_to_string(
+        'documentos/cotizacion.html',
+        {
+            'cotizacion': cotizacion,
+            'generado': timezone.now(),
+            'fuente': f'file://{fuente}' if fuente else '',
+        },
+    )
+    return HTML(string=html).write_pdf()
+
+
+def nombre_cotizacion(cotizacion) -> str:
+    return f'cotizacion-embriolab-{cotizacion.fecha:%Y%m%d}.pdf'
