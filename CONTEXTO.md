@@ -59,6 +59,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 ### Pacientes
 - Se registran **una sola vez**, con sus datos fijos.
 - **CURP obligatoria y única.** INE opcional. Género: `masculino` / `femenino`.
+- **Correo o WhatsApp obligatorio:** al registrar y al editar, el paciente debe tener al menos uno de los dos (el teléfono no cuenta), para poder enviarle sus resultados. Lo revisa el servicio.
 - **Nunca se eliminan:** borrado lógico (inactivo).
 - Un paciente puede tener varios pedidos abiertos a la vez.
 
@@ -124,7 +125,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 | Tabla | Campos |
 |---|---|
 | **Pacientes** | Id, IdPersona (unique), Numero (unique), EstadoActividad, FechaRegistro |
-| **Doctores** | Id, Nombre, Correo (opcional), WhatsApp (opcional), Contacto (otros datos en texto libre) |
+| **Doctores** | Id, Nombre, Correo, WhatsApp (al menos uno de los dos; lo exige el servicio), Contacto (otros datos en texto libre) |
 | **Donadores** | ⏸ PENDIENTE (falta información del cliente). Es un tipo especial de paciente con un inventario de muestras de esperma: código, fecha, disponible/usada y doctor al que se envió. **No implementar.** |
 
 ### Citas y formularios
@@ -326,7 +327,8 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Quién envía los resultados.** Decidido (2026-10-30): solo los químicos (cualquiera, no solo el encargado), desde el pedido. La recepción ve el PDF y los envíos, pero no envía.
 - **Resultados al doctor.** Decidido (2026-11-03): al enviar, el químico decide con la casilla «Enviar también al doctor», marcada por omisión. Sale solo si el pedido tiene doctor y este tiene correo o WhatsApp; si no, solo al paciente. El doctor recibe su propio mensaje con el mismo PDF.
 - **Contacto del doctor.** Provisional: la migración pasó a `correo` el texto que era un correo y a `whatsapp` el que era un número de 10 a 15 dígitos (se asumió que es WhatsApp); lo demás quedó en «otros datos de contacto».
-- **Paciente sin correo ni WhatsApp.** Decidido (2026-10-30): todo paciente debe tener al menos un contacto para recibir resultados (correo o WhatsApp). Pendiente: exigirlo al registrar y editar al paciente. Mientras tanto, sin contacto no se pueden enviar sus resultados.
+- **Paciente sin correo ni WhatsApp.** Decidido (2026-10-30): todo paciente debe tener al menos un contacto para recibir resultados (correo o WhatsApp). Se exige al registrar y al editar al paciente (el servicio lo revisa). Un paciente anterior sin contacto debe agregarlo la próxima vez que se edite; mientras tanto no se pueden enviar sus resultados.
+- **Doctor sin correo ni WhatsApp.** Decidido (2026-11-03): al registrar o editar un doctor se exige al menos uno de los dos. No hay restricción en la BD: los doctores anteriores sin contacto siguen existiendo y deben agregarlo al editarse; mientras tanto los resultados solo van al paciente.
 - **Reenviar.** Provisional: se puede volver a enviar un estudio ya enviado; la fecha y el usuario del primer envío no cambian.
 - **WhatsApp.** Mientras no se integre la API, el envío por WhatsApp solo queda registrado en el log y cuenta como «enviado».
 - **Formato del PDF y redacción de los mensajes.** Provisional: un PDF con membrete de texto (sin logo), datos de la cita, una tabla por estudio, la referencia copiada y quién lo realizó con su cédula. Está en `templates/documentos/resultados.html` y `apps/notificaciones/mensajes.py`. El correo lleva el PDF adjunto.
@@ -356,3 +358,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-03: cambio del cliente tras la demo — **cola de químicos**: la recepción ya no asigna químicos; los químicos toman los estudios pendientes desde la «Cola de pedidos» y cada estudio tiene **un solo encargado**. La tabla `AsignacionesQuimico` se reemplaza por `EstudiosPedido.IdQuimicoEncargado` + `FechaToma` (una migración de datos conserva al primer químico asignado de cada estudio). El encargado puede soltar el estudio o pasarlo a otro químico mientras no haya capturado nada.
 - 2026-11-03: cambio del cliente — **cotizaciones**: app `cotizaciones` sin modelos; la recepción arma un paquete temporal de estudios, descarga el PDF o lo envía por correo y WhatsApp a un paciente o a un contacto escrito a mano. Decidido: el envío es directo y no queda en `Notificaciones` (excepción a §3).
 - 2026-11-03: cambio del cliente — **doctores para químicos y envío al doctor**: los químicos ven, registran y editan doctores. `Doctores.Contacto` se separa en `Correo` y `WhatsApp` (más «otros datos»), con migración de datos. `Notificaciones` agrega `DestinoTipo` (paciente/doctor) y los resultados pueden ir también al doctor del pedido.
+- 2026-11-03: **contacto obligatorio** — al registrar o editar un paciente o un doctor se exige un correo o un WhatsApp (en el servicio, sin restricción en la BD para no romper registros anteriores). En el doctor era opcional; lo pidió el cliente.

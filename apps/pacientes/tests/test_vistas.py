@@ -133,6 +133,15 @@ def test_registrar_con_errores_muestra_el_formulario(recepcion):
     assert not Paciente.objects.exists()
 
 
+def test_registrar_sin_correo_ni_whatsapp_muestra_el_error(recepcion):
+    datos = {**FORMULARIO, 'correo': '', 'whatsapp': '', 'telefono': '3311111111'}
+    respuesta = recepcion.post(CREAR, datos)
+    assert respuesta.status_code == 200
+    assert set(respuesta.context['form'].errors) == {'correo', 'whatsapp'}
+    assert 'al menos un correo o un WhatsApp' in respuesta.text
+    assert not Paciente.objects.exists()
+
+
 def test_curp_repetida_viene_del_servicio(recepcion):
     recepcion.post(CREAR, FORMULARIO)
     respuesta = recepcion.post(CREAR, FORMULARIO)
@@ -201,7 +210,7 @@ def test_dar_de_baja_y_reactivar(recepcion):
 
 def test_registrar_y_editar_doctor(recepcion):
     respuesta = recepcion.post(
-        reverse('pacientes:doctor_crear'), {'nombre': 'Dr. Juan Pérez', 'contacto': ''}
+        reverse('pacientes:doctor_crear'), {'nombre': 'Dr. Juan Pérez', 'correo': 'j@example.com'}
     )
     assert respuesta.status_code == 302
     doctor = Doctor.objects.get()
@@ -222,7 +231,9 @@ def test_el_quimico_ve_registra_y_edita_doctores(client):
     existente = DoctorFactory(nombre='Dra. Laura Gómez', correo='laura@example.com')
     lista = client.get(reverse('pacientes:doctores')).text
     assert 'Dra. Laura Gómez' in lista and 'laura@example.com' in lista
-    client.post(reverse('pacientes:doctor_crear'), {'nombre': 'Dr. Nuevo'})
+    client.post(
+        reverse('pacientes:doctor_crear'), {'nombre': 'Dr. Nuevo', 'whatsapp': '3312345678'}
+    )
     assert Doctor.objects.filter(nombre='Dr. Nuevo').exists()
     editar = reverse('pacientes:doctor_editar', args=[existente.pk])
     assert 'laura@example.com' in client.get(editar).text
@@ -244,6 +255,16 @@ def test_whatsapp_invalido_del_doctor_muestra_el_error(recepcion):
     )
     assert respuesta.status_code == 200
     assert '10 dígitos' in respuesta.text
+    assert not Doctor.objects.exists()
+
+
+def test_doctor_sin_correo_ni_whatsapp_muestra_el_error(recepcion):
+    respuesta = recepcion.post(
+        reverse('pacientes:doctor_crear'), {'nombre': 'Dr. Juan', 'contacto': 'Tel. 3312345678'}
+    )
+    assert respuesta.status_code == 200
+    assert set(respuesta.context['form'].errors) == {'correo', 'whatsapp'}
+    assert 'al menos un correo o un WhatsApp' in respuesta.text
     assert not Doctor.objects.exists()
 
 

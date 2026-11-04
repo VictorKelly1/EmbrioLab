@@ -98,6 +98,41 @@ def test_actualizar_paciente():
     }
 
 
+@pytest.mark.parametrize(
+    'contactos', [None, {}, {'telefono': '3311111111'}, {'correo': ' ', 'whatsapp': ''}]
+)
+def test_registrar_exige_correo_o_whatsapp(contactos):
+    with pytest.raises(ValidationError) as error:
+        registrar_paciente(datos_persona=PERSONA, contactos=contactos)
+    assert set(error.value.message_dict) == {'correo', 'whatsapp'}
+    assert not Persona.objects.exists()
+
+
+@pytest.mark.parametrize('contactos', [{'correo': 'ana@correo.mx'}, {'whatsapp': '3312345678'}])
+def test_basta_un_correo_o_un_whatsapp(contactos):
+    paciente = registrar_paciente(datos_persona=PERSONA, contactos=contactos)
+    assert contactos_principales(paciente.persona) == contactos
+
+
+def test_al_editar_no_se_puede_quitar_todo_el_contacto():
+    paciente = _registrar()
+    with pytest.raises(ValidationError):
+        actualizar_paciente(
+            paciente, datos_persona=PERSONA, contactos={'correo': '', 'whatsapp': ''}
+        )
+    # Lo que no se toca cuenta: quitar solo el WhatsApp deja el correo.
+    actualizar_paciente(paciente, datos_persona=PERSONA, contactos={'whatsapp': ''})
+    assert contactos_principales(paciente.persona) == {'correo': 'ana@correo.mx'}
+
+
+def test_paciente_viejo_sin_contacto_debe_agregarlo_al_editar():
+    paciente = _registrar()
+    paciente.persona.contactos.all().delete()
+    with pytest.raises(ValidationError):
+        actualizar_paciente(paciente, datos_persona=PERSONA)
+    actualizar_paciente(paciente, datos_persona=PERSONA, contactos={'correo': 'ana@correo.mx'})
+
+
 def test_baja_logica_sin_borrado_fisico():
     paciente = _registrar()
     dar_de_baja(paciente)
@@ -127,10 +162,28 @@ def test_crear_y_actualizar_doctor():
     assert (doctor.correo, doctor.whatsapp) == ('juan@consultorio.mx', '3312345678')
     assert doctor.contacto == 'Consultorio 4, Torre Médica'
 
-    actualizar_doctor(doctor, nombre='Dra. Laura Gómez')
+    actualizar_doctor(doctor, nombre='Dra. Laura Gómez', whatsapp='3311112222')
     guardado = Doctor.objects.get()
     assert guardado.nombre == 'Dra. Laura Gómez'
-    assert (guardado.correo, guardado.whatsapp, guardado.contacto) == ('', '', '')
+    assert (guardado.correo, guardado.whatsapp, guardado.contacto) == ('', '3311112222', '')
+
+
+@pytest.mark.parametrize(
+    'contacto', [{}, {'correo': '  ', 'whatsapp': ''}, {'contacto': 'Tel. 33'}]
+)
+def test_doctor_requiere_correo_o_whatsapp(contacto):
+    with pytest.raises(ValidationError) as error:
+        crear_doctor(nombre='Dr. Juan', **contacto)
+    assert set(error.value.message_dict) == {'correo', 'whatsapp'}
+    assert not Doctor.objects.exists()
+
+
+def test_no_se_le_puede_quitar_todo_el_contacto_al_doctor():
+    doctor = crear_doctor(nombre='Dr. Juan', correo='juan@example.com')
+    with pytest.raises(ValidationError):
+        actualizar_doctor(doctor, nombre='Dr. Juan')
+    doctor.refresh_from_db()
+    assert doctor.correo == 'juan@example.com'
 
 
 @pytest.mark.parametrize(
@@ -164,4 +217,4 @@ def test_migracion_separa_el_contacto_del_doctor(contacto, esperado):
 
 def test_doctor_requiere_nombre():
     with pytest.raises(ValidationError):
-        crear_doctor(nombre='   ')
+        crear_doctor(nombre='   ', correo='juan@example.com')
