@@ -58,7 +58,9 @@ def _titulo_rango(dias: list[datetime.date]) -> str:
 
 
 class CalendarioView(RolRequerido, TemplateView):
-    roles = [Rol.RECEPCIONISTA]
+    """La recepción agenda desde aquí; los químicos solo lo consultan."""
+
+    roles = [Rol.RECEPCIONISTA, Rol.QUIMICO]
     template_name = 'citas/calendario.html'
 
     def get_context_data(self, **kwargs):
@@ -89,6 +91,7 @@ class CalendarioView(RolRequerido, TemplateView):
             anterior=fecha - paso,
             siguiente=fecha + paso,
             proximas=proximas_citas(),
+            puede_agendar=self.request.user.tiene_rol(Rol.RECEPCIONISTA),
         )
         return contexto
 

@@ -27,6 +27,7 @@ def test_opciones_de_la_recepcionista():
 def test_opciones_del_quimico():
     assert _etiquetas(QuimicoFactory().usuario) == [
         'Inicio',
+        'Calendario de citas',
         'Cola de pedidos',
         'Pedidos',
         'Pacientes',
@@ -67,7 +68,8 @@ def test_el_layout_muestra_el_menu_del_rol(client):
     assert 'id="menu-lateral"' in respuesta.text
     assert 'Catálogo de estudios' in respuesta.text
     assert 'Doctores' in respuesta.text
-    assert 'Calendario de citas' not in respuesta.text
+    assert 'Calendario de citas' in respuesta.text
+    assert 'Cotizaciones' not in respuesta.text
     assert 'aria-current="page"' in respuesta.text
 
 
