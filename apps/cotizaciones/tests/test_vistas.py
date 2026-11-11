@@ -62,7 +62,7 @@ def test_enviar_a_un_correo_escrito_conserva_lo_elegido(recepcion):
     assert 'Cotización enviada a ana@example.com' in contenido
     assert mail.outbox[0].to == ['ana@example.com']
     # Sigue la selección para volver a enviarla o descargarla.
-    assert respuesta.context['renglones'][0].clave == 'GLU'
+    assert str(_ids('GLU')[0]) in respuesta.context['elegidos']
     assert not Notificacion.objects.exists()
 
 
@@ -98,3 +98,60 @@ def test_un_estudio_inactivo_no_se_puede_elegir(recepcion):
     respuesta = recepcion.post(URL, {'estudios': [glu.pk], 'accion': 'pdf'})
     assert respuesta.status_code == 200
     assert 'estudios' in respuesta.context['form'].errors
+
+
+# Estudios libres
+
+
+def _libres(*filas, total=None):
+    datos = {
+        'libre-TOTAL_FORMS': str(total if total is not None else len(filas)),
+        'libre-INITIAL_FORMS': '0',
+    }
+    for i, fila in enumerate(filas):
+        datos.update({f'libre-{i}-{campo}': valor for campo, valor in fila.items()})
+    return datos
+
+
+def test_la_pantalla_trae_la_plantilla_de_estudio_libre(recepcion):
+    contenido = recepcion.get(URL).content.decode()
+    assert 'name="libre-TOTAL_FORMS"' in contenido
+    assert 'libre-__prefix__-nombre' in contenido
+
+
+def test_enviar_con_un_estudio_libre(recepcion):
+    datos = {
+        'estudios': _ids('GLU'),
+        'correo': 'ana@example.com',
+        'accion': 'enviar',
+        **_libres(
+            {'nombre': 'Prueba de VIH', 'precio': '350', 'categoria': 'Sanguíneos'},
+            {'nombre': '', 'precio': '', 'categoria': ''},  # fila vacía: se ignora
+        ),
+    }
+    respuesta = recepcion.post(URL, datos)
+    contenido = respuesta.content.decode()
+    assert 'Cotización enviada' in contenido
+    assert 'Prueba de VIH: $350.00' in mail.outbox[0].body
+    # Se conserva lo escrito y el resumen lo incluye.
+    assert 'value="Prueba de VIH"' in contenido
+    glu = Estudio.objects.get(clave='GLU')
+    assert f'${glu.precio + 350:,.2f}' in contenido
+
+
+def test_pdf_solo_con_estudios_libres(recepcion):
+    datos = {'accion': 'pdf', **_libres({'nombre': 'Prueba X', 'precio': '120.50'})}
+    respuesta = recepcion.post(URL, datos)
+    assert respuesta['Content-Type'] == 'application/pdf'
+
+
+def test_estudio_libre_sin_precio_muestra_el_error(recepcion):
+    respuesta = recepcion.post(URL, {'accion': 'pdf', **_libres({'nombre': 'Prueba X'})})
+    assert respuesta.status_code == 200
+    assert 'campo__error' in respuesta.content.decode()
+
+
+def test_estudio_libre_con_precio_negativo(recepcion):
+    datos = {'accion': 'pdf', **_libres({'nombre': 'Prueba X', 'precio': '-5'})}
+    respuesta = recepcion.post(URL, datos)
+    assert 'no puede ser negativo' in respuesta.content.decode()

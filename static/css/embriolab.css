@@ -2472,6 +2472,62 @@ a.cita-bloque:hover {
   color: var(--orquidea-profunda);
 }
 
+/* Estudios libres de la cotización */
+.cotizador__libres {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--lavanda-clara);
+}
+
+.cotizador__libres legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.cotizador__libres [data-libres] {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cotizador__libres > .boton {
+  justify-self: start;
+}
+
+.cotizador__libre {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--lavanda-clara);
+  border-radius: var(--radio);
+}
+
+.cotizador__libre .campo {
+  margin: 0;
+}
+
+.cotizador__libre [data-quitar-libre] {
+  justify-self: start;
+}
+
+@media (min-width: 40rem) {
+  .cotizador__libre {
+    grid-template-columns: minmax(0, 2fr) minmax(6rem, 1fr) minmax(8rem, 1.2fr) auto;
+    align-items: end;
+  }
+
+  .cotizador__libre > .campo__error {
+    grid-column: 1 / -1;
+  }
+
+  .cotizador__libre [data-quitar-libre] {
+    align-self: center;
+    margin-top: 1.5rem;
+  }
+}
+
 /* Notificaciones y envío de resultados */
 
 .etiqueta--enviado {

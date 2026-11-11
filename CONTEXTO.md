@@ -94,7 +94,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 - La recepcionista guarda **alias**: el nombre que usa el doctor → el estudio del catálogo.
 
 ### Cotizaciones
-- La recepción elige un conjunto de estudios (un paquete temporal) y obtiene el total con los **precios vigentes**.
+- La recepción elige un conjunto de estudios (un paquete temporal) y obtiene el total con los **precios vigentes**. También puede agregar **estudios que no están en el catálogo**, escribiendo su nombre, su precio y, si quiere, su categoría (por omisión «Otros»); no se agregan al catálogo.
 - **No se guarda en la BD:** es una función (`apps/cotizaciones/cotizacion.py`). El PDF se genera al vuelo.
 - Se descarga en PDF o se **envía** por correo y WhatsApp a un paciente registrado o a un correo/WhatsApp escrito a mano (para quien no está registrado).
 - El envío sale **directo**, sin fila en `Notificaciones` ni worker (decidido con el cliente): si un canal falla, la recepción ve el error y puede reintentar o descargar el PDF.
@@ -363,3 +363,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-03: **contacto obligatorio** — al registrar o editar un paciente o un doctor se exige un correo o un WhatsApp (en el servicio, sin restricción en la BD para no romper registros anteriores). En el doctor era opcional; lo pidió el cliente.
 - 2026-11-11: cambio del cliente — **calendario para químicos**: los químicos ven el calendario de citas en solo lectura, para preparar lo necesario. Solo la recepción agenda, reprograma o marca citas; el químico no abre el detalle de la cita.
 - 2026-11-11: cambio del cliente — **observaciones del pedido**: tabla `ObservacionesPedido` con notas libres (p. ej. si el paciente quiere los resultados juntos o conforme salgan). Las escribe la recepción y se ven en el detalle del pedido.
+- 2026-11-11: cambio del cliente — **estudios libres en la cotización**: además de los del catálogo, la recepción escribe estudios que no tiene guardados (nombre, precio y categoría opcional). Siguen sin guardarse en la BD.
