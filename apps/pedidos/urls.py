@@ -11,6 +11,7 @@ urlpatterns = [
     path('sugerencias/', views.SugerenciasView.as_view(), name='sugerencias'),
     path('<int:pk>/', views.PedidoDetalleView.as_view(), name='detalle'),
     path('<int:pk>/doctor/', views.PedidoDoctorView.as_view(), name='doctor'),
+    path('<int:pk>/observaciones/', views.PedidoObservacionView.as_view(), name='observacion'),
     path('<int:pk>/pago/', views.PedidoPagoView.as_view(), name='pago'),
     path('<int:pk>/estudios/', views.PedidoAgregarEstudioView.as_view(), name='agregar_estudio'),
     path('<int:pk>/enviar/', views.PedidoEnviarResultadosView.as_view(), name='enviar'),

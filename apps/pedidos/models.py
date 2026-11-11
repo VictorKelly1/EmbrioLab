@@ -173,3 +173,30 @@ class EstudioPedido(models.Model):
     @property
     def enviado(self) -> bool:
         return self.fecha_envio is not None
+
+
+class ObservacionPedido(models.Model):
+    """
+    Nota libre de la recepción sobre un pedido (p. ej. «enviar los resultados juntos»).
+    Un pedido tiene las que hagan falta; solo se agregan (CONTEXTO.md §8).
+    """
+
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='observaciones')
+    texto = models.TextField(max_length=500)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+'
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['pedido', 'fecha', 'id']
+        verbose_name = 'observación de pedido'
+        verbose_name_plural = 'observaciones de pedido'
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(texto=''), name='observacion_pedido_texto_no_vacio'
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.pedido.numero}: {self.texto[:40]}'

@@ -71,6 +71,15 @@ class LineaForm(forms.Form):
 LineaFormSet = forms.formset_factory(LineaForm, extra=0, min_num=1, validate_min=True)
 
 
+class ObservacionForm(forms.Form):
+    texto = forms.CharField(
+        label='Nueva observación',
+        max_length=500,
+        widget=forms.Textarea(attrs={'rows': 2}),
+        help_text='Por ejemplo: «Enviar los resultados cuando estén todos».',
+    )
+
+
 class DoctorPedidoForm(forms.Form):
     doctor = forms.ModelChoiceField(
         label='Doctor que firma la orden',

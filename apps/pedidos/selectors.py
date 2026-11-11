@@ -6,7 +6,7 @@ from apps.citas.models import Cita, EstadoCita
 from apps.core.texto import normalizar
 from apps.cuentas.models import Quimico
 from apps.pacientes.models import Paciente
-from apps.pedidos.models import EstadoEstudio, EstudioPedido, Pedido
+from apps.pedidos.models import EstadoEstudio, EstudioPedido, ObservacionPedido, Pedido
 
 
 def _con_paciente(pedidos: QuerySet[Pedido]) -> QuerySet[Pedido]:
@@ -67,7 +67,11 @@ def obtener_pedido(pk: int) -> Pedido:
                 queryset=EstudioPedido.objects.select_related(
                     'estudio', 'quimico_encargado__usuario__persona'
                 ),
-            )
+            ),
+            Prefetch(
+                'observaciones',
+                queryset=ObservacionPedido.objects.select_related('usuario__persona'),
+            ),
         )
         .get(pk=pk)
     )
