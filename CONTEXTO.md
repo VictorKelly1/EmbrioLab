@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-11-03
+Última actualización: 2026-11-11
 
 ---
 
@@ -30,7 +30,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
 | **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias). **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
-| **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** |
+| **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario de citas en solo lectura** (no agenda ni cambia citas). |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
 **Fuera de la Fase 1** (dejar preparado, NO implementar):
@@ -359,3 +359,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-03: cambio del cliente — **cotizaciones**: app `cotizaciones` sin modelos; la recepción arma un paquete temporal de estudios, descarga el PDF o lo envía por correo y WhatsApp a un paciente o a un contacto escrito a mano. Decidido: el envío es directo y no queda en `Notificaciones` (excepción a §3).
 - 2026-11-03: cambio del cliente — **doctores para químicos y envío al doctor**: los químicos ven, registran y editan doctores. `Doctores.Contacto` se separa en `Correo` y `WhatsApp` (más «otros datos»), con migración de datos. `Notificaciones` agrega `DestinoTipo` (paciente/doctor) y los resultados pueden ir también al doctor del pedido.
 - 2026-11-03: **contacto obligatorio** — al registrar o editar un paciente o un doctor se exige un correo o un WhatsApp (en el servicio, sin restricción en la BD para no romper registros anteriores). En el doctor era opcional; lo pidió el cliente.
+- 2026-11-11: cambio del cliente — **calendario para químicos**: los químicos ven el calendario de citas en solo lectura, para preparar lo necesario. Solo la recepción agenda, reprograma o marca citas; el químico no abre el detalle de la cita.

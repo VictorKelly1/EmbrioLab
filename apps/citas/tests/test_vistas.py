@@ -42,14 +42,33 @@ def paciente():
 def test_solo_la_recepcionista(client, fabrica):
     client.force_login(fabrica().usuario)
     cita = CitaFactory()
-    assert client.get(CALENDARIO).status_code == 403
     assert client.get(AGENDAR).status_code == 403
+    assert client.get(ESPONTANEA).status_code == 403
     assert client.get(reverse('citas:detalle', args=[cita.pk])).status_code == 403
     assert (
         client.post(reverse('citas:accion', args=[cita.pk]), {'accion': 'cancelar'}).status_code
         == 403
     )
     assert Cita.objects.exists()
+
+
+def test_el_admin_no_ve_el_calendario(client):
+    client.force_login(AdminFactory().usuario)
+    assert client.get(CALENDARIO).status_code == 403
+
+
+def test_el_quimico_ve_el_calendario_sin_agendar(client, paciente):
+    client.force_login(QuimicoFactory().usuario)
+    cita = CitaFactory(paciente=paciente, fecha_hora=en(1, 10, 0), asunto='Espermatobioscopia')
+    respuesta = client.get(
+        CALENDARIO, {'vista': 'dia', 'fecha': cita.fecha_hora.date().isoformat()}
+    )
+    assert respuesta.status_code == 200
+    assert 'Ana López' in respuesta.text
+    assert 'Espermatobioscopia' in respuesta.text
+    assert AGENDAR not in respuesta.text
+    assert ESPONTANEA not in respuesta.text
+    assert reverse('citas:detalle', args=[cita.pk]) not in respuesta.text
 
 
 def test_sin_sesion_redirige(client):

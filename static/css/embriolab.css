@@ -1487,7 +1487,7 @@ a.lateral__opcion:hover {
   transition: filter var(--transicion);
 }
 
-.cita-bloque:hover {
+a.cita-bloque:hover {
   filter: brightness(0.96);
 }
 
@@ -1601,7 +1601,7 @@ a.lateral__opcion:hover {
   list-style: none;
 }
 
-.proximas__lista a {
+.proximas__lista li > * {
   display: grid;
   gap: 0.0625rem;
   padding: 0.625rem 0.5rem;
@@ -1610,7 +1610,7 @@ a.lateral__opcion:hover {
   text-decoration: none;
 }
 
-.proximas__lista li + li a {
+.proximas__lista li + li > * {
   border-top: 1px solid var(--lavanda-clara);
 }
 
