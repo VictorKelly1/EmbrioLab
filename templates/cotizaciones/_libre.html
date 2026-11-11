@@ -1,0 +1,8 @@
+{% comment %}Una fila de estudio libre en la cotización (también la plantilla para agregar otra).{% endcomment %}
+<div class="cotizador__libre" data-libre>
+  {% for error in libre.non_field_errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+  {% with campo=libre.nombre %}{% include 'includes/campo.html' %}{% endwith %}
+  {% with campo=libre.precio %}{% include 'includes/campo.html' %}{% endwith %}
+  {% with campo=libre.categoria %}{% include 'includes/campo.html' %}{% endwith %}
+  <button type="button" class="enlace enlace--peligro" data-quitar-libre>Quitar<span class="visualmente-oculto"> este estudio</span></button>
+</div>

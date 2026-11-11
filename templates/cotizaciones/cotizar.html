@@ -41,13 +41,25 @@
       {% endfor %}
       <p class="tenue" data-sin-coincidencias hidden>Ningún estudio coincide con el filtro.</p>
     </fieldset>
+
+    <fieldset class="cotizador__libres" aria-describedby="ayuda-libres">
+      <legend>Estudios que no están en el catálogo</legend>
+      <p class="campo__ayuda" id="ayuda-libres">Escriba el nombre y el precio. Si no elige categoría, aparece en «Otros». No se agregan al catálogo.</p>
+      {{ libres.management_form }}
+      {% for error in libres.non_form_errors %}<p class="campo__error">{{ error }}</p>{% endfor %}
+      <div data-libres>
+        {% for libre in libres %}{% include 'cotizaciones/_libre.html' with libre=libre %}{% endfor %}
+      </div>
+      <template data-libre-plantilla>{% include 'cotizaciones/_libre.html' with libre=libres.empty_form %}</template>
+      <button type="button" class="boton boton--secundario boton--chico" data-agregar-libre><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Agregar estudio</button>
+    </fieldset>
   </section>
 
   <div class="cotizador__lateral">
     <section class="tarjeta" aria-labelledby="titulo-resumen">
       <h2 id="titulo-resumen">Resumen</h2>
       <ul class="cotizador__resumen" data-resumen>
-        {% for estudio in renglones %}<li><span>{{ estudio.nombre }}</span><span>${{ estudio.precio|floatformat:"2g" }}</span></li>{% endfor %}
+        {% for nombre, precio in renglones %}<li><span>{{ nombre }}</span><span>${{ precio|floatformat:"2g" }}</span></li>{% endfor %}
       </ul>
       <p class="tenue" data-vacio{% if renglones %} hidden{% endif %}>Todavía no elige estudios.</p>
       <p class="cotizador__total"><span>Total</span><strong data-total aria-live="polite">${{ total|floatformat:"2g" }}</strong></p>
@@ -75,23 +87,53 @@
     const vacio = form.querySelector('[data-vacio]');
     const pesos = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     // Solo es la vista previa: el total que vale lo calcula el servidor al generar el PDF.
+    const libres = form.querySelector('[data-libres]');
+    const plantilla = form.querySelector('[data-libre-plantilla]');
+    const totalFilas = form.querySelector('input[name=libre-TOTAL_FORMS]');
     const actualizar = () => {
-      const marcados = [...form.querySelectorAll('input[name=estudios]:checked')];
-      resumen.replaceChildren(...marcados.map((casilla) => {
+      const marcados = [...form.querySelectorAll('input[name=estudios]:checked')]
+        .map((casilla) => [casilla.dataset.nombre, Number(casilla.dataset.precio)]);
+      const escritos = [...libres.querySelectorAll('[data-libre]')]
+        .map((fila) => [fila.querySelector('[name$=-nombre]').value.trim(), fila.querySelector('[name$=-precio]').value])
+        .filter(([nombre, precio]) => nombre && precio !== '' && Number(precio) >= 0)
+        .map(([nombre, precio]) => [nombre, Number(precio)]);
+      const renglones = [...marcados, ...escritos];
+      resumen.replaceChildren(...renglones.map(([texto, monto]) => {
         const li = document.createElement('li');
         const nombre = document.createElement('span');
         const precio = document.createElement('span');
-        nombre.textContent = casilla.dataset.nombre;
-        precio.textContent = `$${pesos.format(Number(casilla.dataset.precio))}`;
+        nombre.textContent = texto;
+        precio.textContent = `$${pesos.format(monto)}`;
         li.append(nombre, precio);
         return li;
       }));
-      const suma = marcados.reduce((acc, casilla) => acc + Number(casilla.dataset.precio), 0);
+      const suma = renglones.reduce((acc, [, monto]) => acc + monto, 0);
       total.textContent = `$${pesos.format(suma)}`;
-      vacio.hidden = marcados.length > 0;
+      vacio.hidden = renglones.length > 0;
     };
     form.addEventListener('change', (evento) => {
       if (evento.target.name === 'estudios') actualizar();
+    });
+    libres.addEventListener('input', actualizar);
+    // Filas nuevas: el índice de la plantilla sigue al total; Django ignora los huecos.
+    form.querySelector('[data-agregar-libre]').addEventListener('click', () => {
+      const indice = Number(totalFilas.value);
+      const fila = plantilla.content.firstElementChild.cloneNode(true);
+      fila.querySelectorAll('[name], [id], [for], [aria-describedby]').forEach((elemento) => {
+        ['name', 'id', 'for', 'aria-describedby'].forEach((atributo) => {
+          const valor = elemento.getAttribute(atributo);
+          if (valor) elemento.setAttribute(atributo, valor.replace('__prefix__', indice));
+        });
+      });
+      totalFilas.value = indice + 1;
+      libres.append(fila);
+      fila.querySelector('[name$=-nombre]').focus();
+    });
+    libres.addEventListener('click', (evento) => {
+      const quitar = evento.target.closest('[data-quitar-libre]');
+      if (!quitar) return;
+      quitar.closest('[data-libre]').remove();
+      actualizar();
     });
     const filtro = form.querySelector('[data-filtrar]');
     const sinAcentos = (texto) => texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

@@ -1,7 +1,8 @@
 from django import forms
 from django.core.validators import RegexValidator
 
-from apps.estudios.models import Estudio
+from apps.cotizaciones.cotizacion import EstudioLibre
+from apps.estudios.models import CategoriaEstudio, Estudio
 from apps.pacientes.models import Paciente
 from apps.personas.models import TELEFONO_REGEX
 
@@ -13,6 +14,36 @@ class EstudiosField(forms.ModelMultipleChoiceField):
         return estudio.nombre
 
 
+class EstudioLibreForm(forms.Form):
+    """Un estudio que no está en el catálogo: nombre, precio y, si se quiere, categoría."""
+
+    nombre = forms.CharField(label='Nombre', max_length=150)
+    precio = forms.DecimalField(
+        label='Precio',
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        error_messages={'min_value': 'El precio no puede ser negativo.'},
+        widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'inputmode': 'decimal'}),
+    )
+    categoria = forms.ModelChoiceField(
+        label='Categoría',
+        queryset=CategoriaEstudio.objects.all(),
+        required=False,
+        empty_label='—',
+        to_field_name='nombre',
+    )
+
+    def libre(self) -> EstudioLibre:
+        datos = self.cleaned_data
+        categoria = datos.get('categoria')
+        return EstudioLibre(datos['nombre'], datos['precio'], categoria.nombre if categoria else '')
+
+
+# Las filas se agregan en el navegador; una fila vacía se ignora.
+EstudioLibreFormSet = forms.formset_factory(EstudioLibreForm, extra=0)
+
+
 def estudios_activos():
     return Estudio.objects.filter(activo=True).select_related('categoria')
 
@@ -20,10 +51,8 @@ def estudios_activos():
 class CotizacionForm(forms.Form):
     """El paquete de estudios y, para enviarla, a quién. Nada de esto se guarda."""
 
-    estudios = EstudiosField(
-        queryset=Estudio.objects.none(),
-        error_messages={'required': 'Elija al menos un estudio para cotizar.'},
-    )
+    # Opcional: también se puede cotizar solo con estudios libres; cotizar() pide al menos uno.
+    estudios = EstudiosField(queryset=Estudio.objects.none(), required=False)
     # Se llena con el buscador de pacientes (HTMX); opcional.
     paciente = forms.ModelChoiceField(
         queryset=Paciente.objects.filter(estado_actividad=True).select_related('persona'),
