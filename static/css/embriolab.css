@@ -2526,3 +2526,30 @@ a.cita-bloque:hover {
     transition: none !important;
   }
 }
+
+/* Observaciones del pedido */
+.observaciones {
+  display: grid;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.observaciones li {
+  padding: 0.625rem 0;
+}
+
+.observaciones li + li {
+  border-top: 1px solid var(--lavanda-clara);
+}
+
+.observaciones__texto {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.observaciones__autor {
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--tinta-suave);
+}

@@ -29,7 +29,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 | Rol | Qué hace |
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
-| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias). **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
+| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y les agrega **observaciones**. **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
 | **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario de citas en solo lectura** (no agenda ni cambia citas). |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
@@ -149,6 +149,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 |---|---|
 | **Pedidos** | Id, IdCita, IdRecepcionista, IdDoctor (null), Numero, FechaInicio, Estado\*, EstadoPago\*, TotalPago\*, FechaCompletado, FechaEnvio. *(\* derivados)* |
 | **EstudiosPedido** | Id, IdPedido, IdEstudio, NombreSolicitado, Precio (copia al momento del pedido), **VersionEstudio**, Estado, EstadoPago, Resultados (JSON), **IdQuimicoEncargado (null), FechaToma (null)**, IdQuimicoCompleto, FechaCompletado, IdUsuarioEnvio, FechaEnvio. *Un `CHECK` exige: pendiente sin encargado, en proceso con encargado.* |
+| **ObservacionesPedido** | Id, IdPedido, Texto (hasta 500 caracteres), IdUsuario, Fecha. *Notas libres de la recepción; un pedido tiene las que hagan falta.* |
 | **Abonos** | ⏸ FASE POSTERIOR, no crear. Diseño previsto: Id, IdEstudioPedido, Monto, Fecha, MetodoPago, IdRecepcionista |
 
 ### Notificaciones
@@ -312,6 +313,7 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **`TotalPago`.** Provisional: lo que cuesta el pedido (la suma de los precios copiados), no lo pagado. Cuando existan los abonos se podrá mostrar también lo pagado y el saldo.
 - **Cuándo pasa un estudio a «en proceso».** Decidido (2026-11-03): cuando un químico lo toma de la cola (ver §3).
 - **Estudio repetido en un pedido.** Provisional: no se permite el mismo estudio dos veces en un pedido.
+- **Observaciones.** Decidido (2026-11-11): solo la recepción las escribe y se ven en el detalle del pedido (también los químicos). Provisional: solo se agregan; no se editan ni se borran.
 - **Quitar estudios.** Provisional: se puede quitar un estudio que aún no está completado, siempre que el pedido conserve al menos uno.
 
 ### Químico (semana 7)
@@ -360,3 +362,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-03: cambio del cliente — **doctores para químicos y envío al doctor**: los químicos ven, registran y editan doctores. `Doctores.Contacto` se separa en `Correo` y `WhatsApp` (más «otros datos»), con migración de datos. `Notificaciones` agrega `DestinoTipo` (paciente/doctor) y los resultados pueden ir también al doctor del pedido.
 - 2026-11-03: **contacto obligatorio** — al registrar o editar un paciente o un doctor se exige un correo o un WhatsApp (en el servicio, sin restricción en la BD para no romper registros anteriores). En el doctor era opcional; lo pidió el cliente.
 - 2026-11-11: cambio del cliente — **calendario para químicos**: los químicos ven el calendario de citas en solo lectura, para preparar lo necesario. Solo la recepción agenda, reprograma o marca citas; el químico no abre el detalle de la cita.
+- 2026-11-11: cambio del cliente — **observaciones del pedido**: tabla `ObservacionesPedido` con notas libres (p. ej. si el paciente quiere los resultados juntos o conforme salgan). Las escribe la recepción y se ven en el detalle del pedido.

@@ -22,6 +22,7 @@ from apps.pedidos.forms import (
     FiltroPedidosForm,
     LineaForm,
     LineaFormSet,
+    ObservacionForm,
     PagoPedidoForm,
     ReasignarForm,
     ResultadosForm,
@@ -38,6 +39,7 @@ from apps.pedidos.selectors import (
 )
 from apps.pedidos.services import (
     agregar_estudio,
+    agregar_observacion,
     cambiar_doctor,
     cambiar_estado_pago,
     cambiar_pago_pedido,
@@ -200,6 +202,7 @@ class PedidoDetalleView(RolRequerido, TemplateView):
             puede_editar=puede_editar,
             puede_quitar=puede_editar and len(estudios) > 1,
             doctor_form=DoctorPedidoForm(initial={'doctor': pedido.doctor}),
+            observacion_form=ObservacionForm() if puede_editar else None,
             agregar_form=LineaForm(prefix='nuevo') if puede_editar and abierto else None,
             **kwargs,
         )
@@ -360,6 +363,15 @@ class PedidoDoctorView(_AccionPedidoView):
     def ejecutar(self, pedido):
         cambiar_doctor(pedido, self._form(DoctorPedidoForm).cleaned_data['doctor'])
         return 'Doctor actualizado.'
+
+
+class PedidoObservacionView(_AccionPedidoView):
+    modelo = Pedido
+
+    def ejecutar(self, pedido):
+        texto = self._form(ObservacionForm).cleaned_data['texto']
+        agregar_observacion(pedido, texto, usuario=self.request.user)
+        return 'Observación agregada.'
 
 
 class PedidoPagoView(_AccionPedidoView):

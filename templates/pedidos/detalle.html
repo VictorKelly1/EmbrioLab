@@ -50,6 +50,29 @@
   {% endif %}
 </div>
 
+<section class="tarjeta" aria-labelledby="titulo-observaciones">
+  <h2 id="titulo-observaciones">Observaciones</h2>
+  {% if pedido.observaciones.all %}
+  <ul class="observaciones">
+    {% for observacion in pedido.observaciones.all %}
+    <li>
+      <p class="observaciones__texto">{{ observacion.texto|linebreaksbr }}</p>
+      <p class="observaciones__autor">{{ observacion.usuario.persona.nombre_completo }} · {{ observacion.fecha|date:'j/m/Y H:i' }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="tenue">Sin observaciones.</p>
+  {% endif %}
+  {% if observacion_form %}
+  <form method="post" action="{% url 'pedidos:observacion' pedido.pk %}" class="formulario formulario--ancho" novalidate>
+    {% csrf_token %}
+    {% with campo=observacion_form.texto %}{% include 'includes/campo.html' %}{% endwith %}
+    <div class="acciones"><button type="submit" class="boton boton--secundario">Agregar observación</button></div>
+  </form>
+  {% endif %}
+</section>
+
 <section class="tarjeta" aria-labelledby="titulo-estudios">
   <h2 id="titulo-estudios">Estudios</h2>
   <div class="tabla-marco">

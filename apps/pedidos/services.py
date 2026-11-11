@@ -24,6 +24,7 @@ from apps.pedidos.models import (
     EstadoPago,
     EstadoPedido,
     EstudioPedido,
+    ObservacionPedido,
     Pedido,
 )
 from apps.pedidos.numero import siguiente_numero
@@ -36,6 +37,22 @@ class Linea:
     estudio: Estudio
     nombre_solicitado: str = ''
     guardar_alias: bool = False
+
+
+LARGO_OBSERVACION = 500
+
+
+@transaction.atomic
+def agregar_observacion(pedido: Pedido, texto: str, *, usuario) -> ObservacionPedido:
+    """Una nota libre en el pedido. Solo se agregan; no se editan ni se borran."""
+    texto = (texto or '').strip()
+    if not texto:
+        raise ValidationError({'texto': 'Escriba la observación.'})
+    if len(texto) > LARGO_OBSERVACION:
+        raise ValidationError(
+            {'texto': f'La observación admite hasta {LARGO_OBSERVACION} caracteres.'}
+        )
+    return ObservacionPedido.objects.create(pedido=pedido, texto=texto, usuario=usuario)
 
 
 @transaction.atomic
