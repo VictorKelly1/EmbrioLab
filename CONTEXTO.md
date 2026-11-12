@@ -220,7 +220,7 @@ templates/ · static/
   2. `transaction.on_commit` encola la tarea.
   3. El worker envía, marca `enviado` o `fallido` y reintenta.
 - **Adapter por canal:** `CanalCorreo` (SMTP) y `CanalWhatsApp`, que por ahora es un stub que solo registra el envío. Comparten la misma interfaz.
-- **Formularios dinámicos:** el `Esquema` JSON se valida al guardar, y un constructor genera el `forms.Form` a partir de él. Los 2 formularios de la Fase 1 se cargan con una **migración de datos** y usan este mismo mecanismo.
+- **Formularios dinámicos:** el `Esquema` JSON se valida al guardar, y un constructor genera el `forms.Form` a partir de él. Los 2 formularios de la Fase 1 se cargan con una **migración de datos** y usan este mismo mecanismo. Cada versión es un archivo JSON en `apps/formularios/datos/` que la migración publica con `carga.publicar()`; `manage.py revisar_formulario` lo valida, lo compara con lo publicado y genera una vista previa antes (ver README).
 
 ### Seguridad (obligatorio)
 - **El usuario personalizado va en la PRIMERA migración.** No correr `migrate` antes de tener `AUTH_USER_MODEL`.
@@ -303,7 +303,7 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Corregir el estado de una cita.** Provisional: una cita atendida o no atendida ya no se puede cambiar. ¿Se permiten correcciones?
 
 ### Formularios (semana 4)
-- **Preguntas reales de los 2 formularios** (hombre y mujer): tipos, opciones y cuáles son obligatorias. Provisional: preguntas de ejemplo en la migración `formularios/0002`. Las reales se cargan publicando una versión nueva con otra migración de datos.
+- **Preguntas reales de los 2 formularios** (hombre y mujer): tipos, opciones y cuáles son obligatorias. Provisional: preguntas de ejemplo en la migración `formularios/0002`. Las reales se cargan publicando una versión nueva con otra migración de datos, desde un archivo de `apps/formularios/datos/` (ver README, «Formularios del cliente»).
 - **Corregir respuestas.** Provisional: una vez enviado, el formulario no se puede editar ni volver a llenar en esa cita. ¿Hace falta que la recepción pueda reabrirlo?
 
 ### Catálogo de estudios (semana 5)
@@ -377,3 +377,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: **datos de ejemplo** — comando de desarrollo `cargar_demo` (`apps/core/demo.py`): borra todo menos los usuarios, el catálogo y los formularios de las migraciones, y carga un escenario de ejemplo con los servicios. Es el único lugar que hace borrado físico de pacientes (solo con `DEBUG=True` y `--confirmar`).
 - 2026-11-11: cambio del cliente — **quién envió y detalle de la cita para químicos**: `Notificaciones` agrega `IdUsuario` (nulo en el recordatorio automático y en los envíos anteriores al cambio) y la lista de envíos muestra quién los hizo. El químico ya puede abrir el detalle de la cita desde el calendario, en solo lectura (antes solo veía el calendario).
 - 2026-11-12: **CI y matriz de permisos** — GitHub Actions en cada PR y protección de `main`; prueba con la matriz de permisos por URL y rol. `RolRequerido` carga el objeto de la URL en `cargar()`, después de revisar el rol (antes 8 vistas lo buscaban primero y respondían 404 en vez de 403 o del login).
+- 2026-11-12: **formularios desde archivos** — cada versión de un formulario es un JSON en `apps/formularios/datos/` (los provisionales quedan como `hombre_v1.json` y `mujer_v1.json`). Se siguen publicando con migraciones de datos, ahora de pocas líneas (`carga.publicar()`), y el comando `revisar_formulario` los valida, muestra los cambios y genera una vista previa para el cliente.
