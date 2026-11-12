@@ -24,8 +24,7 @@ def _vigencia(cita) -> str:
 
 
 def recordatorio(destinatario: str, cita, link: str | None) -> Mensaje:
-    persona = cita.paciente.persona
-    texto = f'Hola, {persona.nombre}:\n\nLe recordamos su cita en EmbrioLab {_cuando(cita)}.'
+    texto = f'Hola, {cita.nombre_de_pila}:\n\nLe recordamos su cita en EmbrioLab {_cuando(cita)}.'
     if link:
         texto += (
             '\n\nAntes de su visita, por favor llene el formulario de la cita en este link '
@@ -36,9 +35,8 @@ def recordatorio(destinatario: str, cita, link: str | None) -> Mensaje:
 
 
 def link_formulario(destinatario: str, cita, link: str) -> Mensaje:
-    persona = cita.paciente.persona
     texto = (
-        f'Hola, {persona.nombre}:\n\nPor favor llene el formulario de su visita a EmbrioLab '
+        f'Hola, {cita.nombre_de_pila}:\n\nPor favor llene el formulario de su visita a EmbrioLab '
         f'en este link. Sirve una sola vez y vence el {_vigencia(cita)}.\n{link}'
     )
     return Mensaje(destinatario, 'Formulario de su visita a EmbrioLab', texto + FIRMA)

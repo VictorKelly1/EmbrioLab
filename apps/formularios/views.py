@@ -63,7 +63,7 @@ class FormularioPublicoView(View):
             )
             return _privada(render(request, 'formularios/link_invalido.html', status=404))
 
-        self.version = version_para(self.cita.paciente)
+        self.version = version_para(self.cita.genero_paciente)
         if self.version is None:
             return _privada(render(request, 'formularios/sin_formulario.html', status=503))
         self.Formulario = construir_formulario(self.version.esquema)

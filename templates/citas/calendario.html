@@ -55,9 +55,9 @@
               {% for cita in celda.citas %}
                 {% if puede_agendar %}<a class="cita-bloque cita-bloque--{{ cita.estado }}" href="{% url 'citas:detalle' cita.pk %}">{% else %}<span class="cita-bloque cita-bloque--{{ cita.estado }}">{% endif %}
                   <span class="cita-bloque__hora">{{ cita.fecha_hora|time:'H:i' }}</span>
-                  <span class="cita-bloque__nombre">{{ cita.paciente.persona.nombre_completo }}</span>
+                  <span class="cita-bloque__nombre">{{ cita.nombre_paciente }}</span>
                   {% if vista == 'dia' %}
-                    <span class="cita-bloque__extra">{{ cita.numero_folio }}{% if cita.asunto %} · {{ cita.asunto }}{% endif %} · {{ cita.get_estado_display }}{% if cita.origen == 'espontanea' %} (sin cita){% endif %}</span>
+                    <span class="cita-bloque__extra">{{ cita.numero_folio|default:'Sin registro' }}{% if cita.asunto %} · {{ cita.asunto }}{% endif %} · {{ cita.get_estado_display }}{% if cita.origen == 'espontanea' %} (sin cita){% endif %}</span>
                   {% else %}
                     <span class="visualmente-oculto">, {{ cita.get_estado_display }}</span>
                   {% endif %}
@@ -93,7 +93,7 @@
       <li>
         {% if puede_agendar %}<a href="{% url 'citas:detalle' cita.pk %}">{% else %}<div>{% endif %}
           <span class="proximas__cuando">{% if cita.fecha_hora|date:'Y-m-d' == hoy|date:'Y-m-d' %}Hoy{% else %}{{ cita.fecha_hora|date:'D j M'|capfirst }}{% endif %} · {{ cita.fecha_hora|time:'H:i' }}</span>
-          <span class="proximas__nombre">{{ cita.paciente.persona.nombre_completo }}</span>
+          <span class="proximas__nombre">{{ cita.nombre_paciente }}{% if cita.sin_registro %} <span class="tenue">· sin registro</span>{% endif %}</span>
           {% if cita.asunto %}<span class="proximas__asunto">{{ cita.asunto }}</span>{% endif %}
         {% if puede_agendar %}</a>{% else %}</div>{% endif %}
       </li>

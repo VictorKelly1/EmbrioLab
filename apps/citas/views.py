@@ -10,7 +10,7 @@ from django.utils import formats, timezone
 from django.views.generic import FormView, TemplateView
 
 from apps.citas import calendario
-from apps.citas.forms import CitaForm, EspontaneaForm, ReprogramarForm
+from apps.citas.forms import CitaForm, EspontaneaForm, LlegadaForm, ReprogramarForm
 from apps.citas.models import Cita, EstadoCita
 from apps.citas.selectors import (
     citas_entre,
@@ -25,6 +25,7 @@ from apps.citas.services import (
     marcar_atendida,
     marcar_no_atendida,
     registrar_espontanea,
+    registrar_llegada,
     reprogramar_cita,
 )
 from apps.core.forms import aplicar_errores
@@ -32,7 +33,7 @@ from apps.core.mixins import RolRequerido
 from apps.cuentas.models import Rol
 from apps.formularios.selectors import respuestas_de
 from apps.notificaciones.selectors import notificaciones_de_cita
-from apps.notificaciones.services import destinatarios, enviar_link_formulario
+from apps.notificaciones.services import destinatarios_de_cita, enviar_link_formulario
 from apps.pacientes.models import Paciente
 from apps.pacientes.selectors import buscar_pacientes
 from apps.pedidos.selectors import pedidos_de_cita
@@ -138,10 +139,14 @@ class AgendarView(_CitaFormView):
     def guardar(self, datos, fecha_hora):
         return agendar_cita(
             recepcionista=self.request.user.recepcionista,
-            paciente=datos['paciente'],
             fecha_hora=fecha_hora,
             asunto=datos['asunto'],
+            **self.form.datos_servicio(),
         )
+
+    def form_valid(self, form):
+        self.form = form
+        return super().form_valid(form)
 
 
 class EspontaneaView(_CitaFormView):
@@ -200,7 +205,7 @@ class CitaDetalleView(RolRequerido, TemplateView):
             llenado=llenado,
             respuestas=respuestas_de(llenado) if llenado else None,
             pedidos=pedidos_de_cita(cita),
-            destinos=destinatarios(cita.paciente.persona),
+            destinos=destinatarios_de_cita(cita),
             notificaciones=notificaciones_de_cita(cita),
             atendida=cita.estado == EstadoCita.ATENDIDA,
             programada=cita.estado == EstadoCita.PROGRAMADA,
@@ -287,3 +292,47 @@ class EnviarLinkView(CitaDetalleView):
                 request, f'El link se enviará por {canales}. Los links anteriores dejan de servir.'
             )
         return redirect('citas:detalle', pk=pk)
+
+
+class LlegadaView(CitaDetalleView):
+    """
+    Llegó quien agendó sin registro: se elige a su paciente si ya existe, o se registra
+    uno nuevo con sus datos (pacientes:crear?cita=…). Al terminar, la cita queda atendida.
+    """
+
+    template_name = 'citas/llegada.html'
+
+    def get(self, request, pk):
+        if not self._pendiente():
+            return redirect('citas:detalle', pk=pk)
+        return self.render_to_response(self.get_context_data(form=LlegadaForm()))
+
+    def post(self, request, pk):
+        if not self._pendiente():
+            return redirect('citas:detalle', pk=pk)
+        form = LlegadaForm(request.POST)
+        if form.is_valid():
+            try:
+                registrar_llegada(self.cita, form.cleaned_data['paciente'])
+            except ValidationError as error:
+                aplicar_errores(form, error)
+            else:
+                messages.success(request, 'Llegada registrada: la cita quedó atendida.')
+                return redirect('citas:detalle', pk=pk)
+        return self.render_to_response(self.get_context_data(form=form))
+
+    def _pendiente(self) -> bool:
+        return self.cita.sin_registro and self.cita.estado == EstadoCita.PROGRAMADA
+
+    def get_context_data(self, **kwargs):
+        form = kwargs['form']
+        paciente_id = form['paciente'].value()
+        kwargs['paciente_elegido'] = (
+            Paciente.objects.select_related('persona').filter(pk=paciente_id).first()
+            if str(paciente_id or '').isdigit()
+            else None
+        )
+        kwargs['sugeridos'] = buscar_pacientes(f'{self.cita.nombre} {self.cita.apellido_paterno}')[
+            :5
+        ]
+        return super().get_context_data(**kwargs)

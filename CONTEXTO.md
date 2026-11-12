@@ -29,7 +29,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 | Rol | Qué hace |
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
-| **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y les agrega **observaciones**. **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
+| **Recepcionista** | Agenda citas desde un calendario, a pacientes registrados o **sin registro** (y registra al paciente cuando llega). Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y les agrega **observaciones**. **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
 | **Químico** | **Toma pacientes de la «Cola de pedidos»**: al tomar a un paciente se queda con todos sus estudios pendientes, de todos sus pedidos. Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario de citas en solo lectura** (no agenda ni cambia citas). |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
@@ -48,7 +48,8 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 - **No puede haber dos citas empalmadas** (hay un solo horario de atención). Valídalo en el servicio **y** en la BD con un `ExclusionConstraint` sobre el rango `[fecha_hora, fecha_fin)`, para que sea seguro aunque haya concurrencia. `fecha_fin` se guarda porque `timestamptz + interval` no es inmutable en PostgreSQL y no puede ir en el índice; un `CHECK` garantiza que sea `fecha_hora + 30 min`.
 - **Estados:** `programada`, `atendida`, `no_atendida`. Reprogramar = cambiar `fecha_hora`.
 - **Las canceladas se BORRAN** (no se guardan).
-- Se puede atender a alguien **sin cita**: se crea una cita con `origen = espontanea`.
+- Se puede atender a alguien **sin cita**: se crea una cita con `origen = espontanea` (con paciente registrado).
+- **Cita sin registro:** se puede agendar sin registrar al paciente. La cita guarda solo nombre, apellido paterno, género (para elegir el formulario) y teléfono o correo (para el recordatorio y el link). Cuando llega, la recepción **registra su llegada**: elige al paciente si ya existe o lo registra en ese momento; la cita queda ligada a él, con su folio, y atendida. Si no llega, queda «no atendida» sin crear paciente. Un `CHECK` exige paciente en una cita atendida y los datos mínimos en una sin paciente.
 - El recordatorio sale **24 h antes** y queda marcado con `recordatorio_enviado`.
 
 ### Folio
@@ -133,7 +134,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 ### Citas y formularios
 | Tabla | Campos |
 |---|---|
-| **Citas** | Id, IdRecepcionista, IdPaciente, FechaHora, FechaFin (= FechaHora + 30 min, la calcula el modelo), Asunto, Estado, Origen (agendada/espontanea), NumeroFolio, TokenQR (**hash**), TokenExpiracion, RecordatorioEnviado |
+| **Citas** | Id, IdRecepcionista, IdPaciente (null = sin registro), Nombre, ApellidoPaterno, Genero, Telefono, Correo (los de quien agenda sin registro), FechaHora, FechaFin (= FechaHora + 30 min, la calcula el modelo), Asunto, Estado, Origen (agendada/espontanea), NumeroFolio, TokenQR (**hash**), TokenExpiracion, RecordatorioEnviado |
 | **Formularios** | Id, Nombre, Descripcion, GeneroAplicable (null = todos), Activo, FechaCreacion, IdUsuarioCreador (null) |
 | **VersionesFormulario** | Id, IdFormulario, NumeroVersion, Esquema (JSON), Publicada, FechaPublicacion. *Índice único parcial: solo una versión publicada por formulario.* |
 | **FormulariosLlenados** | Id, IdCita, **IdVersionFormulario**, Respuestas (JSON), FechaLlenado |
@@ -296,6 +297,7 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Cita sin cita.** Provisional: se crea ya atendida y tampoco puede encimarse con una cita agendada. ¿Debe poder encimarse? Si sí, se agrega `condition=Q(origen='agendada')` a la restricción `cita_sin_empalmes`.
 - **Horario de atención.** Provisional: el calendario muestra de lunes a sábado, de 08:00 a 20:00 (`CITAS_HORA_INICIO`, `CITAS_HORA_FIN` y `CITAS_DIAS_HABILES`). Solo es visual; el servicio no restringe horarios.
 - **Vigencia del link/QR del formulario.** Provisional: 24 h después del inicio de la cita (`CITAS_QR_HORAS_VIGENCIA`).
+- **Cita sin registro.** Decidido (2026-11-11): nombre, apellido paterno, género y teléfono o correo; al llegar se liga o registra al paciente. La cita espontánea sigue exigiendo paciente. Provisional: el teléfono de la cita se usa como WhatsApp para el recordatorio y el link, y al registrar al paciente se propone como su WhatsApp. Los datos de la cita sin registro no se editan (si cambian, se cancela y se agenda otra). Al registrar la llegada se conservan en la cita.
 - **Corregir el estado de una cita.** Provisional: una cita atendida o no atendida ya no se puede cambiar. ¿Se permiten correcciones?
 
 ### Formularios (semana 4)
@@ -369,3 +371,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: cambio del cliente — **estudios libres en la cotización**: además de los del catálogo, la recepción escribe estudios que no tiene guardados (nombre, precio y categoría opcional). Siguen sin guardarse en la BD.
 - 2026-11-11: cambio del cliente — **toma por paciente**: los químicos ya no toman estudio por estudio; toman, sueltan y pasan al paciente con todos sus estudios pendientes de todos sus pedidos. Los estudios nuevos de un paciente con encargado se le asignan automáticamente. La BD no cambia: el encargado sigue guardándose en cada estudio.
 - 2026-11-11: cambio del cliente — **corregir hasta enviar**: un estudio completado ya se puede corregir; deja de poder cambiarse cuando se envían sus resultados (antes no se podía corregir nada después de completarlo).
+- 2026-11-11: cambio del cliente — **citas sin registro**: `Citas.IdPaciente` pasa a ser opcional y la cita guarda nombre, apellido paterno, género, teléfono y correo de quien agenda sin estar registrado. El paciente se registra (o se elige) al llegar, y entonces la cita queda atendida. Antes había que registrar al paciente para agendar.

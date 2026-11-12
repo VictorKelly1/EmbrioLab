@@ -12,6 +12,7 @@ urlpatterns = [
     path('<int:pk>/', views.CitaDetalleView.as_view(), name='detalle'),
     path('<int:pk>/reprogramar/', views.ReprogramarView.as_view(), name='reprogramar'),
     path('<int:pk>/estado/', views.CitaAccionView.as_view(), name='accion'),
+    path('<int:pk>/llegada/', views.LlegadaView.as_view(), name='llegada'),
     path('<int:pk>/link-formulario/', views.GenerarQRView.as_view(), name='generar_qr'),
     path('<int:pk>/enviar-link/', views.EnviarLinkView.as_view(), name='enviar_link'),
 ]

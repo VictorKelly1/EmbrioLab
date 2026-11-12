@@ -50,6 +50,18 @@ def _destinatarios_o_error(persona) -> dict[str, str]:
     return destinos
 
 
+def destinatarios_de_cita(cita: Cita) -> dict[str, str]:
+    """
+    A dónde mandar el recordatorio y el link de la cita: los contactos del paciente o,
+    si agendó sin registro, los que dio al agendar. PROVISIONAL (CONTEXTO.md §8): su
+    teléfono se usa como WhatsApp.
+    """
+    if cita.paciente_id:
+        return destinatarios(cita.paciente.persona)
+    contactos = {Canal.CORREO: cita.correo, Canal.WHATSAPP: cita.telefono}
+    return {canal: destino for canal, destino in contactos.items() if destino}
+
+
 def _encolar(ids: list[int]) -> None:
     from apps.notificaciones.tasks import encolar
 
@@ -100,7 +112,11 @@ def enviar_link_formulario(cita: Cita) -> list[Notificacion]:
         raise ValidationError('La cita no fue atendida.')
     if tiene_formulario_llenado(cita):
         raise ValidationError('El paciente ya llenó el formulario de esta cita.')
-    destinos = _destinatarios_o_error(cita.paciente.persona)
+    destinos = destinatarios_de_cita(cita)
+    if not destinos:
+        raise ValidationError(
+            'El paciente no tiene correo ni WhatsApp registrado. Agréguelo en su ficha.'
+        )
     return _crear(TipoNotificacion.QR, destinos, cita=cita)
 
 
@@ -110,10 +126,15 @@ def enviar_recordatorio(cita: Cita) -> list[Notificacion]:
     Recordatorio de la cita con el link del formulario. Si el paciente no tiene a dónde
     enviarlo, no hace nada y la cita sigue sin recordatorio.
     """
-    cita = Cita.objects.select_for_update().select_related('paciente__persona').get(pk=cita.pk)
+    # Solo se bloquea la cita: el paciente es opcional (outer join) y no admite FOR UPDATE.
+    cita = (
+        Cita.objects.select_for_update(of=('self',))
+        .select_related('paciente__persona')
+        .get(pk=cita.pk)
+    )
     if cita.recordatorio_enviado or cita.estado != EstadoCita.PROGRAMADA:
         return []
-    destinos = destinatarios(cita.paciente.persona)
+    destinos = destinatarios_de_cita(cita)
     if not destinos:
         return []
     filas = _crear(TipoNotificacion.RECORDATORIO, destinos, cita=cita)

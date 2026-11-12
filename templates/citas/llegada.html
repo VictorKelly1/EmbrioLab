@@ -1,0 +1,46 @@
+{% extends 'app.html' %}
+
+{% block titulo %}Registrar llegada · EmbrioLab{% endblock %}
+
+{% block contenido %}
+<a class="volver" href="{% url 'citas:detalle' cita.pk %}">← Cita</a>
+<div class="encabezado">
+  <div>
+    <h1>Registrar llegada</h1>
+    <p class="encabezado__descripcion">{{ cita.nombre_paciente }} agendó sin estar registrado. Si ya es paciente, elíjalo; si no, regístrelo ahora. La cita queda atendida.</p>
+  </div>
+</div>
+
+<div class="tarjetas">
+  <section class="tarjeta" aria-labelledby="titulo-existente">
+    <h2 id="titulo-existente">Ya es paciente</h2>
+    {% if sugeridos %}
+    <p class="campo__ayuda">Pacientes con un nombre parecido:</p>
+    <ul class="llegada__sugeridos">
+      {% for paciente in sugeridos %}
+      <li>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="paciente" value="{{ paciente.pk }}">
+          <button type="submit" class="enlace">{{ paciente.persona.nombre_completo }}</button>
+          <span class="tenue">Núm. {{ paciente.numero }} · {{ paciente.persona.curp }}</span>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <form method="post" class="formulario" novalidate>
+      {% csrf_token %}
+      {% for error in form.non_field_errors %}<div class="aviso aviso--error" role="alert"><p>{{ error }}</p></div>{% endfor %}
+      {% include 'citas/_selector_paciente.html' with ayuda_paciente='Busque por nombre, CURP o número de paciente.' %}
+      <div class="acciones"><button type="submit" class="boton boton--principal">Registrar llegada</button></div>
+    </form>
+  </section>
+
+  <section class="tarjeta" aria-labelledby="titulo-nuevo">
+    <h2 id="titulo-nuevo">Paciente nuevo</h2>
+    <p>Se abre el registro con lo que dio al agendar: {{ cita.nombre_paciente }}{% if cita.telefono %}, {{ cita.telefono }}{% endif %}{% if cita.correo %}, {{ cita.correo }}{% endif %}. Complete la CURP y los demás datos.</p>
+    <div class="acciones"><a class="boton boton--principal" href="{% url 'pacientes:crear' %}?cita={{ cita.pk }}">Registrar paciente</a></div>
+  </section>
+</div>
+{% endblock %}

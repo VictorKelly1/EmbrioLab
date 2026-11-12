@@ -6,6 +6,10 @@
 {% if paciente %}
   <a class="volver" href="{% url 'pacientes:detalle' paciente.pk %}">← {{ paciente.persona.nombre_completo }}</a>
   <h1>Editar paciente</h1>
+{% elif cita %}
+  <a class="volver" href="{% url 'citas:llegada' cita.pk %}">← Registrar llegada</a>
+  <h1>Registrar paciente</h1>
+  <p class="encabezado__descripcion">Llegó {{ cita.nombre_paciente }}, que agendó sin registro. Al guardar, la cita del {{ cita.fecha_hora|date:'j/m/Y' }} a las {{ cita.fecha_hora|time:'H:i' }} queda atendida.</p>
 {% else %}
   <a class="volver" href="{% url 'pacientes:lista' %}">← Pacientes</a>
   <h1>Registrar paciente</h1>
