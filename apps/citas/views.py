@@ -182,15 +182,20 @@ class BuscarPacienteView(RolRequerido, TemplateView):
 
 
 class CitaDetalleView(RolRequerido, TemplateView):
-    roles = [Rol.RECEPCIONISTA]
+    """
+    El químico también la ve, en solo lectura, para preparar lo necesario (cambio del
+    cliente, 2026-11-11). Las acciones heredan de `_CitaRecepcionView` y son solo de la
+    recepción.
+    """
+
+    roles = [Rol.RECEPCIONISTA, Rol.QUIMICO]
     template_name = 'citas/detalle.html'
 
-    def dispatch(self, request, *args, **kwargs):
+    def cargar(self):
         try:
-            self.cita = obtener_cita(kwargs['pk'])
+            self.cita = obtener_cita(self.kwargs['pk'])
         except Cita.DoesNotExist as error:
             raise Http404 from error
-        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         cita = self.cita
@@ -210,11 +215,18 @@ class CitaDetalleView(RolRequerido, TemplateView):
             atendida=cita.estado == EstadoCita.ATENDIDA,
             programada=cita.estado == EstadoCita.PROGRAMADA,
             ya_empezo=cita.fecha_hora <= timezone.now(),
+            puede_editar=self.request.user.tiene_rol(Rol.RECEPCIONISTA),
             **kwargs,
         )
 
 
-class ReprogramarView(CitaDetalleView):
+class _CitaRecepcionView(CitaDetalleView):
+    """Lo que cambia la cita o envía algo: solo la recepción."""
+
+    roles = [Rol.RECEPCIONISTA]
+
+
+class ReprogramarView(_CitaRecepcionView):
     http_method_names = ['post']
 
     def post(self, request, pk):
@@ -231,7 +243,7 @@ class ReprogramarView(CitaDetalleView):
         return self.render_to_response(self.get_context_data(reprogramar_form=form))
 
 
-class CitaAccionView(CitaDetalleView):
+class CitaAccionView(_CitaRecepcionView):
     """Marcar atendida / no atendida o cancelar."""
 
     http_method_names = ['post']
@@ -257,7 +269,7 @@ class CitaAccionView(CitaDetalleView):
         return redirect('citas:detalle', pk=pk)
 
 
-class GenerarQRView(CitaDetalleView):
+class GenerarQRView(_CitaRecepcionView):
     """
     Muestra el link y el QR una sola vez: en la BD solo queda el hash, así que no se
     pueden volver a ver; si hace falta, se genera otro (e invalida el anterior).
@@ -276,14 +288,14 @@ class GenerarQRView(CitaDetalleView):
         return self.render_to_response(self.get_context_data(link=link, qr=qr))
 
 
-class EnviarLinkView(CitaDetalleView):
+class EnviarLinkView(_CitaRecepcionView):
     """Manda el link del formulario por correo y WhatsApp; el worker genera el token."""
 
     http_method_names = ['post']
 
     def post(self, request, pk):
         try:
-            enviadas = enviar_link_formulario(self.cita)
+            enviadas = enviar_link_formulario(self.cita, usuario=request.user)
         except ValidationError as error:
             messages.error(request, ' '.join(error.messages))
         else:
@@ -294,7 +306,7 @@ class EnviarLinkView(CitaDetalleView):
         return redirect('citas:detalle', pk=pk)
 
 
-class LlegadaView(CitaDetalleView):
+class LlegadaView(_CitaRecepcionView):
     """
     Llegó quien agendó sin registro: se elige a su paciente si ya existe, o se registra
     uno nuevo con sus datos (pacientes:crear?cita=…). Al terminar, la cita queda atendida.

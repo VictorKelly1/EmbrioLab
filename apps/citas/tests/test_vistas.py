@@ -44,12 +44,44 @@ def test_solo_la_recepcionista(client, fabrica):
     cita = CitaFactory()
     assert client.get(AGENDAR).status_code == 403
     assert client.get(ESPONTANEA).status_code == 403
-    assert client.get(reverse('citas:detalle', args=[cita.pk])).status_code == 403
     assert (
         client.post(reverse('citas:accion', args=[cita.pk]), {'accion': 'cancelar'}).status_code
         == 403
     )
     assert Cita.objects.exists()
+
+
+def test_el_admin_no_ve_el_detalle(client):
+    client.force_login(AdminFactory().usuario)
+    assert client.get(reverse('citas:detalle', args=[CitaFactory().pk])).status_code == 403
+
+
+def test_el_quimico_ve_el_detalle_sin_acciones(client, paciente):
+    client.force_login(QuimicoFactory().usuario)
+    cita = CitaFactory(paciente=paciente, asunto='Espermatobioscopia')
+    respuesta = client.get(reverse('citas:detalle', args=[cita.pk]))
+    assert respuesta.status_code == 200
+    assert 'Ana López' in respuesta.text
+    assert 'Espermatobioscopia' in respuesta.text
+    for url in ('citas:accion', 'citas:reprogramar', 'citas:generar_qr', 'citas:enviar_link'):
+        assert reverse(url, args=[cita.pk]) not in respuesta.text
+    assert reverse('pedidos:crear') not in respuesta.text
+
+
+def test_el_quimico_no_cambia_la_cita(client, paciente):
+    client.force_login(QuimicoFactory().usuario)
+    cita = CitaFactory(paciente=paciente)
+    for url, datos in (
+        ('citas:accion', {'accion': 'atendida'}),
+        ('citas:reprogramar', {'fecha': '2030-01-07', 'hora': '10:00'}),
+        ('citas:generar_qr', {}),
+        ('citas:enviar_link', {}),
+        ('citas:llegada', {}),
+    ):
+        assert client.post(reverse(url, args=[cita.pk]), datos).status_code == 403
+    cita.refresh_from_db()
+    assert cita.estado == EstadoCita.PROGRAMADA
+    assert not cita.token_qr
 
 
 def test_el_admin_no_ve_el_calendario(client):
@@ -68,7 +100,8 @@ def test_el_quimico_ve_el_calendario_sin_agendar(client, paciente):
     assert 'Espermatobioscopia' in respuesta.text
     assert AGENDAR not in respuesta.text
     assert ESPONTANEA not in respuesta.text
-    assert reverse('citas:detalle', args=[cita.pk]) not in respuesta.text
+    # Solo lectura: puede abrir el detalle de la cita.
+    assert reverse('citas:detalle', args=[cita.pk]) in respuesta.text
 
 
 def test_sin_sesion_redirige(client):

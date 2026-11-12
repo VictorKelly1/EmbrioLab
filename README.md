@@ -20,6 +20,10 @@ docker compose exec web python manage.py crear_admin
   `docker compose restart worker recordatorios` (no se recargan solos).
 - Pruebas: `docker compose exec web pytest`
 - Lint y formato: `docker compose exec web ruff check .` y `docker compose exec web ruff format .`
+- CI (`.github/workflows/ci.yml`): en cada PR corre ruff, `makemigrations --check`, `check --deploy`
+  con los settings de producción y pytest. `main` no acepta el merge si falla.
+- Permisos: `apps/core/tests/test_permisos.py` es la matriz de quién entra a cada URL. Una URL
+  nueva hace fallar las pruebas hasta que se agrega ahí.
 - Logs: `docker compose logs -f web`
 - Notificaciones: el servicio `worker` (`manage.py db_worker`) las envía; en desarrollo los
   correos se imprimen en su consola: `docker compose logs -f worker`. El servicio

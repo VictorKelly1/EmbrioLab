@@ -60,6 +60,21 @@ def test_link_crea_una_notificacion_pendiente_por_canal():
     assert all(n.tipo == 'qr' and n.estado == 'pendiente' and n.cita == cita for n in filas)
 
 
+def test_link_registra_quien_lo_envio():
+    from apps.cuentas.tests.factories import RecepcionistaFactory
+
+    usuario = RecepcionistaFactory().usuario
+    filas = enviar_link_formulario(_cita(), usuario=usuario)
+    assert {n.usuario for n in filas} == {usuario}
+
+
+def test_el_recordatorio_es_automatico():
+    cita = _cita(fecha_hora=timezone.now() + datetime.timedelta(hours=2))
+    filas = enviar_recordatorio(cita)
+    assert filas
+    assert all(n.usuario is None for n in filas)
+
+
 def test_nada_sale_antes_de_confirmar_la_transaccion(django_capture_on_commit_callbacks):
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         enviar_link_formulario(_cita())

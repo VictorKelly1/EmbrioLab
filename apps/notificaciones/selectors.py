@@ -4,11 +4,11 @@ from apps.notificaciones.models import Notificacion
 
 
 def notificaciones_de_cita(cita) -> QuerySet[Notificacion]:
-    return Notificacion.objects.filter(cita=cita)
+    return Notificacion.objects.filter(cita=cita).select_related('usuario__persona')
 
 
 def notificaciones_de_pedido(pedido) -> QuerySet[Notificacion]:
     """Los envíos de resultados del pedido, con el estudio de cada uno."""
     return Notificacion.objects.filter(estudio_pedido__pedido=pedido).select_related(
-        'estudio_pedido__estudio'
+        'estudio_pedido__estudio', 'usuario__persona'
     )

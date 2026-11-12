@@ -412,7 +412,7 @@ def enviar_resultados(estudios, *, usuario, al_doctor: bool = False) -> list[Est
     if pendientes:
         nombres = ', '.join(str(e.estudio) for e in pendientes)
         raise TransicionInvalida(f'Solo se envían estudios completados: {nombres}.')
-    notificar_resultados(estudios, al_doctor=al_doctor)
+    notificar_resultados(estudios, al_doctor=al_doctor, usuario=usuario)
     ahora = timezone.now()
     for estudio_pedido in estudios:
         if not estudio_pedido.enviado:

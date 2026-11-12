@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-11-11
+Última actualización: 2026-11-12
 
 ---
 
@@ -30,7 +30,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
 | **Recepcionista** | Agenda citas desde un calendario, a pacientes registrados o **sin registro** (y registra al paciente cuando llega). Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y les agrega **observaciones**. **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
-| **Químico** | **Toma pacientes de la «Cola de pedidos»**: al tomar a un paciente se queda con todos sus estudios pendientes, de todos sus pedidos. Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario de citas en solo lectura** (no agenda ni cambia citas). |
+| **Químico** | **Toma pacientes de la «Cola de pedidos»**: al tomar a un paciente se queda con todos sus estudios pendientes, de todos sus pedidos. Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario y el detalle de las citas en solo lectura** (no agenda, no cambia citas ni envía el link). |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
 **Fuera de la Fase 1** (dejar preparado, NO implementar):
@@ -108,7 +108,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 
 ### Notificaciones
 - Se envían por **correo y WhatsApp**. Los resultados van al paciente y, si el químico lo elige, también al doctor del pedido. La API de WhatsApp se integra después: deja la abstracción lista.
-- Todo envío queda registrado en la tabla `Notificaciones`, **excepto las cotizaciones** (ver abajo).
+- Todo envío queda registrado en la tabla `Notificaciones`, **excepto las cotizaciones** (ver abajo), con **quién lo hizo**; el recordatorio es automático y no tiene usuario. La lista de envíos de la cita y del pedido lo muestra.
 
 ## 4. Base de datos
 
@@ -158,7 +158,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 ### Notificaciones
 | Tabla | Campos |
 |---|---|
-| **Notificaciones** | Id, Tipo (recordatorio/qr/resultados), Canal (correo/whatsapp), Destinatario, DestinoTipo (paciente/doctor), IdCita (null), IdEstudioPedido (null), Estado (pendiente/enviado/fallido), Error, FechaEnvio |
+| **Notificaciones** | Id, Tipo (recordatorio/qr/resultados), Canal (correo/whatsapp), Destinatario, DestinoTipo (paciente/doctor), IdCita (null), IdEstudioPedido (null), IdUsuario (null = automático: quién hizo el envío), Estado (pendiente/enviado/fallido), Error, FechaEnvio |
 
 ### Índices mínimos
 - `Citas(fecha_hora)`
@@ -225,7 +225,9 @@ templates/ · static/
 ### Seguridad (obligatorio)
 - **El usuario personalizado va en la PRIMERA migración.** No correr `migrate` antes de tener `AUTH_USER_MODEL`.
 - Contraseñas con Argon2; `django-axes` para bloquear tras intentos fallidos.
-- `RolRequerido(...)` en **cada** vista, más controles por objeto.
+- `RolRequerido(...)` en **cada** vista, más controles por objeto. El objeto de la URL se carga en `cargar()`, después de revisar sesión y rol (nunca en `dispatch`), para no revelar qué ids existen.
+- **Matriz de permisos** en `apps/core/tests/test_permisos.py`: quién entra a cada URL. Toda URL nueva se agrega ahí (la prueba falla si falta).
+- **CI** en GitHub Actions (ruff, migraciones, `check --deploy` y pytest); `main` exige que pase antes del merge.
 - **Token QR:**
   - Se genera con `secrets.token_urlsafe(32)` y en la BD **solo se guarda su hash**.
   - Tiene expiración, es de un solo uso y el endpoint tiene rate limiting.
@@ -373,3 +375,5 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: cambio del cliente — **corregir hasta enviar**: un estudio completado ya se puede corregir; deja de poder cambiarse cuando se envían sus resultados (antes no se podía corregir nada después de completarlo).
 - 2026-11-11: cambio del cliente — **citas sin registro**: `Citas.IdPaciente` pasa a ser opcional y la cita guarda nombre, apellido paterno, género, teléfono y correo de quien agenda sin estar registrado. El paciente se registra (o se elige) al llegar, y entonces la cita queda atendida. Antes había que registrar al paciente para agendar.
 - 2026-11-11: **datos de ejemplo** — comando de desarrollo `cargar_demo` (`apps/core/demo.py`): borra todo menos los usuarios, el catálogo y los formularios de las migraciones, y carga un escenario de ejemplo con los servicios. Es el único lugar que hace borrado físico de pacientes (solo con `DEBUG=True` y `--confirmar`).
+- 2026-11-11: cambio del cliente — **quién envió y detalle de la cita para químicos**: `Notificaciones` agrega `IdUsuario` (nulo en el recordatorio automático y en los envíos anteriores al cambio) y la lista de envíos muestra quién los hizo. El químico ya puede abrir el detalle de la cita desde el calendario, en solo lectura (antes solo veía el calendario).
+- 2026-11-12: **CI y matriz de permisos** — GitHub Actions en cada PR y protección de `main`; prueba con la matriz de permisos por URL y rol. `RolRequerido` carga el objeto de la URL en `cargar()`, después de revisar el rol (antes 8 vistas lo buscaban primero y respondían 404 en vez de 403 o del login).

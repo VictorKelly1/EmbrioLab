@@ -60,6 +60,7 @@
     </dl>
   </section>
 
+  {% if puede_editar %}
   <section class="tarjeta">
     <h2>Acciones</h2>
     {% if programada %}
@@ -88,11 +89,12 @@
     {% if cita.estado == 'no_atendida' %}<p class="tenue">El paciente no asistió. Para una nueva visita, agende otra cita.</p>
     {% elif not programada and llenado %}<p class="tenue">Sin acciones pendientes: la cita se atendió y el formulario ya está respondido.</p>{% endif %}
   </section>
+  {% endif %}
 </div>
 
 <section class="tarjeta respuestas" aria-labelledby="titulo-respuestas">
   <h2 id="titulo-respuestas">Formulario de la visita</h2>
-  {% include 'formularios/_respuestas.html' with sin_llenar='Pendiente. Genere el link para que el paciente lo llene desde su celular.' %}
+  {% if puede_editar %}{% include 'formularios/_respuestas.html' with sin_llenar='Pendiente. Genere el link para que el paciente lo llene desde su celular.' %}{% else %}{% include 'formularios/_respuestas.html' with sin_llenar='Pendiente. El paciente todavía no llena el formulario.' %}{% endif %}
 </section>
 
 <section class="tarjeta pedidos-cita" aria-labelledby="titulo-envios">
@@ -103,7 +105,7 @@
 <section class="tarjeta pedidos-cita" aria-labelledby="titulo-pedidos">
   <div class="tarjeta__encabezado">
     <h2 id="titulo-pedidos">Pedidos</h2>
-    {% if atendida %}<a class="boton boton--principal boton--chico" href="{% url 'pedidos:crear' %}?cita={{ cita.pk }}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Armar pedido</a>{% endif %}
+    {% if atendida and puede_editar %}<a class="boton boton--principal boton--chico" href="{% url 'pedidos:crear' %}?cita={{ cita.pk }}"><svg class="icono" aria-hidden="true"><use href="#icono-mas"/></svg>Armar pedido</a>{% endif %}
   </div>
   {% if pedidos %}
   <div class="tabla-marco">
@@ -123,14 +125,16 @@
       </tbody>
     </table>
   </div>
-  {% elif atendida %}
+  {% elif atendida and puede_editar %}
   <p class="tenue">Sin pedidos. Ármelo con la orden del doctor.</p>
+  {% elif atendida %}
+  <p class="tenue">Sin pedidos todavía. Los arma la recepción.</p>
   {% else %}
   <p class="tenue">El pedido se arma cuando la cita está atendida.</p>
   {% endif %}
 </section>
 
-{% if programada %}
+{% if programada and puede_editar %}
 <section class="zona-baja" aria-labelledby="titulo-reprogramar">
   <h2 id="titulo-reprogramar">Reprogramar</h2>
   <form method="post" action="{% url 'citas:reprogramar' cita.pk %}" class="reprogramar" novalidate>
