@@ -100,6 +100,7 @@
           <td><span class="etiqueta etiqueta--{{ estudio.estado }}">{{ estudio.get_estado_display }}</span>{% if estudio.enviado %} <span class="etiqueta etiqueta--completado">Enviado</span>{% endif %}</td>
           <td>
             {% if estudio.puede_capturar %}<a class="boton boton--{% if estudio.resultados %}secundario{% else %}principal{% endif %} boton--chico" href="{% url 'pedidos:resultados' estudio.pk %}">{% if estudio.resultados %}Seguir captura{% else %}Capturar{% endif %}<span class="visualmente-oculto"> {{ estudio.estudio.nombre }}</span></a>
+            {% elif estudio.puede_corregir %}<a href="{% url 'pedidos:resultados' estudio.pk %}">Ver o corregir<span class="visualmente-oculto"> resultados de {{ estudio.estudio.nombre }}</span></a>
             {% elif estudio.completado %}<a href="{% url 'pedidos:resultados' estudio.pk %}">Ver<span class="visualmente-oculto"> resultados de {{ estudio.estudio.nombre }}</span></a>
             {% elif estudio.resultados %}<a href="{% url 'pedidos:resultados' estudio.pk %}">Borrador<span class="visualmente-oculto"> de {{ estudio.estudio.nombre }}</span></a>
             {% else %}<span class="tenue">—</span>{% endif %}
@@ -127,7 +128,7 @@
       </tbody>
     </table>
   </div>
-  {% if not puede_editar %}<p class="campo__ayuda">Los químicos toman al paciente con todos sus estudios. Solo el encargado captura; puede soltar o pasar al paciente mientras no haya capturado nada.</p>{% endif %}
+  {% if not puede_editar %}<p class="campo__ayuda">Los químicos toman al paciente con todos sus estudios. Solo el encargado captura y puede corregir un estudio completado hasta que se envíe; puede soltar o pasar al paciente mientras no haya capturado nada.</p>{% endif %}
   {% if puede_editar %}<p class="campo__ayuda">Los estudios sin encargado esperan en la cola de los químicos; un químico toma al paciente y sus estudios pasan a en proceso. Si el paciente ya tiene químico, los estudios nuevos quedan a su cargo. El envío de resultados no depende del pago.</p>{% endif %}
 </section>
 

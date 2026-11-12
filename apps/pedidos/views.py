@@ -175,6 +175,7 @@ class PedidoDetalleView(RolRequerido, TemplateView):
         for estudio in estudios:
             estudio.completado = estudio.estado == EstadoEstudio.COMPLETADO
             estudio.puede_capturar = _puede_capturar(estudio, quimico)
+            estudio.puede_corregir = _puede_corregir(estudio, quimico)
             if puede_editar:
                 estudio.form = EstudioPedidoForm(
                     prefix=f'fila{estudio.pk}', initial={'estado_pago': estudio.estado_pago}
@@ -216,6 +217,16 @@ def _puede_capturar(estudio_pedido, quimico) -> bool:
     )
 
 
+def _puede_corregir(estudio_pedido, quimico) -> bool:
+    """Su encargado corrige un completado mientras no se envíe (CONTEXTO.md §3)."""
+    return (
+        quimico is not None
+        and estudio_pedido.estado == EstadoEstudio.COMPLETADO
+        and not estudio_pedido.enviado
+        and estudio_pedido.quimico_encargado_id == quimico.pk
+    )
+
+
 def _contexto_toma(paciente, quimico) -> dict:
     """Quién tiene al paciente y los botones de tomar, soltar y pasar (CONTEXTO.md §3)."""
     toma = toma_del_paciente(paciente, quimico)
@@ -246,11 +257,18 @@ class EstudioPedidoResultadosView(RolRequerido, TemplateView):
         self.puede_capturar = self.definicion is not None and _puede_capturar(
             self.estudio_pedido, self.quimico
         )
+        self.puede_corregir = self.definicion is not None and _puede_corregir(
+            self.estudio_pedido, self.quimico
+        )
+        # Un completado muestra sus resultados; el formulario solo si se pide corregir.
+        self.corrigiendo = self.puede_corregir and (
+            self.request.GET.get('corregir') or self.request.method == 'POST'
+        )
 
     def get(self, request, *args, **kwargs):
         self._cargar()
         form = None
-        if self.puede_capturar:
+        if self.puede_capturar or self.corrigiendo:
             guardados = (self.estudio_pedido.resultados or {}).get('valores', {})
             form = ResultadosForm(
                 definicion=self.definicion, initial=self.definicion.de_json(guardados)
@@ -270,9 +288,10 @@ class EstudioPedidoResultadosView(RolRequerido, TemplateView):
 
     def post(self, request, *args, **kwargs):
         self._cargar()
-        if not self.puede_capturar:
+        if not (self.puede_capturar or self.corrigiendo):
             raise PermissionDenied
-        completar = request.POST.get('accion') == 'completar'
+        # Al corregir solo se puede volver a completar: un completado no regresa a borrador.
+        completar = self.corrigiendo or request.POST.get('accion') == 'completar'
         form = ResultadosForm(request.POST, definicion=self.definicion, completar=completar)
         if form.is_valid():
             servicio = completar_estudio if completar else guardar_borrador
@@ -281,6 +300,9 @@ class EstudioPedidoResultadosView(RolRequerido, TemplateView):
             except ValidationError as error:
                 aplicar_errores(form, error)
             else:
+                if self.corrigiendo:
+                    messages.success(request, f'{self.estudio_pedido.estudio} corregido.')
+                    return redirect('pedidos:resultados', pk=self.estudio_pedido.pk)
                 if completar:
                     messages.success(request, f'{self.estudio_pedido.estudio} completado.')
                     return redirect('pedidos:detalle', pk=self.estudio_pedido.pedido_id)
@@ -305,6 +327,8 @@ class EstudioPedidoResultadosView(RolRequerido, TemplateView):
             definicion=self.definicion,
             **_contexto_toma(paciente, self.quimico),
             completado=estudio_pedido.estado == EstadoEstudio.COMPLETADO,
+            puede_corregir=self.puede_corregir,
+            corrigiendo=self.corrigiendo,
             calculados=self.definicion.calculados if self.definicion else (),
             filas=filas(estudio_pedido),
             anteriores=anteriores,
