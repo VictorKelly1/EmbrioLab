@@ -9,6 +9,7 @@ from apps.cuentas.tests.factories import QuimicoFactory
 from apps.estudios.models import Estudio
 from apps.estudios.tests.factories import EstudioFactory, ValorReferenciaFactory
 from apps.pedidos.estados import TransicionInvalida
+from apps.pedidos.models import EstudioPedido
 from apps.pedidos.resultados import ALTO, BAJO, filas, fuera_de_rango
 from apps.pedidos.services import (
     completar_estudio,
@@ -85,13 +86,59 @@ def test_no_captura_un_estudio_pendiente(quimico):
         guardar_borrador(EstudioPedidoFactory(), {'glucosa': Decimal(90)}, quimico=quimico)
 
 
-def test_un_completado_no_se_corrige(quimico):
+def _enviado(estudio):
+    EstudioPedido.objects.filter(pk=estudio.pk).update(fecha_envio=timezone.now())
+    estudio.refresh_from_db()
+    return estudio
+
+
+def test_un_completado_se_corrige_mientras_no_se_envie(quimico):
+    estudio = _tomado(quimico, 'PLIP')
+    completar_estudio(estudio, _plip(), quimico=quimico)
+    estudio.refresh_from_db()
+    primero = estudio.fecha_completado
+    completar_estudio(estudio, _plip(hdl=50), quimico=quimico)
+    estudio.refresh_from_db()
+    assert estudio.estado == 'completado'
+    assert estudio.resultados['valores']['hdl'] == '50'
+    # LDL calculado de nuevo: 210 - 50 - 150/5
+    assert Decimal(estudio.resultados['valores']['ldl']) == Decimal(130)
+    assert estudio.fecha_completado >= primero
+    estudio.pedido.refresh_from_db()
+    assert estudio.pedido.estado == 'en_proceso'
+
+
+def test_la_correccion_pide_todos_los_campos(quimico):
+    estudio = _tomado(quimico, 'PLIP')
+    completar_estudio(estudio, _plip(), quimico=quimico)
+    with pytest.raises(ValidationError):
+        completar_estudio(estudio, {'hdl': Decimal(50)}, quimico=quimico)
+    estudio.refresh_from_db()
+    assert estudio.resultados['valores']['hdl'] == '45'
+
+
+def test_un_completado_no_vuelve_a_borrador(quimico):
     estudio = _tomado(quimico)
     completar_estudio(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
     with pytest.raises(TransicionInvalida, match='completado'):
-        completar_estudio(estudio, {'glucosa': Decimal(91)}, quimico=quimico)
-    with pytest.raises(TransicionInvalida):
         guardar_borrador(estudio, {'glucosa': Decimal(91)}, quimico=quimico)
+
+
+def test_solo_su_encargado_corrige(quimico):
+    estudio = _tomado(quimico)
+    completar_estudio(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
+    with pytest.raises(ValidationError, match='no está a su cargo'):
+        completar_estudio(estudio, {'glucosa': Decimal(91)}, quimico=QuimicoFactory())
+
+
+def test_enviado_ya_no_se_corrige(quimico):
+    estudio = _tomado(quimico)
+    completar_estudio(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
+    _enviado(estudio)
+    with pytest.raises(TransicionInvalida, match='ya se enviaron'):
+        completar_estudio(estudio, {'glucosa': Decimal(91)}, quimico=quimico)
+    estudio.refresh_from_db()
+    assert estudio.resultados['valores']['glucosa'] == '90'
 
 
 def test_sin_definicion_en_codigo(quimico):

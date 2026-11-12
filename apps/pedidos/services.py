@@ -279,17 +279,23 @@ def cambiar_pago_pedido(pedido: Pedido, estado_pago: str) -> Pedido:
     return recalcular_pedido(pedido)
 
 
-def _para_capturar(estudio_pedido: EstudioPedido, quimico: Quimico):
+def _para_capturar(estudio_pedido: EstudioPedido, quimico: Quimico, *, corregir: bool = False):
     """
-    Bloquea el estudio y revisa que se pueda capturar. PROVISIONAL (CONTEXTO.md §8):
-    solo su químico encargado y solo mientras está en proceso.
+    Bloquea el estudio y revisa que se pueda capturar: solo su químico encargado y
+    mientras está en proceso. Con `corregir`, también un completado que no se ha
+    enviado (CONTEXTO.md §3); enviado ya no se cambia.
     """
     estudio_pedido = (
         EstudioPedido.objects.select_for_update(of=('self',))
         .select_related('estudio', 'pedido__cita__paciente__persona')
         .get(pk=estudio_pedido.pk)
     )
-    if estudio_pedido.estado != EstadoEstudio.EN_PROCESO:
+    if estudio_pedido.enviado:
+        raise TransicionInvalida(
+            'Los resultados de este estudio ya se enviaron: ya no se pueden cambiar.'
+        )
+    corregible = corregir and estudio_pedido.estado == EstadoEstudio.COMPLETADO
+    if estudio_pedido.estado != EstadoEstudio.EN_PROCESO and not corregible:
         raise TransicionInvalida(
             f'El estudio está {estudio_pedido.get_estado_display().lower()}: '
             'solo se capturan resultados de un estudio en proceso.'
@@ -331,13 +337,15 @@ def guardar_borrador(estudio_pedido: EstudioPedido, valores: dict, *, quimico: Q
 def completar_estudio(estudio_pedido: EstudioPedido, valores: dict, *, quimico: Quimico):
     """
     Valida y calcula con la definición del estudio, copia las referencias que aplican al
-    paciente (CONTEXTO.md §3) y lo marca completado. Completado ya no se corrige.
+    paciente (CONTEXTO.md §3) y lo marca completado. Sirve también para corregir un
+    estudio completado mientras no se envíe: se vuelve a calcular todo y quedan como
+    `quimico_completo` y `fecha_completado` los de la corrección.
 
     Resultados: {'version', 'valores' (capturados y calculados), 'referencias' (por campo)}.
     PROVISIONAL: la referencia que aplica es la vigente el día de la cita, con la edad
     que tenía el paciente ese día.
     """
-    estudio_pedido, definicion = _para_capturar(estudio_pedido, quimico)
+    estudio_pedido, definicion = _para_capturar(estudio_pedido, quimico, corregir=True)
     capturados = _capturados(definicion, valores)
     faltan = {
         c.clave: 'Capture este valor para completar el estudio.'
@@ -351,7 +359,8 @@ def completar_estudio(estudio_pedido: EstudioPedido, valores: dict, *, quimico: 
     referencias = referencias_para(
         estudio_pedido.estudio, cita.paciente, timezone.localdate(cita.fecha_hora)
     )
-    validar_transicion(estudio_pedido.estado, EstadoEstudio.COMPLETADO)
+    if estudio_pedido.estado != EstadoEstudio.COMPLETADO:
+        validar_transicion(estudio_pedido.estado, EstadoEstudio.COMPLETADO)
     estudio_pedido.resultados = {
         'version': definicion.version,
         'valores': definicion.a_json(resultados),

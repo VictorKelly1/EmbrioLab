@@ -42,11 +42,19 @@
       <ul>{% for campo in calculados %}<li><strong>{{ campo.etiqueta }}</strong>: {{ campo.formula }}</li>{% endfor %}</ul>
     </div>
     {% endif %}
+    {% if corrigiendo %}
     <div class="acciones">
-      <button type="submit" name="accion" value="completar" class="boton boton--principal" onclick="return confirm('¿Completar el estudio? Después ya no podrá corregirse.')">Completar estudio</button>
+      <button type="submit" name="accion" value="completar" class="boton boton--principal">Guardar corrección</button>
+      <a class="boton boton--secundario" href="{% url 'pedidos:resultados' estudio_pedido.pk %}">Cancelar</a>
+    </div>
+    <p class="campo__ayuda">Se vuelven a calcular los resultados con todos los campos. Una vez enviados, ya no se pueden corregir.</p>
+    {% else %}
+    <div class="acciones">
+      <button type="submit" name="accion" value="completar" class="boton boton--principal" onclick="return confirm('¿Completar el estudio? Podrá corregirlo hasta que se envíen los resultados.')">Completar estudio</button>
       <button type="submit" name="accion" value="borrador" class="boton boton--secundario">Guardar borrador</button>
     </div>
-    <p class="campo__ayuda">El borrador guarda lo capturado sin calcular; el estudio sigue en proceso. Para completarlo hacen falta todos los campos.</p>
+    <p class="campo__ayuda">El borrador guarda lo capturado sin calcular; el estudio sigue en proceso. Para completarlo hacen falta todos los campos. Completado, se puede corregir hasta que se envíe.</p>
+    {% endif %}
   </form>
 
   {% elif filas %}
@@ -67,6 +75,14 @@
     </table>
   </div>
   {% if completado %}<p class="campo__ayuda">La referencia es la que aplicaba al paciente el día de la cita y quedó guardada con el resultado.</p>{% endif %}
+  {% if puede_corregir %}
+  <div class="acciones">
+    <a class="boton boton--secundario" href="?corregir=1">Corregir resultados</a>
+  </div>
+  <p class="campo__ayuda">Puede corregirlos mientras no se envíen.</p>
+  {% elif completado and estudio_pedido.enviado %}
+  <p class="campo__ayuda">Los resultados ya se enviaron el {{ estudio_pedido.fecha_envio|date:'j/m/Y' }}: ya no se pueden cambiar.</p>
+  {% endif %}
 
   {% else %}
   {% if estudio_pedido.estado == 'pendiente' %}

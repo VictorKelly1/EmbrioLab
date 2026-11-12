@@ -3,6 +3,7 @@ Máquina de estados de EstudioPedido (CONTEXTO.md §5) y reglas de los derivados
 
     pendiente ──un químico lo toma──▶ en_proceso ──completar──▶ completado ──enviar──▶ (fecha_envio)
 
+Un completado se puede corregir (sigue completado) mientras no se envía.
 Soltar un estudio sin captura (en_proceso → pendiente) no es una transición de la
 máquina: es deshacer la toma, y solo lo hace `services.soltar_paciente`.
 

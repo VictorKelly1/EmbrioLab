@@ -123,8 +123,67 @@ def test_completado_se_muestra_con_marcas(cliente_quimico, quimico):
     contenido = respuesta.content.decode()
     assert 'etiqueta--bajo' in contenido
     assert 'Completar estudio' not in contenido
-    # Ya no acepta cambios.
+    assert '?corregir=1' in contenido
+
+
+# Corregir un completado mientras no se envíe
+
+
+def _completado(quimico):
+    estudio = _tomado(quimico)
+    completar_estudio(estudio, {k: Decimal(v) for k, v in PLIP.items()}, quimico=quimico)
+    estudio.refresh_from_db()
+    return estudio
+
+
+def test_corregir_un_completado(cliente_quimico, quimico):
+    estudio = _completado(quimico)
+    formulario = cliente_quimico.get(_url(estudio), {'corregir': '1'})
+    assert formulario.context['form'].initial['hdl'] == Decimal(45)
+    assert 'Guardar corrección' in formulario.content.decode()
+    assert 'Guardar borrador' not in formulario.content.decode()
+
+    # Aunque llegue «borrador», al corregir siempre se vuelve a completar.
+    respuesta = cliente_quimico.post(_url(estudio), {**PLIP, 'hdl': '50', 'accion': 'borrador'})
+    assert respuesta.url == _url(estudio)
+    estudio.refresh_from_db()
+    assert estudio.estado == 'completado'
+    assert estudio.resultados['valores']['hdl'] == '50'
+    assert estudio.resultados['valores']['ldl'] == '130'
+
+
+def test_corregir_sin_todos_los_campos(cliente_quimico, quimico):
+    estudio = _completado(quimico)
+    respuesta = cliente_quimico.post(_url(estudio), {'hdl': '50', 'accion': 'completar'})
+    assert respuesta.status_code == 200
+    assert 'colesterol_total' in respuesta.context['form'].errors
+    estudio.refresh_from_db()
+    assert estudio.resultados['valores']['hdl'] == '45'
+
+
+def test_enviado_ya_no_se_corrige_en_pantalla(cliente_quimico, quimico):
+    estudio = _completado(quimico)
+    EstudioPedido.objects.filter(pk=estudio.pk).update(fecha_envio=timezone.now())
+    respuesta = cliente_quimico.get(_url(estudio), {'corregir': '1'})
+    contenido = respuesta.content.decode()
+    assert respuesta.context['form'] is None
+    assert '?corregir=1' not in contenido
+    assert 'ya no se pueden cambiar' in contenido
     assert cliente_quimico.post(_url(estudio), {**PLIP, 'accion': 'completar'}).status_code == 403
+
+
+def test_otro_quimico_no_corrige(client, quimico):
+    estudio = _completado(quimico)
+    client.force_login(QuimicoFactory().usuario)
+    respuesta = client.get(_url(estudio), {'corregir': '1'})
+    assert respuesta.context['form'] is None
+    assert client.post(_url(estudio), {**PLIP, 'accion': 'completar'}).status_code == 403
+
+
+def test_el_detalle_ofrece_corregir_al_encargado(cliente_quimico, quimico):
+    estudio = _completado(quimico)
+    respuesta = cliente_quimico.get(reverse('pedidos:detalle', args=[estudio.pedido_id]))
+    assert 'Ver o corregir' in respuesta.content.decode()
 
 
 # Quién puede

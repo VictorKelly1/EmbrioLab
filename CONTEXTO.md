@@ -72,6 +72,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 - Una cita puede tener **varios pedidos** (1:N). Un pedido tiene N estudios (tabla EstudiosPedido).
 - **Estados de un estudio:** `pendiente → en_proceso → completado`.
   - "Enviado" = `fecha_envio` no nula, y **solo es posible después de completado**.
+  - **Un estudio completado se puede corregir mientras no se envíe**; ya enviado, no cambia. Lo corrige su químico encargado volviendo a capturar todos los campos (se recalcula y se vuelve a copiar la referencia).
   - **Cola de químicos (por paciente):** un estudio `pendiente` no tiene encargado y espera en la cola, que se agrupa por paciente. Un químico **toma al paciente**: todos sus estudios pendientes, de todos sus pedidos, pasan a `en_proceso` con él como **único encargado** (se guarda en cada estudio).
   - Mientras el paciente tenga estudios en proceso, ese químico es su encargado: los estudios que se le agreguen después (al pedido o en un pedido nuevo) **quedan a su cargo automáticamente**. Otro químico no puede tomarlo.
   - El encargado puede **soltar al paciente** (sus estudios en proceso vuelven a la cola) o **pasarlo** a otro químico, solo mientras no haya capturado nada de ninguno.
@@ -323,7 +324,7 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Cola.** Provisional: muestra solo los estudios de citas atendidas (los pedidos solo se arman de citas atendidas). Pasar a un paciente no le pide permiso al químico que lo recibe.
 - **Toma por paciente.** Decidido (2026-11-11): se toma, se suelta y se pasa al paciente con todos sus estudios, y los nuevos se asignan solos a su encargado. Provisional: el paciente deja de tener encargado cuando ya no tiene estudios en proceso (por ejemplo, si todos están completados); entonces lo nuevo va a la cola. Si el encargado está dado de baja, lo nuevo también va a la cola. Con un solo estudio capturado ya no se puede soltar ni pasar al paciente.
 - **Borrador.** Provisional: el químico puede guardar lo capturado sin completar; el estudio sigue en proceso. Para completarlo hacen falta todos los campos.
-- **Corregir un estudio completado.** Provisional: no se puede. ¿Hace falta reabrirlo (por ejemplo, antes de enviarlo)? ¿Quién lo autoriza?
+- **Corregir un estudio completado.** Decidido (2026-11-11): se puede hasta que se envían sus resultados; enviado ya no. Provisional: solo su químico encargado; la corrección pide todos los campos, no vuelve a borrador, y `quimico_completo` y `fecha_completado` pasan a ser los de la corrección (el historial completo llegará con la auditoría).
 - **Fuera de rango.** Provisional: un valor menor al mínimo se marca como «bajo» y uno mayor al máximo como «alto», según la referencia copiada. Los textos de referencia no se marcan.
 - **Qué referencia se copia.** Provisional: la vigente el día de la cita, con la edad que tenía el paciente ese día (no la del día en que se completa).
 
@@ -367,3 +368,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: cambio del cliente — **observaciones del pedido**: tabla `ObservacionesPedido` con notas libres (p. ej. si el paciente quiere los resultados juntos o conforme salgan). Las escribe la recepción y se ven en el detalle del pedido.
 - 2026-11-11: cambio del cliente — **estudios libres en la cotización**: además de los del catálogo, la recepción escribe estudios que no tiene guardados (nombre, precio y categoría opcional). Siguen sin guardarse en la BD.
 - 2026-11-11: cambio del cliente — **toma por paciente**: los químicos ya no toman estudio por estudio; toman, sueltan y pasan al paciente con todos sus estudios pendientes de todos sus pedidos. Los estudios nuevos de un paciente con encargado se le asignan automáticamente. La BD no cambia: el encargado sigue guardándose en cada estudio.
+- 2026-11-11: cambio del cliente — **corregir hasta enviar**: un estudio completado ya se puede corregir; deja de poder cambiarse cuando se envían sus resultados (antes no se podía corregir nada después de completarlo).
