@@ -13,10 +13,9 @@ from apps.pedidos.resultados import ALTO, BAJO, filas, fuera_de_rango
 from apps.pedidos.services import (
     completar_estudio,
     guardar_borrador,
-    reasignar_estudio,
-    tomar_estudio,
+    pasar_paciente,
 )
-from apps.pedidos.tests.factories import EstudioPedidoFactory
+from apps.pedidos.tests.factories import EstudioPedidoFactory, tomar
 
 pytestmark = pytest.mark.django_db
 
@@ -28,9 +27,7 @@ def quimico():
 
 def _tomado(quimico, clave='GLU', **extra):
     estudio = EstudioPedidoFactory(estudio=Estudio.objects.get(clave=clave), **extra)
-    tomar_estudio(estudio, quimico=quimico)
-    estudio.refresh_from_db()
-    return estudio
+    return tomar(estudio, quimico)
 
 
 def _plip(**valores):
@@ -75,7 +72,7 @@ def test_solo_captura_su_encargado(quimico):
 def test_quien_recibe_el_estudio_lo_completa(quimico):
     otro = QuimicoFactory()
     estudio = _tomado(quimico)
-    reasignar_estudio(estudio, otro, quimico=quimico)
+    pasar_paciente(estudio.pedido.cita.paciente, otro, quimico=quimico)
     with pytest.raises(ValidationError, match='no está a su cargo'):
         guardar_borrador(estudio, {'glucosa': Decimal(90)}, quimico=quimico)
     completar_estudio(estudio, {'glucosa': Decimal(90)}, quimico=otro)
@@ -99,7 +96,7 @@ def test_un_completado_no_se_corrige(quimico):
 
 def test_sin_definicion_en_codigo(quimico):
     estudio = EstudioPedidoFactory(estudio=EstudioFactory(), version_estudio=1)
-    tomar_estudio(estudio, quimico=quimico)
+    tomar(estudio, quimico)
     with pytest.raises(ValidationError, match='definición'):
         guardar_borrador(estudio, {}, quimico=quimico)
 

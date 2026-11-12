@@ -25,9 +25,9 @@ urlpatterns = [
         views.EstudioPedidoResultadosView.as_view(),
         name='resultados',
     ),
-    path('estudios/<int:pk>/tomar/', views.EstudioTomarView.as_view(), name='estudio_tomar'),
-    path('estudios/<int:pk>/soltar/', views.EstudioSoltarView.as_view(), name='estudio_soltar'),
-    path('estudios/<int:pk>/pasar/', views.EstudioReasignarView.as_view(), name='estudio_pasar'),
+    path('pacientes/<int:pk>/tomar/', views.PacienteTomarView.as_view(), name='paciente_tomar'),
+    path('pacientes/<int:pk>/soltar/', views.PacienteSoltarView.as_view(), name='paciente_soltar'),
+    path('pacientes/<int:pk>/pasar/', views.PacientePasarView.as_view(), name='paciente_pasar'),
     path(
         'estudios/<int:pk>/quitar/', views.EstudioPedidoQuitarView.as_view(), name='estudio_quitar'
     ),

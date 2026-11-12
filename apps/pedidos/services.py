@@ -11,7 +11,7 @@ from apps.estudios.models import Estudio, EstudioAlias
 from apps.estudios.selectors import referencias_para
 from apps.estudios.services import registrar_alias
 from apps.notificaciones.services import notificar_resultados
-from apps.pacientes.models import Doctor
+from apps.pacientes.models import Doctor, Paciente
 from apps.pedidos.estados import (
     TransicionInvalida,
     estado_del_pedido,
@@ -28,6 +28,7 @@ from apps.pedidos.models import (
     Pedido,
 )
 from apps.pedidos.numero import siguiente_numero
+from apps.pedidos.selectors import encargado_del_paciente, estudios_del_paciente
 
 
 @dataclass(frozen=True)
@@ -112,13 +113,21 @@ def _agregar(pedido: Pedido, linea: Linea, usuario) -> EstudioPedido:
     nombre = ' '.join(linea.nombre_solicitado.split()) or estudio.nombre
     if linea.guardar_alias:
         _guardar_alias(estudio, nombre, usuario)
-    return EstudioPedido.objects.create(
+    estudio_pedido = EstudioPedido(
         pedido=pedido,
         estudio=estudio,
         nombre_solicitado=nombre,
         precio=estudio.precio,
         version_estudio=estudio.version_definicion,
     )
+    # Si el paciente ya tiene químico a cargo, el estudio nuevo es suyo (CONTEXTO.md §3).
+    encargado = encargado_del_paciente(_bloquear_paciente(pedido.cita.paciente))
+    if encargado is not None and encargado.estado_actividad and encargado.usuario.is_active:
+        estudio_pedido.estado = EstadoEstudio.EN_PROCESO
+        estudio_pedido.quimico_encargado = encargado
+        estudio_pedido.fecha_toma = timezone.now()
+    estudio_pedido.save()
+    return estudio_pedido
 
 
 def _guardar_alias(estudio: Estudio, nombre: str, usuario) -> None:
@@ -136,14 +145,6 @@ def _guardar_alias(estudio: Estudio, nombre: str, usuario) -> None:
         )
 
 
-def _bloquear_estudio(estudio_pedido: EstudioPedido) -> EstudioPedido:
-    return (
-        EstudioPedido.objects.select_for_update(of=('self',))
-        .select_related('estudio', 'pedido__cita')
-        .get(pk=estudio_pedido.pk)
-    )
-
-
 def _validar_activo(quimico: Quimico) -> None:
     if not (quimico.estado_actividad and quimico.usuario.is_active):
         raise ValidationError(f'{quimico.usuario.persona.nombre_completo} está dado de baja.')
@@ -154,72 +155,105 @@ def tiene_captura(estudio_pedido: EstudioPedido) -> bool:
     return bool((estudio_pedido.resultados or {}).get('valores'))
 
 
-def _validar_sin_captura(estudio_pedido: EstudioPedido, quimico: Quimico) -> None:
-    """Soltar o pasar un estudio: solo su encargado y solo si aún no captura nada."""
-    if estudio_pedido.estado != EstadoEstudio.EN_PROCESO:
-        raise TransicionInvalida(
-            f'El estudio está {estudio_pedido.get_estado_display().lower()}: '
-            'solo se suelta o se pasa un estudio en proceso.'
-        )
-    if estudio_pedido.quimico_encargado_id != quimico.pk:
-        raise ValidationError('Este estudio no está a su cargo.')
-    if tiene_captura(estudio_pedido):
+def _bloquear_paciente(paciente: Paciente) -> Paciente:
+    """
+    Serializa lo que cambia al encargado de un paciente (tomar, soltar, pasar y los
+    estudios nuevos que se le asignan solos), para que dos químicos no lo tomen a la vez.
+    """
+    return Paciente.objects.select_for_update().get(pk=paciente.pk)
+
+
+def _a_cargo(paciente: Paciente, quimico: Quimico) -> list[EstudioPedido]:
+    """Soltar o pasar: los estudios en proceso del paciente a cargo del químico, sin captura."""
+    estudios = list(
+        estudios_del_paciente(paciente)
+        .filter(estado=EstadoEstudio.EN_PROCESO, quimico_encargado=quimico)
+        .select_related('estudio')
+        .select_for_update(of=('self',))
+    )
+    if not estudios:
+        raise ValidationError('Este paciente no está a su cargo.')
+    capturados = [str(e.estudio) for e in estudios if tiene_captura(e)]
+    if capturados:
         raise ValidationError(
-            'El estudio ya tiene un borrador de resultados: ya no se puede soltar ni pasar.'
+            f'Ya hay resultados capturados de {", ".join(capturados)}: '
+            'el paciente ya no se puede soltar ni pasar.'
         )
+    return estudios
+
+
+def _recalcular_pedidos(estudios: list[EstudioPedido]) -> None:
+    for pedido_id in sorted({e.pedido_id for e in estudios}):
+        recalcular_pedido(Pedido(pk=pedido_id))
 
 
 @transaction.atomic
-def tomar_estudio(estudio_pedido: EstudioPedido, *, quimico: Quimico) -> EstudioPedido:
+def tomar_paciente(paciente: Paciente, *, quimico: Quimico) -> list[EstudioPedido]:
     """
-    El químico toma un estudio de la cola y queda como su único encargado: pasa de
-    pendiente a en proceso (CONTEXTO.md §3). El bloqueo evita que dos químicos tomen el
-    mismo estudio a la vez; el segundo recibe el aviso de que ya lo tomó alguien.
+    El químico toma de la cola a un paciente: todos sus estudios pendientes, de todos
+    sus pedidos, quedan a su cargo y en proceso (CONTEXTO.md §3). Si otro químico ya
+    lo tiene, avisa; el bloqueo del paciente evita que dos lo tomen a la vez.
     """
-    estudio_pedido = _bloquear_estudio(estudio_pedido)
-    if estudio_pedido.quimico_encargado_id is not None:
-        if estudio_pedido.quimico_encargado_id == quimico.pk:
-            raise ValidationError('Ya tiene este estudio a su cargo.')
-        raise ValidationError(f'Otro químico ya tomó {estudio_pedido.estudio}.')
-    if estudio_pedido.pedido.cita.estado != EstadoCita.ATENDIDA:
-        raise ValidationError('La cita del pedido todavía no está atendida.')
+    paciente = _bloquear_paciente(paciente)
     _validar_activo(quimico)
-    validar_transicion(estudio_pedido.estado, EstadoEstudio.EN_PROCESO)
-    estudio_pedido.estado = EstadoEstudio.EN_PROCESO
-    estudio_pedido.quimico_encargado = quimico
-    estudio_pedido.fecha_toma = timezone.now()
-    estudio_pedido.save(update_fields=['estado', 'quimico_encargado', 'fecha_toma'])
-    recalcular_pedido(estudio_pedido.pedido)
-    return estudio_pedido
+    encargado = encargado_del_paciente(paciente)
+    if encargado is not None and encargado.pk != quimico.pk:
+        raise ValidationError(
+            f'{encargado.usuario.persona.nombre_completo} ya tiene a este paciente a su cargo.'
+        )
+    estudios = list(
+        estudios_del_paciente(paciente)
+        .filter(
+            estado=EstadoEstudio.PENDIENTE,
+            quimico_encargado__isnull=True,
+            pedido__cita__estado=EstadoCita.ATENDIDA,
+        )
+        .select_for_update(of=('self',))
+    )
+    if not estudios:
+        raise ValidationError('Este paciente no tiene estudios en espera.')
+    ahora = timezone.now()
+    for estudio_pedido in estudios:
+        validar_transicion(estudio_pedido.estado, EstadoEstudio.EN_PROCESO)
+        estudio_pedido.estado = EstadoEstudio.EN_PROCESO
+        estudio_pedido.quimico_encargado = quimico
+        estudio_pedido.fecha_toma = ahora
+    EstudioPedido.objects.bulk_update(estudios, ['estado', 'quimico_encargado', 'fecha_toma'])
+    _recalcular_pedidos(estudios)
+    return estudios
 
 
 @transaction.atomic
-def soltar_estudio(estudio_pedido: EstudioPedido, *, quimico: Quimico) -> EstudioPedido:
-    """El encargado regresa el estudio a la cola (vuelve a pendiente) si aún no captura nada."""
-    estudio_pedido = _bloquear_estudio(estudio_pedido)
-    _validar_sin_captura(estudio_pedido, quimico)
-    estudio_pedido.estado = EstadoEstudio.PENDIENTE
-    estudio_pedido.quimico_encargado = None
-    estudio_pedido.fecha_toma = None
-    estudio_pedido.save(update_fields=['estado', 'quimico_encargado', 'fecha_toma'])
-    recalcular_pedido(estudio_pedido.pedido)
-    return estudio_pedido
+def soltar_paciente(paciente: Paciente, *, quimico: Quimico) -> list[EstudioPedido]:
+    """
+    El encargado regresa al paciente a la cola: sus estudios en proceso vuelven a
+    pendientes. Solo si todavía no captura nada de ninguno.
+    """
+    paciente = _bloquear_paciente(paciente)
+    estudios = _a_cargo(paciente, quimico)
+    for estudio_pedido in estudios:
+        estudio_pedido.estado = EstadoEstudio.PENDIENTE
+        estudio_pedido.quimico_encargado = None
+        estudio_pedido.fecha_toma = None
+    EstudioPedido.objects.bulk_update(estudios, ['estado', 'quimico_encargado', 'fecha_toma'])
+    _recalcular_pedidos(estudios)
+    return estudios
 
 
 @transaction.atomic
-def reasignar_estudio(
-    estudio_pedido: EstudioPedido, nuevo: Quimico, *, quimico: Quimico
-) -> EstudioPedido:
-    """El encargado pasa el estudio a otro químico, si aún no captura nada. Sigue en proceso."""
-    estudio_pedido = _bloquear_estudio(estudio_pedido)
-    _validar_sin_captura(estudio_pedido, quimico)
+def pasar_paciente(paciente: Paciente, nuevo: Quimico, *, quimico: Quimico) -> list[EstudioPedido]:
+    """El encargado pasa al paciente a otro químico, si aún no captura nada. Siguen en proceso."""
+    paciente = _bloquear_paciente(paciente)
+    estudios = _a_cargo(paciente, quimico)
     if nuevo.pk == quimico.pk:
         raise ValidationError('Elija a otro químico.')
     _validar_activo(nuevo)
-    estudio_pedido.quimico_encargado = nuevo
-    estudio_pedido.fecha_toma = timezone.now()
-    estudio_pedido.save(update_fields=['quimico_encargado', 'fecha_toma'])
-    return estudio_pedido
+    ahora = timezone.now()
+    for estudio_pedido in estudios:
+        estudio_pedido.quimico_encargado = nuevo
+        estudio_pedido.fecha_toma = ahora
+    EstudioPedido.objects.bulk_update(estudios, ['quimico_encargado', 'fecha_toma'])
+    return estudios
 
 
 @transaction.atomic

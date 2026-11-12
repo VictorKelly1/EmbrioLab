@@ -75,6 +75,7 @@
 
 <section class="tarjeta" aria-labelledby="titulo-estudios">
   <h2 id="titulo-estudios">Estudios</h2>
+  {% include 'pedidos/_toma_paciente.html' with siguiente=request.get_full_path %}
   <div class="tabla-marco">
     <table class="tabla tabla--pedido">
       <thead>
@@ -126,8 +127,8 @@
       </tbody>
     </table>
   </div>
-  {% if not puede_editar %}<p class="campo__ayuda">Solo el químico encargado captura un estudio. Puede soltarlo o pasarlo a otro químico mientras no haya capturado nada. Completado, ya no se corrige.</p>{% endif %}
-  {% if puede_editar %}<p class="campo__ayuda">Los estudios sin encargado esperan en la cola de los químicos; al tomarlo, uno queda a cargo y el estudio pasa a en proceso. El envío de resultados no depende del pago.</p>{% endif %}
+  {% if not puede_editar %}<p class="campo__ayuda">Los químicos toman al paciente con todos sus estudios. Solo el encargado captura; puede soltar o pasar al paciente mientras no haya capturado nada.</p>{% endif %}
+  {% if puede_editar %}<p class="campo__ayuda">Los estudios sin encargado esperan en la cola de los químicos; un químico toma al paciente y sus estudios pasan a en proceso. Si el paciente ya tiene químico, los estudios nuevos quedan a su cargo. El envío de resultados no depende del pago.</p>{% endif %}
 </section>
 
 {% if hay_completados %}

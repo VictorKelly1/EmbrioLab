@@ -11,12 +11,12 @@ from apps.pedidos.models import Pedido
 from apps.pedidos.selectors import (
     buscar_pedidos,
     cola_de_estudios,
+    cola_por_paciente,
     historial_de_paciente,
     lista_de_trabajo,
     quimicos_activos,
 )
-from apps.pedidos.services import tomar_estudio
-from apps.pedidos.tests.factories import EstudioPedidoFactory, PedidoFactory
+from apps.pedidos.tests.factories import EstudioPedidoFactory, PedidoFactory, tomar
 
 pytestmark = pytest.mark.django_db
 
@@ -81,9 +81,7 @@ def test_quimicos_activos():
 
 
 def _tomar(estudio, quimico):
-    tomar_estudio(estudio, quimico=quimico)
-    estudio.refresh_from_db()
-    return estudio
+    return tomar(estudio, quimico)
 
 
 def test_filtrar_por_quimico_sin_duplicar_pedidos():
@@ -135,10 +133,30 @@ def test_la_cola_solo_tiene_estudios_sin_encargado_de_citas_atendidas():
     del_nuevo = EstudioPedidoFactory(pedido=nuevo)
     del_viejo = EstudioPedidoFactory(pedido=viejo)
     otro_del_viejo = EstudioPedidoFactory(pedido=viejo, estudio=plip)
-    _tomar(EstudioPedidoFactory(pedido=nuevo, estudio=plip), QuimicoFactory())
+    _tomar(EstudioPedidoFactory(estudio=plip), QuimicoFactory())
     EstudioPedidoFactory(pedido__cita__estado=EstadoCita.PROGRAMADA)
     # Agrupados por pedido, el más viejo primero.
     assert list(cola_de_estudios()) == [del_viejo, otro_del_viejo, del_nuevo]
+
+
+def test_la_cola_por_paciente_junta_sus_pedidos():
+    viejo = PedidoFactory()
+    Pedido.objects.filter(pk=viejo.pk).update(
+        fecha_inicio=timezone.now() - datetime.timedelta(days=2)
+    )
+    paciente = viejo.cita.paciente
+    otro_pedido = PedidoFactory(cita__paciente=paciente)
+    plip = Estudio.objects.get(clave='PLIP')
+    primero = EstudioPedidoFactory(pedido=viejo)
+    segundo = EstudioPedidoFactory(pedido=otro_pedido, estudio=plip)
+    de_otro = EstudioPedidoFactory()
+
+    grupos = cola_por_paciente()
+
+    assert [g.paciente for g in grupos] == [paciente, de_otro.pedido.cita.paciente]
+    assert grupos[0].estudios == [primero, segundo]
+    assert grupos[0].pedidos == [viejo, otro_pedido]
+    assert grupos[0].desde == Pedido.objects.get(pk=viejo.pk).fecha_inicio
 
 
 def test_historial_de_paciente():

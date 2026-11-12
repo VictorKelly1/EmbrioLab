@@ -32,11 +32,28 @@ class EstudioPedidoFactory(factory.django.DjangoModelFactory):
 def estudio_completado(clave='GLU', valores=None, **extra) -> EstudioPedido:
     """Un estudio que un químico tomó de la cola y completó."""
     from apps.cuentas.tests.factories import QuimicoFactory
-    from apps.pedidos.services import completar_estudio, tomar_estudio
+    from apps.pedidos.services import completar_estudio
 
     estudio_pedido = EstudioPedidoFactory(estudio=Estudio.objects.get(clave=clave), **extra)
-    quimico = QuimicoFactory()
-    tomar_estudio(estudio_pedido, quimico=quimico)
-    completar_estudio(estudio_pedido, valores or {'glucosa': Decimal(120)}, quimico=quimico)
+    tomar(estudio_pedido, QuimicoFactory())
+    completar_estudio(
+        estudio_pedido,
+        valores or {'glucosa': Decimal(120)},
+        quimico=estudio_pedido.quimico_encargado,
+    )
     estudio_pedido.refresh_from_db()
+    return estudio_pedido
+
+
+def tomar(estudio_pedido: EstudioPedido, quimico) -> EstudioPedido:
+    """
+    Deja el estudio en proceso: el químico toma a su paciente. Si el paciente ya tenía
+    encargado, el estudio sigue con él (como en la operación real).
+    """
+    from apps.pedidos.services import tomar_paciente
+
+    estudio_pedido.refresh_from_db()
+    if estudio_pedido.estado == 'pendiente':
+        tomar_paciente(estudio_pedido.pedido.cita.paciente, quimico=quimico)
+        estudio_pedido.refresh_from_db()
     return estudio_pedido
