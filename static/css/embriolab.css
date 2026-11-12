@@ -2658,3 +2658,7 @@ a.cita-bloque:hover {
   align-items: baseline;
   gap: 0.25rem 0.75rem;
 }
+
+.observaciones:last-child {
+  margin-bottom: 0;
+}
