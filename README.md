@@ -31,6 +31,46 @@ docker compose exec web python manage.py crear_admin
 - Las fotos de las personas se guardan en `privado/` (fuera del repo y sin URL pública;
   configurable con `DJANGO_PRIVATE_MEDIA_ROOT`). En producción es el volumen `privado`.
 
+## Formularios del cliente
+
+Cada versión de un formulario es un archivo JSON en `apps/formularios/datos/` (`hombre_v1.json`,
+`mujer_v1.json`, …). El formato está en `apps/formularios/carga.py` y el de las preguntas en
+`apps/formularios/esquema.py`. Los `_v1` son las preguntas provisionales actuales.
+
+1. Escriba el archivo nuevo, con el siguiente número: `hombre_v2.json`. **No edite uno que ya
+   use una migración**: cada cambio es un archivo y una migración nuevos.
+2. Revíselo. El comando no cambia nada en la BD:
+   ```
+   docker compose exec web python manage.py revisar_formulario apps/formularios/datos/hombre_v2.json --html privado/vista.html
+   ```
+   Dice si es válido, lista las preguntas, compara con lo publicado (agregadas, quitadas,
+   cambiadas) y genera `vista.html`: así lo verá el paciente. Es un solo archivo que puede
+   mandarle al cliente para que lo apruebe.
+3. Publíquelo con una migración de datos (`makemigrations formularios --empty -n formularios_v2`):
+   ```python
+   from django.db import migrations
+
+   from apps.formularios.carga import DATOS, leer, publicar
+
+
+   def cargar(apps, schema_editor):
+       modelos = {
+           'Formulario': apps.get_model('formularios', 'Formulario'),
+           'VersionFormulario': apps.get_model('formularios', 'VersionFormulario'),
+       }
+       for archivo in ('hombre_v2.json', 'mujer_v2.json'):
+           publicar(leer(DATOS / archivo), **modelos)
+
+
+   class Migration(migrations.Migration):
+       dependencies = [('formularios', '0002_formularios_provisionales')]
+       operations = [migrations.RunPython(cargar, migrations.RunPython.noop)]
+   ```
+   Actualiza el formulario activo de su género (aunque cambie el nombre) y despublica la versión
+   anterior. Las respuestas ya guardadas conservan la versión con la que se llenaron. La prueba
+   `test_lo_publicado_coincide_con_el_ultimo_archivo_de_cada_genero` falla si un archivo nuevo
+   no tiene su migración.
+
 ## Producción
 
 `docker compose -f docker-compose.prod.yml up --build -d` levanta postgres + gunicorn + nginx

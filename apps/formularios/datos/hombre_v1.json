@@ -1,0 +1,115 @@
+{
+  "formulario": {
+    "nombre": "Formulario de la visita — hombre",
+    "descripcion": "PROVISIONAL: preguntas de ejemplo hasta que el cliente entregue las reales.",
+    "genero_aplicable": "masculino"
+  },
+  "esquema": {
+    "secciones": [
+      {
+        "titulo": "Muestra de semen",
+        "preguntas": [
+          {
+            "tipo": "si_no",
+            "clave": "estudio_esperma",
+            "etiqueta": "¿Viene a un estudio de esperma?",
+            "obligatoria": true
+          },
+          {
+            "max": 60,
+            "min": 0,
+            "tipo": "numero",
+            "clave": "dias_abstinencia",
+            "etiqueta": "¿Cuántos días de abstinencia sexual tiene?",
+            "mostrar_si": {
+              "clave": "estudio_esperma",
+              "valor": true
+            },
+            "obligatoria": true
+          },
+          {
+            "tipo": "opcion",
+            "clave": "muestra_completa",
+            "etiqueta": "¿Se recolectó la muestra completa?",
+            "opciones": [
+              "Sí, completa",
+              "Se perdió una parte",
+              "Aún no la recolecto"
+            ],
+            "mostrar_si": {
+              "clave": "estudio_esperma",
+              "valor": true
+            },
+            "obligatoria": true
+          }
+        ],
+        "descripcion": "Conteste solo si viene a un estudio de esperma."
+      },
+      {
+        "titulo": "Su salud reciente",
+        "preguntas": [
+          {
+            "tipo": "si_no",
+            "clave": "medicamentos",
+            "etiqueta": "¿Está tomando algún medicamento?",
+            "obligatoria": true
+          },
+          {
+            "tipo": "texto_largo",
+            "clave": "medicamentos_cuales",
+            "etiqueta": "¿Cuáles medicamentos y desde cuándo?",
+            "mostrar_si": {
+              "clave": "medicamentos",
+              "valor": true
+            },
+            "obligatoria": true
+          },
+          {
+            "tipo": "si_no",
+            "clave": "enfermedad_reciente",
+            "etiqueta": "¿Ha tenido fiebre o alguna enfermedad en los últimos 3 meses?",
+            "obligatoria": true
+          },
+          {
+            "tipo": "texto_largo",
+            "clave": "enfermedad_reciente_detalle",
+            "etiqueta": "Cuéntenos qué tuvo y cuándo",
+            "mostrar_si": {
+              "clave": "enfermedad_reciente",
+              "valor": true
+            },
+            "obligatoria": true
+          },
+          {
+            "max": 72,
+            "min": 0,
+            "tipo": "numero",
+            "ayuda": "Horas desde su último alimento. Escriba 0 si no está en ayuno.",
+            "clave": "horas_ayuno",
+            "etiqueta": "¿Cuántas horas de ayuno tiene?"
+          }
+        ]
+      },
+      {
+        "titulo": "Hábitos",
+        "preguntas": [
+          {
+            "tipo": "opcion",
+            "clave": "fuma",
+            "etiqueta": "¿Fuma?",
+            "opciones": [
+              "No",
+              "Ocasionalmente",
+              "Diario"
+            ]
+          },
+          {
+            "tipo": "si_no",
+            "clave": "alcohol_ultimos_dias",
+            "etiqueta": "¿Consumió alcohol en los últimos 3 días?"
+          }
+        ]
+      }
+    ]
+  }
+}
