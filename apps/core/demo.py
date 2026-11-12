@@ -26,6 +26,7 @@ from apps.citas.services import (
     registrar_espontanea,
 )
 from apps.cuentas.models import Quimico, Recepcionista, Usuario
+from apps.cuentas.services import registrar_usuario
 from apps.estudios.models import Estudio, EstudioAlias, ValorReferencia
 from apps.formularios.constructor import construir_formulario
 from apps.formularios.models import FormularioLlenado
@@ -195,6 +196,77 @@ RESPUESTAS = {
         'anticonceptivo': 'no',
     },
 }
+
+
+# Usuarios de ejemplo (`cargar_demo --con-usuarios`): uno por rol y un segundo químico.
+USUARIOS = [
+    # correo, rol, nombre, paterno, género, nacimiento, CURP, cédula
+    (
+        'admin@embriolab.local',
+        'admin',
+        'Admin',
+        'Demo',
+        'femenino',
+        '1985-01-15',
+        'DEAX850115MDFMDN01',
+        '',
+    ),
+    (
+        'recepcion@embriolab.local',
+        'recepcionista',
+        'Carmen',
+        'Demo',
+        'femenino',
+        '1990-06-20',
+        'DECX900620MDFMRR02',
+        '',
+    ),
+    (
+        'quimico@embriolab.local',
+        'quimico',
+        'Rubén',
+        'Demo',
+        'masculino',
+        '1988-09-03',
+        'DERX880903HDFMBB03',
+        'DEMO-1234567',
+    ),
+    (
+        'quimico2@embriolab.local',
+        'quimico',
+        'Laura',
+        'Demo',
+        'femenino',
+        '1992-11-28',
+        'DELX921128MDFMRR04',
+        'DEMO-7654321',
+    ),
+]
+
+
+def crear_usuarios(password: str) -> list[str]:
+    """Crea los usuarios de ejemplo que falten. Devuelve los correos creados."""
+    creados = []
+    for correo, rol, nombre, paterno, genero, nacimiento, curp, cedula in USUARIOS:
+        if Usuario.objects.filter(correo=correo).exists():
+            continue
+        registrar_usuario(
+            datos_persona={
+                'nombre': nombre,
+                'apellido_paterno': paterno,
+                'apellido_materno': '',
+                'genero': genero,
+                'fecha_nacimiento': datetime.date.fromisoformat(nacimiento),
+                'curp': curp,
+            },
+            correo=correo,
+            password=password,
+            rol=rol,
+            sueldo=Decimal('10000'),
+            cedula_profesional=cedula,
+        )
+        creados.append(correo)
+    return creados
 
 
 def _usuarios():
