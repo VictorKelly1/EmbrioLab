@@ -83,8 +83,12 @@ def _crear(
     cita=None,
     estudios=(),
     destino_tipo: str = DestinoTipo.PACIENTE,
+    usuario=None,
 ) -> list[Notificacion]:
-    """Una fila por canal (y por estudio, en resultados). Se encolan juntas al confirmar."""
+    """
+    Una fila por canal (y por estudio, en resultados). Se encolan juntas al confirmar.
+    `usuario` es quien hizo el envío; sin usuario, es automático.
+    """
     filas = [
         Notificacion(
             tipo=tipo,
@@ -93,6 +97,7 @@ def _crear(
             destino_tipo=destino_tipo,
             cita=cita,
             estudio_pedido=estudio,
+            usuario=usuario,
         )
         for canal, destino in destinos.items()
         for estudio in (estudios or [None])
@@ -103,7 +108,7 @@ def _crear(
 
 
 @transaction.atomic
-def enviar_link_formulario(cita: Cita) -> list[Notificacion]:
+def enviar_link_formulario(cita: Cita, *, usuario=None) -> list[Notificacion]:
     """
     Manda al paciente el link del formulario de la cita. El token se genera al enviar
     (en la BD solo queda su hash) e invalida cualquier link anterior de la cita.
@@ -117,7 +122,7 @@ def enviar_link_formulario(cita: Cita) -> list[Notificacion]:
         raise ValidationError(
             'El paciente no tiene correo ni WhatsApp registrado. Agréguelo en su ficha.'
         )
-    return _crear(TipoNotificacion.QR, destinos, cita=cita)
+    return _crear(TipoNotificacion.QR, destinos, cita=cita, usuario=usuario)
 
 
 @transaction.atomic
@@ -160,7 +165,7 @@ def programar_recordatorios(ahora: datetime.datetime | None = None) -> int:
 
 
 @transaction.atomic
-def notificar_resultados(estudios, *, al_doctor: bool = False) -> list[Notificacion]:
+def notificar_resultados(estudios, *, al_doctor: bool = False, usuario=None) -> list[Notificacion]:
     """
     Lo llama `pedidos.services.enviar_resultados`. Una fila por estudio y canal; el worker
     junta los de un mismo envío en un solo mensaje con un solo PDF.
@@ -174,6 +179,7 @@ def notificar_resultados(estudios, *, al_doctor: bool = False) -> list[Notificac
         TipoNotificacion.RESULTADOS,
         _destinatarios_o_error(pedido.cita.paciente.persona),
         estudios=estudios,
+        usuario=usuario,
     )
     if al_doctor:
         filas += _crear(
@@ -181,6 +187,7 @@ def notificar_resultados(estudios, *, al_doctor: bool = False) -> list[Notificac
             destinatarios_doctor(pedido.doctor),
             estudios=estudios,
             destino_tipo=DestinoTipo.DOCTOR,
+            usuario=usuario,
         )
     return filas
 

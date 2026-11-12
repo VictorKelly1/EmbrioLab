@@ -6,7 +6,7 @@
 <div class="encabezado">
   <div>
     <h1>Calendario de citas</h1>
-    <p class="encabezado__descripcion">{% if puede_agendar %}Citas de 30 minutos. Elija un horario libre para agendar.{% else %}Citas de 30 minutos. Consulte las próximas para preparar lo necesario; las agenda la recepción.{% endif %}</p>
+    <p class="encabezado__descripcion">{% if puede_agendar %}Citas de 30 minutos. Elija un horario libre para agendar.{% else %}Citas de 30 minutos. Abra una cita para ver sus detalles y preparar lo necesario; las agenda la recepción.{% endif %}</p>
   </div>
   {% if puede_agendar %}
   <div class="acciones">
@@ -53,7 +53,7 @@
             {% for celda in fila.celdas %}
             <td{% if celda.pasada %} class="agenda__pasada"{% endif %}>
               {% for cita in celda.citas %}
-                {% if puede_agendar %}<a class="cita-bloque cita-bloque--{{ cita.estado }}" href="{% url 'citas:detalle' cita.pk %}">{% else %}<span class="cita-bloque cita-bloque--{{ cita.estado }}">{% endif %}
+                <a class="cita-bloque cita-bloque--{{ cita.estado }}" href="{% url 'citas:detalle' cita.pk %}">
                   <span class="cita-bloque__hora">{{ cita.fecha_hora|time:'H:i' }}</span>
                   <span class="cita-bloque__nombre">{{ cita.nombre_paciente }}</span>
                   {% if vista == 'dia' %}
@@ -61,7 +61,7 @@
                   {% else %}
                     <span class="visualmente-oculto">, {{ cita.get_estado_display }}</span>
                   {% endif %}
-                {% if puede_agendar %}</a>{% else %}</span>{% endif %}
+                </a>
               {% empty %}
                 {% if puede_agendar and not celda.pasada %}
                 <a class="hueco" href="{% url 'citas:agendar' %}?fecha_hora={{ celda.inicio|date:'Y-m-d\TH:i' }}">
@@ -91,11 +91,11 @@
     <ol class="proximas__lista">
       {% for cita in proximas %}
       <li>
-        {% if puede_agendar %}<a href="{% url 'citas:detalle' cita.pk %}">{% else %}<div>{% endif %}
+        <a href="{% url 'citas:detalle' cita.pk %}">
           <span class="proximas__cuando">{% if cita.fecha_hora|date:'Y-m-d' == hoy|date:'Y-m-d' %}Hoy{% else %}{{ cita.fecha_hora|date:'D j M'|capfirst }}{% endif %} · {{ cita.fecha_hora|time:'H:i' }}</span>
           <span class="proximas__nombre">{{ cita.nombre_paciente }}{% if cita.sin_registro %} <span class="tenue">· sin registro</span>{% endif %}</span>
           {% if cita.asunto %}<span class="proximas__asunto">{{ cita.asunto }}</span>{% endif %}
-        {% if puede_agendar %}</a>{% else %}</div>{% endif %}
+        </a>
       </li>
       {% endfor %}
     </ol>

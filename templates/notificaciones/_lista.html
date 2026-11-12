@@ -8,6 +8,7 @@
         {% if con_estudio %}<th scope="col">Estudio</th>{% else %}<th scope="col">Tipo</th>{% endif %}
         <th scope="col">Canal</th>
         <th scope="col" class="tabla__opcional">Destinatario</th>
+        <th scope="col">Envió</th>
         <th scope="col">Estado</th>
       </tr>
     </thead>
@@ -18,6 +19,7 @@
         {% if con_estudio %}<td>{{ notificacion.estudio_pedido.estudio.nombre|default:'—' }}</td>{% else %}<td>{{ notificacion.get_tipo_display }}</td>{% endif %}
         <td>{{ notificacion.get_canal_display }}</td>
         <td class="tabla__opcional">{{ notificacion.destinatario }}{% if notificacion.destino_tipo == 'doctor' %} <span class="etiqueta">Doctor</span>{% endif %}</td>
+        <td>{% if notificacion.usuario %}{{ notificacion.usuario.persona.nombre_completo }}{% elif notificacion.tipo == 'recordatorio' %}<span class="tenue">Automático</span>{% else %}<span class="tenue">—</span>{% endif %}</td>
         <td>
           <span class="etiqueta etiqueta--{{ notificacion.estado }}">{{ notificacion.get_estado_display }}</span>
           {% if notificacion.fecha_envio %}<span class="tabla__nota">{{ notificacion.fecha_envio|date:'j/m/Y H:i' }}</span>{% endif %}

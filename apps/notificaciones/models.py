@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
@@ -53,6 +54,16 @@ class Notificacion(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name='notificaciones',
+    )
+    # Quién lo mandó (cambio del cliente, 2026-11-11). Nulo = automático (el recordatorio)
+    # o un envío anterior a este campo.
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='+',
+        verbose_name='envió',
     )
     estado = models.CharField(
         max_length=10, choices=EstadoNotificacion.choices, default=EstadoNotificacion.PENDIENTE

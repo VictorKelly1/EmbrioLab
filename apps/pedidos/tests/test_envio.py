@@ -48,6 +48,17 @@ def test_registra_quien_envio_y_cuando(pedido, usuario):
     assert estudio.usuario_envio == usuario
 
 
+def test_cada_envio_registra_quien_lo_hizo(pedido, usuario):
+    estudio = estudio_completado(pedido=pedido)
+    enviar_resultados([estudio], usuario=usuario)
+    otro = QuimicoFactory().usuario
+    enviar_resultados([estudio], usuario=otro)
+    assert {n.usuario for n in Notificacion.objects.all()} == {usuario, otro}
+    # El primer envío del estudio no cambia.
+    estudio.refresh_from_db()
+    assert estudio.usuario_envio == usuario
+
+
 def test_el_pedido_se_completa_al_enviar_todo(pedido, usuario):
     uno = estudio_completado(pedido=pedido)
     dos = estudio_completado('PLIP', _plip(), pedido=pedido)
@@ -140,6 +151,8 @@ def test_el_quimico_envia_desde_el_pedido(
     assert 'Se enviará 1 estudio al paciente' in detalle
     assert 'Entrega de resultados' in detalle
     assert 'Enviado' in detalle
+    # Se ve quién hizo el envío.
+    assert usuario.persona.nombre_completo in detalle
 
 
 def test_la_recepcion_no_envia_resultados(client, pedido):

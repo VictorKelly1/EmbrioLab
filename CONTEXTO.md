@@ -30,7 +30,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
 | **Recepcionista** | Agenda citas desde un calendario, a pacientes registrados o **sin registro** (y registra al paciente cuando llega). Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y les agrega **observaciones**. **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
-| **Químico** | **Toma pacientes de la «Cola de pedidos»**: al tomar a un paciente se queda con todos sus estudios pendientes, de todos sus pedidos. Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario de citas en solo lectura** (no agenda ni cambia citas). |
+| **Químico** | **Toma pacientes de la «Cola de pedidos»**: al tomar a un paciente se queda con todos sus estudios pendientes, de todos sus pedidos. Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario y el detalle de las citas en solo lectura** (no agenda, no cambia citas ni envía el link). |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
 **Fuera de la Fase 1** (dejar preparado, NO implementar):
@@ -108,7 +108,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 
 ### Notificaciones
 - Se envían por **correo y WhatsApp**. Los resultados van al paciente y, si el químico lo elige, también al doctor del pedido. La API de WhatsApp se integra después: deja la abstracción lista.
-- Todo envío queda registrado en la tabla `Notificaciones`, **excepto las cotizaciones** (ver abajo).
+- Todo envío queda registrado en la tabla `Notificaciones`, **excepto las cotizaciones** (ver abajo), con **quién lo hizo**; el recordatorio es automático y no tiene usuario. La lista de envíos de la cita y del pedido lo muestra.
 
 ## 4. Base de datos
 
@@ -158,7 +158,7 @@ Los nombres del E-R usan la convención del diseño original. **En Django:** mod
 ### Notificaciones
 | Tabla | Campos |
 |---|---|
-| **Notificaciones** | Id, Tipo (recordatorio/qr/resultados), Canal (correo/whatsapp), Destinatario, DestinoTipo (paciente/doctor), IdCita (null), IdEstudioPedido (null), Estado (pendiente/enviado/fallido), Error, FechaEnvio |
+| **Notificaciones** | Id, Tipo (recordatorio/qr/resultados), Canal (correo/whatsapp), Destinatario, DestinoTipo (paciente/doctor), IdCita (null), IdEstudioPedido (null), IdUsuario (null = automático: quién hizo el envío), Estado (pendiente/enviado/fallido), Error, FechaEnvio |
 
 ### Índices mínimos
 - `Citas(fecha_hora)`
@@ -373,3 +373,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: cambio del cliente — **corregir hasta enviar**: un estudio completado ya se puede corregir; deja de poder cambiarse cuando se envían sus resultados (antes no se podía corregir nada después de completarlo).
 - 2026-11-11: cambio del cliente — **citas sin registro**: `Citas.IdPaciente` pasa a ser opcional y la cita guarda nombre, apellido paterno, género, teléfono y correo de quien agenda sin estar registrado. El paciente se registra (o se elige) al llegar, y entonces la cita queda atendida. Antes había que registrar al paciente para agendar.
 - 2026-11-11: **datos de ejemplo** — comando de desarrollo `cargar_demo` (`apps/core/demo.py`): borra todo menos los usuarios, el catálogo y los formularios de las migraciones, y carga un escenario de ejemplo con los servicios. Es el único lugar que hace borrado físico de pacientes (solo con `DEBUG=True` y `--confirmar`).
+- 2026-11-11: cambio del cliente — **quién envió y detalle de la cita para químicos**: `Notificaciones` agrega `IdUsuario` (nulo en el recordatorio automático y en los envíos anteriores al cambio) y la lista de envíos muestra quién los hizo. El químico ya puede abrir el detalle de la cita desde el calendario, en solo lectura (antes solo veía el calendario).
