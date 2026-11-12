@@ -12,6 +12,12 @@ docker compose exec web python manage.py migrate
 docker compose exec web python manage.py crear_admin
 ```
 
+- Datos de ejemplo (solo con `DEBUG=True`): `docker compose exec web python manage.py cargar_demo --confirmar`.
+  BORRA pacientes, doctores, citas, pedidos y notificaciones y carga un escenario con todos los
+  estados del flujo. Conserva los usuarios, el catálogo y los formularios de las migraciones.
+  Necesita al menos una recepcionista y un químico activos. Con `--solo-borrar` no carga nada.
+- Si cambia el código de las tareas o el comando de recordatorios, reinicie esos servicios:
+  `docker compose restart worker recordatorios` (no se recargan solos).
 - Pruebas: `docker compose exec web pytest`
 - Lint y formato: `docker compose exec web ruff check .` y `docker compose exec web ruff format .`
 - Logs: `docker compose logs -f web`
