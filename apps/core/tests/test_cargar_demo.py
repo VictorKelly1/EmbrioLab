@@ -3,6 +3,7 @@ from django.core.management import CommandError, call_command
 
 from apps.citas.models import Cita, EstadoCita
 from apps.citas.tests.factories import CitaFactory
+from apps.core.demo import USUARIOS
 from apps.cuentas.models import Usuario
 from apps.cuentas.tests.factories import QuimicoFactory, RecepcionistaFactory
 from apps.estudios.models import EstudioAlias
@@ -86,6 +87,20 @@ def test_solo_borrar(en_desarrollo, personal):
     call_command('cargar_demo', '--confirmar', '--solo-borrar')
     assert not Cita.objects.exists()
     assert not Paciente.objects.exists()
+
+
+def test_con_usuarios_desde_una_base_vacia(en_desarrollo, monkeypatch, capsys):
+    monkeypatch.setenv('DEMO_PASSWORD', 'Demo-local-2026!')
+    call_command('cargar_demo', '--confirmar', '--con-usuarios')
+    assert 'Demo-local-2026!' in capsys.readouterr().out
+    correos = set(Usuario.objects.values_list('correo', flat=True))
+    assert correos == {u[0] for u in USUARIOS}
+    assert Usuario.objects.get(correo='quimico@embriolab.local').check_password('Demo-local-2026!')
+    assert Paciente.objects.count() == 6
+    # La segunda vez no los repite ni cambia su contraseña.
+    call_command('cargar_demo', '--confirmar', '--con-usuarios')
+    assert 'ya existían' in capsys.readouterr().out
+    assert Usuario.objects.count() == len(USUARIOS)
 
 
 def test_sin_personal_avisa_sin_borrar(en_desarrollo):

@@ -6,13 +6,27 @@ Antes de trabajar en el repo, lee `CONTEXTO.md`.
 ## Desarrollo local
 
 ```bash
-cp .env.example .env              # y ajusta los valores
+cp .env.example .env              # en desarrollo sirve tal cual
 docker compose up --build -d      # postgres + Django en http://localhost:8000 + worker + recordatorios
 docker compose exec web python manage.py migrate
-docker compose exec web python manage.py crear_admin
+docker compose restart worker recordatorios   # arrancan antes de que existan las tablas
+docker compose exec web python manage.py cargar_demo --confirmar --con-usuarios
 ```
 
-- Datos de ejemplo (solo con `DEBUG=True`): `docker compose exec web python manage.py cargar_demo --confirmar`.
+El último paso crea los usuarios de ejemplo y un escenario con pacientes, citas y pedidos en
+todos los estados. Entre en http://localhost:8000 con cualquiera de ellos; la contraseña sale
+en la terminal (o fíjela antes con `DEMO_PASSWORD=...` en `.env`):
+
+| Correo | Rol |
+|---|---|
+| `admin@embriolab.local` | Administrador |
+| `recepcion@embriolab.local` | Recepcionista |
+| `quimico@embriolab.local` | Químico (Rubén) |
+| `quimico2@embriolab.local` | Químico (Laura) |
+
+Para un administrador con datos propios: `docker compose exec web python manage.py crear_admin`.
+
+- Reiniciar los datos de ejemplo (solo con `DEBUG=True`): `docker compose exec web python manage.py cargar_demo --confirmar`.
   BORRA pacientes, doctores, citas, pedidos y notificaciones y carga un escenario con todos los
   estados del flujo. Conserva los usuarios, el catálogo y los formularios de las migraciones.
   Necesita al menos una recepcionista y un químico activos. Con `--solo-borrar` no carga nada.
