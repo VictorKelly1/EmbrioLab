@@ -197,7 +197,8 @@ def test_pago_desde_la_fila(recepcion, pedido):
 
 def test_la_recepcion_no_toma_estudios(recepcion, pedido):
     estudio = pedido.estudios.first()
-    respuesta = recepcion.post(reverse('pedidos:estudio_tomar', args=[estudio.pk]))
+    paciente = estudio.pedido.cita.paciente
+    respuesta = recepcion.post(reverse('pedidos:paciente_tomar', args=[paciente.pk]))
     assert respuesta.status_code == 403
     assert recepcion.get(reverse('pedidos:cola')).status_code == 403
 
@@ -254,18 +255,22 @@ def test_pedido_de_otra_fabrica_se_ve(recepcion):
 
 
 def test_el_detalle_muestra_el_encargado_sin_casillas(recepcion, pedido):
-    from apps.pedidos.services import tomar_estudio
-
-    estudio, otro = pedido.estudios.order_by('id')
-    quimico = QuimicoFactory()
-    tomar_estudio(estudio, quimico=quimico)
     respuesta = recepcion.get(reverse('pedidos:detalle', args=[pedido.pk]))
-    assert quimico.usuario.persona.nombre_completo in respuesta.text
     assert 'En la cola' in respuesta.text
-    assert 'quimicos' not in respuesta.text
-    assert f'form="fila-{otro.pk}"' in respuesta.text
+    assert 'Ningún químico tiene a este paciente' in respuesta.text
     # Tomar es solo del químico.
-    assert reverse('pedidos:estudio_tomar', args=[otro.pk]) not in respuesta.text
+    paciente = pedido.cita.paciente
+    assert reverse('pedidos:paciente_tomar', args=[paciente.pk]) not in respuesta.text
+
+    from apps.pedidos.services import tomar_paciente
+
+    quimico = QuimicoFactory()
+    tomar_paciente(paciente, quimico=quimico)
+    respuesta = recepcion.get(reverse('pedidos:detalle', args=[pedido.pk]))
+    assert respuesta.text.count(quimico.usuario.persona.nombre_completo) == 3
+    assert 'quimicos' not in respuesta.text
+    otro = pedido.estudios.order_by('id').last()
+    assert f'form="fila-{otro.pk}"' in respuesta.text
 
 
 def test_armar_pedido_ya_no_pide_quimicos(recepcion, cita):

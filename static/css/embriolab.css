@@ -2150,6 +2150,26 @@ a.cita-bloque:hover {
   gap: 0.375rem;
 }
 
+.toma-paciente {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radio);
+  background: var(--lavanda-tenue);
+}
+
+.toma-paciente__estado {
+  margin: 0;
+  flex: 1 1 16rem;
+}
+
+.toma-paciente__estado .tenue {
+  margin-left: 0.25rem;
+}
+
 .encargado__opciones summary {
   cursor: pointer;
   font-size: 0.875rem;

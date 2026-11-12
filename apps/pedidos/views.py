@@ -4,6 +4,7 @@ from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -15,6 +16,7 @@ from apps.estudios.selectors import referencias_para, sugerir_estudios
 from apps.formularios.selectors import respuestas_de
 from apps.notificaciones.selectors import notificaciones_de_pedido
 from apps.notificaciones.services import destinatarios, destinatarios_doctor
+from apps.pacientes.models import Paciente
 from apps.pedidos.forms import (
     DoctorPedidoForm,
     EnviarResultadosForm,
@@ -31,11 +33,12 @@ from apps.pedidos.models import EstadoEstudio, EstadoPedido, EstudioPedido, Pedi
 from apps.pedidos.resultados import filas
 from apps.pedidos.selectors import (
     buscar_pedidos,
-    cola_de_estudios,
+    cola_por_paciente,
     estudios_completados,
     historial_de_paciente,
     obtener_estudio_pedido,
     obtener_pedido,
+    toma_del_paciente,
 )
 from apps.pedidos.services import (
     agregar_estudio,
@@ -47,11 +50,10 @@ from apps.pedidos.services import (
     crear_pedido,
     enviar_resultados,
     guardar_borrador,
+    pasar_paciente,
     quitar_estudio,
-    reasignar_estudio,
-    soltar_estudio,
-    tiene_captura,
-    tomar_estudio,
+    soltar_paciente,
+    tomar_paciente,
 )
 
 POR_PAGINA = 25
@@ -173,10 +175,6 @@ class PedidoDetalleView(RolRequerido, TemplateView):
         for estudio in estudios:
             estudio.completado = estudio.estado == EstadoEstudio.COMPLETADO
             estudio.puede_capturar = _puede_capturar(estudio, quimico)
-            estudio.puede_tomar = quimico is not None and _en_cola(estudio)
-            estudio.puede_soltar = _puede_soltar(estudio, quimico)
-            if estudio.puede_soltar:
-                estudio.reasignar_form = ReasignarForm(quimico=quimico, prefix=f'pasar{estudio.pk}')
             if puede_editar:
                 estudio.form = EstudioPedidoForm(
                     prefix=f'fila{estudio.pk}', initial={'estado_pago': estudio.estado_pago}
@@ -190,6 +188,7 @@ class PedidoDetalleView(RolRequerido, TemplateView):
         return super().get_context_data(
             pedido=pedido,
             estudios=estudios,
+            **_contexto_toma(pedido.cita.paciente, quimico),
             hay_completados=any(e.completado for e in estudios),
             enviar_form=(
                 EnviarResultadosForm(completados=completados) if quimico is not None else None
@@ -217,16 +216,13 @@ def _puede_capturar(estudio_pedido, quimico) -> bool:
     )
 
 
-def _en_cola(estudio_pedido) -> bool:
-    return (
-        estudio_pedido.estado == EstadoEstudio.PENDIENTE
-        and estudio_pedido.quimico_encargado_id is None
-    )
-
-
-def _puede_soltar(estudio_pedido, quimico) -> bool:
-    """Su encargado, mientras no haya capturado nada. El servicio lo vuelve a revisar."""
-    return _puede_capturar(estudio_pedido, quimico) and not tiene_captura(estudio_pedido)
+def _contexto_toma(paciente, quimico) -> dict:
+    """Quién tiene al paciente y los botones de tomar, soltar y pasar (CONTEXTO.md §3)."""
+    toma = toma_del_paciente(paciente, quimico)
+    return {
+        'toma': toma,
+        'pasar_form': ReasignarForm(quimico=quimico) if toma.puede_soltar else None,
+    }
 
 
 class EstudioPedidoResultadosView(RolRequerido, TemplateView):
@@ -307,7 +303,7 @@ class EstudioPedidoResultadosView(RolRequerido, TemplateView):
             pedido=estudio_pedido.pedido,
             paciente=paciente,
             definicion=self.definicion,
-            puede_tomar=self.quimico is not None and _en_cola(estudio_pedido),
+            **_contexto_toma(paciente, self.quimico),
             completado=estudio_pedido.estado == EstadoEstudio.COMPLETADO,
             calculados=self.definicion.calculados if self.definicion else (),
             filas=filas(estudio_pedido),
@@ -324,7 +320,7 @@ class ColaView(RolRequerido, TemplateView):
     template_name = 'pedidos/cola.html'
 
     def get_context_data(self, **kwargs):
-        return super().get_context_data(estudios=list(cola_de_estudios()), **kwargs)
+        return super().get_context_data(pacientes=cola_por_paciente(), **kwargs)
 
 
 class _AccionPedidoView(RolRequerido, View):
@@ -403,40 +399,64 @@ class EstudioPedidoActualizarView(_AccionPedidoView):
         return 'Pago actualizado.'
 
 
-class EstudioTomarView(_AccionPedidoView):
-    """El químico toma un estudio de la cola: queda a su cargo y en proceso."""
+class _AccionPacienteView(RolRequerido, View):
+    """
+    Tomar, soltar o pasar a un paciente con todos sus estudios (CONTEXTO.md §3).
+    Vuelve a la pantalla de origen (`siguiente`) o a la cola.
+    """
 
     roles = [Rol.QUIMICO]
-    modelo = EstudioPedido
+    http_method_names = ['post']
 
-    def ejecutar(self, estudio_pedido):
-        tomar_estudio(estudio_pedido, quimico=self.request.user.quimico)
+    def post(self, request, pk):
+        paciente = get_object_or_404(Paciente.objects.select_related('persona'), pk=pk)
+        quimico = request.user.quimico
+        try:
+            mensaje = self.ejecutar(paciente, quimico)
+        except ValidationError as error:
+            messages.error(request, _mensaje(error))
+        else:
+            messages.success(request, mensaje)
+        siguiente = request.POST.get('siguiente', '')
+        if url_has_allowed_host_and_scheme(
+            siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            return redirect(siguiente)
+        return redirect('pedidos:cola')
+
+
+def _cuantos(estudios) -> str:
+    return f'{len(estudios)} estudio{"" if len(estudios) == 1 else "s"}'
+
+
+class PacienteTomarView(_AccionPacienteView):
+    def ejecutar(self, paciente, quimico):
+        estudios = tomar_paciente(paciente, quimico=quimico)
         return (
-            f'{estudio_pedido.estudio} del pedido {estudio_pedido.pedido.numero} '
-            'quedó a su cargo. Aparece en su lista de trabajo.'
+            f'{paciente.persona.nombre_completo} quedó a su cargo con {_cuantos(estudios)}. '
+            'Aparecen en su lista de trabajo.'
         )
 
 
-class EstudioSoltarView(_AccionPedidoView):
-    roles = [Rol.QUIMICO]
-    modelo = EstudioPedido
-
-    def ejecutar(self, estudio_pedido):
-        soltar_estudio(estudio_pedido, quimico=self.request.user.quimico)
-        return f'{estudio_pedido.estudio} regresó a la cola.'
+class PacienteSoltarView(_AccionPacienteView):
+    def ejecutar(self, paciente, quimico):
+        estudios = soltar_paciente(paciente, quimico=quimico)
+        return f'{paciente.persona.nombre_completo} regresó a la cola con {_cuantos(estudios)}.'
 
 
-class EstudioReasignarView(_AccionPedidoView):
-    roles = [Rol.QUIMICO]
-    modelo = EstudioPedido
-
-    def ejecutar(self, estudio_pedido):
-        quimico = self.request.user.quimico
-        nuevo = self._form(
-            ReasignarForm, quimico=quimico, prefix=f'pasar{estudio_pedido.pk}'
-        ).cleaned_data['quimico']
-        reasignar_estudio(estudio_pedido, nuevo, quimico=quimico)
-        return f'{estudio_pedido.estudio} quedó a cargo de {nuevo.usuario.persona.nombre_completo}.'
+class PacientePasarView(_AccionPacienteView):
+    def ejecutar(self, paciente, quimico):
+        form = ReasignarForm(self.request.POST, quimico=quimico)
+        if not form.is_valid():
+            raise ValidationError(
+                [e for errores in form.errors.values() for e in errores] or 'Datos no válidos.'
+            )
+        nuevo = form.cleaned_data['quimico']
+        pasar_paciente(paciente, nuevo, quimico=quimico)
+        return (
+            f'{paciente.persona.nombre_completo} quedó a cargo de '
+            f'{nuevo.usuario.persona.nombre_completo}.'
+        )
 
 
 class EstudioPedidoQuitarView(_AccionPedidoView):

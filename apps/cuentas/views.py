@@ -12,7 +12,7 @@ from apps.cuentas.forms import FormularioEntrar, UsuarioForm
 from apps.cuentas.models import Rol
 from apps.cuentas.selectors import listar_usuarios
 from apps.cuentas.services import registrar_usuario
-from apps.pedidos.selectors import cola_de_estudios, lista_de_trabajo
+from apps.pedidos.selectors import cola_por_paciente, lista_de_trabajo
 
 
 class EntrarView(LoginView):
@@ -36,7 +36,7 @@ class InicioView(RolRequerido, TemplateView):
         if usuario.tiene_rol(Rol.QUIMICO):
             kwargs['trabajo'] = list(lista_de_trabajo(usuario.quimico))
             kwargs['quimico'] = usuario.quimico
-            kwargs['en_cola'] = cola_de_estudios().count()
+            kwargs['en_cola'] = len(cola_por_paciente())
         return super().get_context_data(rol=usuario.rol_principal, **kwargs)
 
 

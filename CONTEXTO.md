@@ -30,7 +30,7 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 |---|---|
 | **Paciente** | Es una entidad del sistema, **sin acceso**. Recibe un recordatorio de su cita 24 h antes y un link/QR para llenar su formulario. Recibe sus resultados. |
 | **Recepcionista** | Agenda citas desde un calendario. Registra, edita, busca y da de baja lógica a pacientes. Marca la cita como atendida o no atendida y envía el QR del formulario. Arma **cotizaciones** de un conjunto de estudios (ver §3). Arma los **pedidos** (relaciona el nombre que dio el doctor con el catálogo de estudios, usando alias) y les agrega **observaciones**. **No asigna químicos:** los estudios quedan en la cola de los químicos. Registra el estado de pago. |
-| **Químico** | **Toma estudios de la «Cola de pedidos»** (los pendientes sin encargado, agrupados por pedido). Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario de citas en solo lectura** (no agenda ni cambia citas). |
+| **Químico** | **Toma pacientes de la «Cola de pedidos»**: al tomar a un paciente se queda con todos sus estudios pendientes, de todos sus pedidos. Ve **todos** los pedidos, actuales e históricos, **con filtros** (por químico encargado, estado, paciente, fecha…). Captura resultados; el sistema hace los cálculos internos. Completa estudios y envía los resultados, uno por uno o en conjunto, al paciente y, si se elige, al doctor del pedido. Consulta al paciente y el catálogo. **Ve, registra y edita doctores.** **Ve el calendario de citas en solo lectura** (no agenda ni cambia citas). |
 | **Administrador** | En la Fase 1: registro de usuarios y reportes generales. Los reportes se definirán cuando el cliente los entregue. |
 
 **Fuera de la Fase 1** (dejar preparado, NO implementar):
@@ -72,8 +72,9 @@ Un usuario tiene **un solo rol**, pero la BD está normalizada para permitir var
 - Una cita puede tener **varios pedidos** (1:N). Un pedido tiene N estudios (tabla EstudiosPedido).
 - **Estados de un estudio:** `pendiente → en_proceso → completado`.
   - "Enviado" = `fecha_envio` no nula, y **solo es posible después de completado**.
-  - **Cola de químicos:** un estudio `pendiente` no tiene encargado y espera en la cola. Un químico lo **toma** y queda como su **único encargado**; el estudio pasa a `en_proceso`. Un químico puede tomar varios estudios del mismo pedido.
-  - El encargado puede **soltarlo** (vuelve a la cola, `pendiente`) o **pasarlo** a otro químico, solo mientras no haya capturado nada.
+  - **Cola de químicos (por paciente):** un estudio `pendiente` no tiene encargado y espera en la cola, que se agrupa por paciente. Un químico **toma al paciente**: todos sus estudios pendientes, de todos sus pedidos, pasan a `en_proceso` con él como **único encargado** (se guarda en cada estudio).
+  - Mientras el paciente tenga estudios en proceso, ese químico es su encargado: los estudios que se le agreguen después (al pedido o en un pedido nuevo) **quedan a su cargo automáticamente**. Otro químico no puede tomarlo.
+  - El encargado puede **soltar al paciente** (sus estudios en proceso vuelven a la cola) o **pasarlo** a otro químico, solo mientras no haya capturado nada de ninguno.
   - La lista de trabajo del químico son los estudios `en_proceso` a su cargo.
 - Un pedido está **completado** cuando todos sus estudios están completados **y** enviados, estén pagados o no.
 - `Pedido.estado`, `Pedido.estado_pago` y `Pedido.total_pago` son **derivados**. Se guardan en la tabla, pero **solo los actualiza un servicio** (ver §6).
@@ -319,7 +320,8 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 ### Químico (semana 7)
 - **Quién captura.** Decidido (2026-11-03): solo el químico encargado. Los demás químicos y la recepción solo ven los resultados.
 - **Soltar o pasar con borrador.** Decidido: solo sin captura. Provisional: un borrador sin ningún valor no cuenta como captura.
-- **Cola.** Provisional: muestra solo los estudios de citas atendidas (los pedidos solo se arman de citas atendidas). Pasar un estudio no le pide permiso al químico que lo recibe.
+- **Cola.** Provisional: muestra solo los estudios de citas atendidas (los pedidos solo se arman de citas atendidas). Pasar a un paciente no le pide permiso al químico que lo recibe.
+- **Toma por paciente.** Decidido (2026-11-11): se toma, se suelta y se pasa al paciente con todos sus estudios, y los nuevos se asignan solos a su encargado. Provisional: el paciente deja de tener encargado cuando ya no tiene estudios en proceso (por ejemplo, si todos están completados); entonces lo nuevo va a la cola. Si el encargado está dado de baja, lo nuevo también va a la cola. Con un solo estudio capturado ya no se puede soltar ni pasar al paciente.
 - **Borrador.** Provisional: el químico puede guardar lo capturado sin completar; el estudio sigue en proceso. Para completarlo hacen falta todos los campos.
 - **Corregir un estudio completado.** Provisional: no se puede. ¿Hace falta reabrirlo (por ejemplo, antes de enviarlo)? ¿Quién lo autoriza?
 - **Fuera de rango.** Provisional: un valor menor al mínimo se marca como «bajo» y uno mayor al máximo como «alto», según la referencia copiada. Los textos de referencia no se marcan.
@@ -364,3 +366,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: cambio del cliente — **calendario para químicos**: los químicos ven el calendario de citas en solo lectura, para preparar lo necesario. Solo la recepción agenda, reprograma o marca citas; el químico no abre el detalle de la cita.
 - 2026-11-11: cambio del cliente — **observaciones del pedido**: tabla `ObservacionesPedido` con notas libres (p. ej. si el paciente quiere los resultados juntos o conforme salgan). Las escribe la recepción y se ven en el detalle del pedido.
 - 2026-11-11: cambio del cliente — **estudios libres en la cotización**: además de los del catálogo, la recepción escribe estudios que no tiene guardados (nombre, precio y categoría opcional). Siguen sin guardarse en la BD.
+- 2026-11-11: cambio del cliente — **toma por paciente**: los químicos ya no toman estudio por estudio; toman, sueltan y pasan al paciente con todos sus estudios pendientes de todos sus pedidos. Los estudios nuevos de un paciente con encargado se le asignan automáticamente. La BD no cambia: el encargado sigue guardándose en cada estudio.

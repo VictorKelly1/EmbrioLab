@@ -1,0 +1,34 @@
+{% comment %}
+Quién tiene al paciente y, para el químico, tomar, soltar o pasar al paciente con todos sus
+estudios (CONTEXTO.md §3). Recibe `toma`, `pasar_form`, `paciente` y `siguiente` (a dónde volver).
+{% endcomment %}
+<div class="toma-paciente">
+  <p class="toma-paciente__estado">
+    {% if toma.encargado %}Paciente a cargo de <strong>{{ toma.encargado.usuario.persona.nombre_completo }}</strong>.
+    {% else %}Ningún químico tiene a este paciente.{% endif %}
+    {% if toma.en_espera %}<span class="tenue">{{ toma.en_espera }} estudio{{ toma.en_espera|pluralize }} en la cola.</span>{% endif %}
+  </p>
+  {% if toma.puede_tomar %}
+  <form method="post" action="{% url 'pedidos:paciente_tomar' paciente.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="siguiente" value="{{ siguiente }}">
+    <button type="submit" class="boton boton--principal boton--chico">Tomar al paciente<span class="visualmente-oculto"> {{ paciente.persona.nombre_completo }}</span></button>
+  </form>
+  {% endif %}
+  {% if toma.puede_soltar %}
+  <details class="encargado__opciones">
+    <summary>Soltar o pasar al paciente</summary>
+    <form method="post" action="{% url 'pedidos:paciente_pasar' paciente.pk %}" class="en-fila">
+      {% csrf_token %}
+      <input type="hidden" name="siguiente" value="{{ siguiente }}">
+      {% with campo=pasar_form.quimico %}{% include 'includes/campo.html' %}{% endwith %}
+      <button type="submit" class="boton boton--secundario boton--chico">Pasar</button>
+    </form>
+    <form method="post" action="{% url 'pedidos:paciente_soltar' paciente.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="siguiente" value="{{ siguiente }}">
+      <button type="submit" class="enlace enlace--peligro">Regresar a la cola</button>
+    </form>
+  </details>
+  {% endif %}
+</div>

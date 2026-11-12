@@ -1,24 +1,4 @@
-{% comment %}Celda del encargado de un estudio en el detalle del pedido, con lo que el químico puede hacer.{% endcomment %}
-<div class="encargado">
-  {% if estudio.quimico_encargado %}<span>{{ estudio.quimico_encargado.usuario.persona.nombre_completo }}</span>
-  {% else %}<span class="tenue">En la cola</span>{% endif %}
-  {% if estudio.puede_tomar %}
-  <form method="post" action="{% url 'pedidos:estudio_tomar' estudio.pk %}">
-    {% csrf_token %}
-    <button type="submit" class="boton boton--principal boton--chico">Tomar<span class="visualmente-oculto"> {{ estudio.estudio.nombre }}</span></button>
-  </form>
-  {% elif estudio.puede_soltar %}
-  <details class="encargado__opciones">
-    <summary>Soltar o pasar<span class="visualmente-oculto"> {{ estudio.estudio.nombre }}</span></summary>
-    <form method="post" action="{% url 'pedidos:estudio_pasar' estudio.pk %}" class="en-fila">
-      {% csrf_token %}
-      {% with campo=estudio.reasignar_form.quimico %}{% include 'includes/campo.html' %}{% endwith %}
-      <button type="submit" class="boton boton--secundario boton--chico">Pasar</button>
-    </form>
-    <form method="post" action="{% url 'pedidos:estudio_soltar' estudio.pk %}">
-      {% csrf_token %}
-      <button type="submit" class="enlace enlace--peligro">Regresar a la cola</button>
-    </form>
-  </details>
-  {% endif %}
-</div>
+{% comment %}Celda del encargado de un estudio en el detalle del pedido.{% endcomment %}
+{% if estudio.quimico_encargado %}{{ estudio.quimico_encargado.usuario.persona.nombre_completo }}
+{% elif estudio.estado == 'pendiente' %}<span class="tenue">En la cola</span>
+{% else %}<span class="tenue">—</span>{% endif %}

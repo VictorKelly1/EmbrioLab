@@ -71,12 +71,7 @@
   {% else %}
   {% if estudio_pedido.estado == 'pendiente' %}
   <p class="tenue">Nadie ha tomado este estudio: espera en la cola de los químicos.</p>
-  {% if puede_tomar %}
-  <form method="post" action="{% url 'pedidos:estudio_tomar' estudio_pedido.pk %}">
-    {% csrf_token %}
-    <button type="submit" class="boton boton--principal">Tomar el estudio</button>
-  </form>
-  {% endif %}
+  {% include 'pedidos/_toma_paciente.html' with siguiente=request.get_full_path %}
   {% else %}<p class="tenue">Todavía no hay resultados capturados.</p>{% endif %}
   {% endif %}
 </section>

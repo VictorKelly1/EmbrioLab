@@ -96,7 +96,7 @@ class EstudioPedidoForm(forms.Form):
 
 
 class ReasignarForm(forms.Form):
-    """El encargado pasa el estudio a otro químico activo."""
+    """El encargado pasa al paciente (con todos sus estudios) a otro químico activo."""
 
     quimico = QuimicoField(label='Pasar a', queryset=None, empty_label='Elija un químico')
 

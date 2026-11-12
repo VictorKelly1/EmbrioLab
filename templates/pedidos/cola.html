@@ -6,41 +6,39 @@
 <div class="encabezado">
   <div>
     <h1>Cola de pedidos</h1>
-    <p class="encabezado__descripcion">Estudios que nadie ha tomado, los pedidos más antiguos primero. Al tomar un estudio queda a su cargo y pasa a su lista de trabajo.</p>
+    <p class="encabezado__descripcion">Pacientes con estudios que nadie ha tomado, los que llevan más tiempo esperando primero. Al tomar a un paciente, todos sus estudios en espera, de todos sus pedidos, quedan a su cargo; los que se le agreguen después también.</p>
   </div>
 </div>
 
-{% if estudios %}
+{% if pacientes %}
 <div class="pila">
-  {% regroup estudios by pedido as pedidos %}
-  {% for grupo in pedidos %}
-  {% with pedido=grupo.grouper %}
-  <section class="tarjeta cola__pedido" aria-labelledby="pedido-{{ pedido.pk }}">
+  {% for grupo in pacientes %}
+  {% with paciente=grupo.paciente %}
+  <section class="tarjeta cola__pedido" aria-labelledby="paciente-{{ paciente.pk }}">
     <div class="tarjeta__encabezado">
-      <h2 id="pedido-{{ pedido.pk }}"><a href="{% url 'pedidos:detalle' pedido.pk %}">Pedido {{ pedido.numero }}</a></h2>
-      <span class="tenue">{{ grupo.list|length }} estudio{{ grupo.list|length|pluralize }} en espera</span>
+      <h2 id="paciente-{{ paciente.pk }}">{{ paciente.persona.nombre_completo }}</h2>
+      <span class="tenue">{{ grupo.estudios|length }} estudio{{ grupo.estudios|length|pluralize }} en espera</span>
     </div>
     <p class="ficha__claves">
-      <span>{{ pedido.cita.paciente.persona.nombre_completo }}</span>
-      <span>Folio <strong>{{ pedido.cita.numero_folio }}</strong></span>
-      <span>Del {{ pedido.fecha_inicio|date:'j/m/Y H:i' }}</span>
-      {% if pedido.doctor %}<span>{{ pedido.doctor }}</span>{% endif %}
+      <span>Folio <strong>{{ grupo.estudios.0.pedido.cita.numero_folio }}</strong></span>
+      <span>Esperando desde el {{ grupo.desde|date:'j/m/Y H:i' }}</span>
+      <span>Pedido{{ grupo.pedidos|length|pluralize }} {% for pedido in grupo.pedidos %}<a href="{% url 'pedidos:detalle' pedido.pk %}">{{ pedido.numero }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</span>
     </p>
     <ul class="cola__estudios">
-      {% for estudio in grupo.list %}
+      {% for estudio in grupo.estudios %}
       <li>
         <span>
           <span class="proximas__nombre">{{ estudio.estudio.nombre }}</span>
           {% if estudio.nombre_solicitado != estudio.estudio.nombre %}<span class="tabla__nota">Orden: «{{ estudio.nombre_solicitado }}»</span>{% endif %}
         </span>
-        <form method="post" action="{% url 'pedidos:estudio_tomar' estudio.pk %}">
-          {% csrf_token %}
-          <input type="hidden" name="volver" value="cola">
-          <button type="submit" class="boton boton--principal boton--chico">Tomar<span class="visualmente-oculto"> {{ estudio.estudio.nombre }} del pedido {{ pedido.numero }}</span></button>
-        </form>
+        {% if grupo.pedidos|length > 1 %}<span class="tenue">Pedido {{ estudio.pedido.numero }}</span>{% endif %}
       </li>
       {% endfor %}
     </ul>
+    <form method="post" action="{% url 'pedidos:paciente_tomar' paciente.pk %}" class="acciones">
+      {% csrf_token %}
+      <button type="submit" class="boton boton--principal boton--chico">Tomar al paciente<span class="visualmente-oculto"> {{ paciente.persona.nombre_completo }}</span></button>
+    </form>
   </section>
   {% endwith %}
   {% endfor %}
@@ -49,7 +47,7 @@
 <div class="vacio">
   {% include 'includes/embrion.html' %}
   <div>
-    <h2>No hay estudios en espera</h2>
+    <h2>No hay pacientes en espera</h2>
     <p>Cuando la recepción arme un pedido, sus estudios aparecerán aquí. <a href="{% url 'inicio' %}">Ver su lista de trabajo</a>.</p>
   </div>
 </div>
