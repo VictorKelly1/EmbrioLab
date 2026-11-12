@@ -91,9 +91,8 @@ class _AliasFormView(RolRequerido, FormView):
 class AliasCrearView(_AliasFormView):
     mensaje_exito = 'Alias guardado.'
 
-    def dispatch(self, request, *args, **kwargs):
-        self.estudio = get_object_or_404(Estudio, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
+    def cargar(self):
+        self.estudio = get_object_or_404(Estudio, pk=self.kwargs['pk'])
 
     def get_initial(self):
         return {'estudio': self.estudio}
@@ -105,12 +104,11 @@ class AliasCrearView(_AliasFormView):
 class AliasEditarView(_AliasFormView):
     mensaje_exito = 'Alias actualizado.'
 
-    def dispatch(self, request, *args, **kwargs):
+    def cargar(self):
         self.alias = get_object_or_404(
-            EstudioAlias.objects.select_related('estudio'), pk=kwargs['pk']
+            EstudioAlias.objects.select_related('estudio'), pk=self.kwargs['pk']
         )
         self.estudio = self.alias.estudio
-        return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self):
         return {'alias': self.alias.alias, 'estudio': self.alias.estudio}
@@ -160,9 +158,8 @@ class _ReferenciaFormView(RolRequerido, FormView):
 class ReferenciaCrearView(_ReferenciaFormView):
     mensaje_exito = 'Valor de referencia guardado.'
 
-    def dispatch(self, request, *args, **kwargs):
-        self.estudio = get_object_or_404(Estudio, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
+    def cargar(self):
+        self.estudio = get_object_or_404(Estudio, pk=self.kwargs['pk'])
 
     def get_initial(self):
         return {'clave_campo': self.request.GET.get('campo', '')}
@@ -174,12 +171,11 @@ class ReferenciaCrearView(_ReferenciaFormView):
 class ReferenciaEditarView(_ReferenciaFormView):
     mensaje_exito = 'Valor de referencia actualizado.'
 
-    def dispatch(self, request, *args, **kwargs):
+    def cargar(self):
         self.valor = get_object_or_404(
-            ValorReferencia.objects.select_related('estudio'), pk=kwargs['pk']
+            ValorReferencia.objects.select_related('estudio'), pk=self.kwargs['pk']
         )
         self.estudio = self.valor.estudio
-        return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self):
         return {campo: getattr(self.valor, campo) for campo in CAMPOS_REFERENCIA}

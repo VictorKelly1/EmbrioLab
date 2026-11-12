@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-11-11
+Última actualización: 2026-11-12
 
 ---
 
@@ -225,7 +225,9 @@ templates/ · static/
 ### Seguridad (obligatorio)
 - **El usuario personalizado va en la PRIMERA migración.** No correr `migrate` antes de tener `AUTH_USER_MODEL`.
 - Contraseñas con Argon2; `django-axes` para bloquear tras intentos fallidos.
-- `RolRequerido(...)` en **cada** vista, más controles por objeto.
+- `RolRequerido(...)` en **cada** vista, más controles por objeto. El objeto de la URL se carga en `cargar()`, después de revisar sesión y rol (nunca en `dispatch`), para no revelar qué ids existen.
+- **Matriz de permisos** en `apps/core/tests/test_permisos.py`: quién entra a cada URL. Toda URL nueva se agrega ahí (la prueba falla si falta).
+- **CI** en GitHub Actions (ruff, migraciones, `check --deploy` y pytest); `main` exige que pase antes del merge.
 - **Token QR:**
   - Se genera con `secrets.token_urlsafe(32)` y en la BD **solo se guarda su hash**.
   - Tiene expiración, es de un solo uso y el endpoint tiene rate limiting.
@@ -374,3 +376,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: cambio del cliente — **citas sin registro**: `Citas.IdPaciente` pasa a ser opcional y la cita guarda nombre, apellido paterno, género, teléfono y correo de quien agenda sin estar registrado. El paciente se registra (o se elige) al llegar, y entonces la cita queda atendida. Antes había que registrar al paciente para agendar.
 - 2026-11-11: **datos de ejemplo** — comando de desarrollo `cargar_demo` (`apps/core/demo.py`): borra todo menos los usuarios, el catálogo y los formularios de las migraciones, y carga un escenario de ejemplo con los servicios. Es el único lugar que hace borrado físico de pacientes (solo con `DEBUG=True` y `--confirmar`).
 - 2026-11-11: cambio del cliente — **quién envió y detalle de la cita para químicos**: `Notificaciones` agrega `IdUsuario` (nulo en el recordatorio automático y en los envíos anteriores al cambio) y la lista de envíos muestra quién los hizo. El químico ya puede abrir el detalle de la cita desde el calendario, en solo lectura (antes solo veía el calendario).
+- 2026-11-12: **CI y matriz de permisos** — GitHub Actions en cada PR y protección de `main`; prueba con la matriz de permisos por URL y rol. `RolRequerido` carga el objeto de la URL en `cargar()`, después de revisar el rol (antes 8 vistas lo buscaban primero y respondían 404 en vez de 403 o del login).

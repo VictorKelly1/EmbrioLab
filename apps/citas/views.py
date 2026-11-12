@@ -191,12 +191,11 @@ class CitaDetalleView(RolRequerido, TemplateView):
     roles = [Rol.RECEPCIONISTA, Rol.QUIMICO]
     template_name = 'citas/detalle.html'
 
-    def dispatch(self, request, *args, **kwargs):
+    def cargar(self):
         try:
-            self.cita = obtener_cita(kwargs['pk'])
+            self.cita = obtener_cita(self.kwargs['pk'])
         except Cita.DoesNotExist as error:
             raise Http404 from error
-        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         cita = self.cita

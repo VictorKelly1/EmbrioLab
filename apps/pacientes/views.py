@@ -112,14 +112,13 @@ class PacienteCrearView(_PacienteFormView):
 
     mensaje_exito = 'Paciente registrado.'
 
-    def dispatch(self, request, *args, **kwargs):
+    def cargar(self):
         self.cita = None
-        pk = request.GET.get('cita', '')
+        pk = self.request.GET.get('cita', '')
         if pk.isdigit():
             self.cita = Cita.objects.filter(
                 pk=pk, paciente__isnull=True, estado=EstadoCita.PROGRAMADA
             ).first()
-        return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self):
         if self.cita is None:
@@ -153,11 +152,10 @@ class PacienteCrearView(_PacienteFormView):
 class PacienteEditarView(_PacienteFormView):
     mensaje_exito = 'Cambios guardados.'
 
-    def dispatch(self, request, *args, **kwargs):
+    def cargar(self):
         self.paciente = get_object_or_404(
-            Paciente.objects.select_related('persona'), pk=kwargs['pk']
+            Paciente.objects.select_related('persona'), pk=self.kwargs['pk']
         )
-        return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self):
         return PacienteForm.inicial_de(self.paciente)
@@ -235,9 +233,8 @@ class DoctorCrearView(_DoctorFormView):
 class DoctorEditarView(_DoctorFormView):
     mensaje_exito = 'Cambios guardados.'
 
-    def dispatch(self, request, *args, **kwargs):
-        self.doctor = get_object_or_404(Doctor, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
+    def cargar(self):
+        self.doctor = get_object_or_404(Doctor, pk=self.kwargs['pk'])
 
     def get_initial(self):
         return {
