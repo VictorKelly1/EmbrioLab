@@ -1,7 +1,9 @@
 import datetime
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.validators import EmailValidator, RegexValidator
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -9,6 +11,8 @@ from apps.citas.models import DURACION, Cita, EstadoCita, OrigenCita
 from apps.citas.tokens import hash_token, nuevo_token
 from apps.cuentas.models import Recepcionista
 from apps.pacientes.models import Paciente
+from apps.pacientes.services import registrar_paciente
+from apps.personas.models import TELEFONO_REGEX, Genero
 
 
 class TransicionInvalida(ValidationError):
@@ -29,6 +33,49 @@ def _empalme(fecha_hora: datetime.datetime, excluir: int | None = None) -> Cita 
 def _mensaje_empalme(cita: Cita) -> str:
     hora = timezone.localtime(cita.fecha_hora).strftime('%H:%M')
     return f'Ya hay una cita a las {hora} que ocupa ese horario.'
+
+
+@dataclass(frozen=True)
+class SinRegistro:
+    """
+    Quien agenda sin estar registrado como paciente (CONTEXTO.md §3): lo mínimo para
+    reconocerlo al llegar, elegir su formulario y mandarle el recordatorio.
+    """
+
+    nombre: str
+    apellido_paterno: str
+    genero: str
+    telefono: str = ''
+    correo: str = ''
+
+
+def _limpiar_sin_registro(datos: SinRegistro) -> SinRegistro:
+    errores = {}
+    nombre = ' '.join(datos.nombre.split())
+    apellido = ' '.join(datos.apellido_paterno.split())
+    telefono = ''.join(datos.telefono.split())
+    correo = datos.correo.strip().lower()
+    if not nombre:
+        errores['nombre'] = 'Escriba el nombre.'
+    if not apellido:
+        errores['apellido_paterno'] = 'Escriba el apellido paterno.'
+    if datos.genero not in Genero.values:
+        errores['genero'] = 'Elija el género: con él se elige el formulario de la visita.'
+    if telefono:
+        try:
+            RegexValidator(TELEFONO_REGEX)(telefono)
+        except ValidationError:
+            errores['telefono'] = 'Escriba el número con lada: 10 dígitos (o +código de país).'
+    if correo:
+        try:
+            EmailValidator()(correo)
+        except ValidationError:
+            errores['correo'] = 'Escriba un correo válido.'
+    if not telefono and not correo and 'telefono' not in errores:
+        errores['telefono'] = 'Escriba un teléfono o un correo para el recordatorio.'
+    if errores:
+        raise ValidationError(errores)
+    return SinRegistro(nombre, apellido, datos.genero, telefono, correo)
 
 
 def _guardar(cita: Cita) -> Cita:
@@ -68,22 +115,36 @@ def _validar_programada(cita: Cita, accion: str) -> None:
 def agendar_cita(
     *,
     recepcionista: Recepcionista,
-    paciente: Paciente,
     fecha_hora: datetime.datetime,
+    paciente: Paciente | None = None,
+    sin_registro: SinRegistro | None = None,
     asunto: str = '',
 ) -> Cita:
-    _validar_paciente(paciente)
-    _validar_futuro(fecha_hora)
-    return _guardar(
-        Cita(
-            recepcionista=recepcionista,
-            paciente=paciente,
-            fecha_hora=fecha_hora.replace(second=0, microsecond=0),
-            asunto=asunto.strip(),
-            origen=OrigenCita.AGENDADA,
-            numero_folio=paciente.folio,
-        )
+    """
+    Con un paciente registrado o, si todavía no lo está, con los datos de `sin_registro`
+    (CONTEXTO.md §3). El paciente se registra cuando llega (`registrar_llegada`).
+    """
+    if (paciente is None) == (sin_registro is None):
+        raise ValidationError('Elija a un paciente registrado o escriba los datos de quien agenda.')
+    cita = Cita(
+        recepcionista=recepcionista,
+        fecha_hora=fecha_hora.replace(second=0, microsecond=0),
+        asunto=asunto.strip(),
+        origen=OrigenCita.AGENDADA,
     )
+    if paciente is not None:
+        _validar_paciente(paciente)
+        cita.paciente = paciente
+        cita.numero_folio = paciente.folio
+    else:
+        datos = _limpiar_sin_registro(sin_registro)
+        cita.nombre = datos.nombre
+        cita.apellido_paterno = datos.apellido_paterno
+        cita.genero = datos.genero
+        cita.telefono = datos.telefono
+        cita.correo = datos.correo
+    _validar_futuro(fecha_hora)
+    return _guardar(cita)
 
 
 @transaction.atomic
@@ -132,9 +193,39 @@ def cancelar_cita(cita: Cita) -> None:
 @transaction.atomic
 def marcar_atendida(cita: Cita) -> Cita:
     _validar_programada(cita, 'marcar como atendida')
+    if cita.paciente_id is None:
+        raise ValidationError(
+            'Esta cita se agendó sin registro: registre la llegada del paciente para atenderla.'
+        )
     cita.estado = EstadoCita.ATENDIDA
     cita.save(update_fields=['estado', 'actualizado_en'])
     return cita
+
+
+@transaction.atomic
+def registrar_llegada(cita: Cita, paciente: Paciente) -> Cita:
+    """
+    Llegó quien agendó sin registro: la cita queda ligada a su paciente (que ya existía
+    o que se acaba de registrar), con su folio, y atendida (CONTEXTO.md §3).
+    """
+    cita = Cita.objects.select_for_update().get(pk=cita.pk)
+    _validar_programada(cita, 'registrar la llegada de')
+    if cita.paciente_id is not None:
+        raise ValidationError('Esta cita ya tiene paciente: márquela como atendida.')
+    _validar_paciente(paciente)
+    cita.paciente = paciente
+    cita.numero_folio = paciente.folio
+    cita.estado = EstadoCita.ATENDIDA
+    cita.save(update_fields=['paciente', 'numero_folio', 'estado', 'actualizado_en'])
+    return cita
+
+
+@transaction.atomic
+def registrar_paciente_y_llegada(cita: Cita, **datos_paciente) -> Paciente:
+    """Registra al paciente nuevo y su llegada en una sola transacción: todo o nada."""
+    paciente = registrar_paciente(**datos_paciente)
+    registrar_llegada(cita, paciente)
+    return paciente
 
 
 @transaction.atomic

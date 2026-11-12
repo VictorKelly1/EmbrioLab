@@ -6,7 +6,9 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
+from apps.citas.models import Cita, EstadoCita
 from apps.citas.selectors import citas_de_paciente
+from apps.citas.services import registrar_paciente_y_llegada
 from apps.core.forms import aplicar_errores
 from apps.core.mixins import RolRequerido
 from apps.core.services import dar_de_baja, reactivar
@@ -95,15 +97,57 @@ class _PacienteFormView(RolRequerido, FormView):
         except ValidationError as error:
             aplicar_errores(form, error)
             return self.form_invalid(form)
+        return self.exito()
+
+    def exito(self):
         messages.success(self.request, self.mensaje_exito)
         return redirect('pacientes:detalle', pk=self.paciente.pk)
 
 
 class PacienteCrearView(_PacienteFormView):
+    """
+    Con `?cita=<pk>` registra a quien agendó sin registro y su llegada: el formulario
+    empieza con lo que dio al agendar y la cita queda atendida (CONTEXTO.md §3).
+    """
+
     mensaje_exito = 'Paciente registrado.'
 
+    def dispatch(self, request, *args, **kwargs):
+        self.cita = None
+        pk = request.GET.get('cita', '')
+        if pk.isdigit():
+            self.cita = Cita.objects.filter(
+                pk=pk, paciente__isnull=True, estado=EstadoCita.PROGRAMADA
+            ).first()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        if self.cita is None:
+            return super().get_initial()
+        cita = self.cita
+        return {
+            'nombre': cita.nombre,
+            'apellido_paterno': cita.apellido_paterno,
+            'genero': cita.genero,
+            'whatsapp': cita.telefono,
+            'correo': cita.correo,
+        }
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(cita=self.cita, **kwargs)
+
     def guardar(self, **datos):
+        if self.cita is not None:
+            return registrar_paciente_y_llegada(self.cita, **datos)
         return registrar_paciente(**datos)
+
+    def exito(self):
+        if self.cita is None:
+            return super().exito()
+        messages.success(
+            self.request, 'Paciente registrado y llegada registrada: la cita quedó atendida.'
+        )
+        return redirect('citas:detalle', pk=self.cita.pk)
 
 
 class PacienteEditarView(_PacienteFormView):

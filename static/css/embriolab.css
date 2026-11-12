@@ -2629,3 +2629,32 @@ a.cita-bloque:hover {
   font-size: 0.8125rem;
   color: var(--tinta-suave);
 }
+
+/* Cita sin paciente registrado */
+.sin-registro {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sin-registro[hidden],
+[data-tipo][hidden] {
+  display: none;
+}
+
+.llegada__sugeridos {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.llegada__sugeridos form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}

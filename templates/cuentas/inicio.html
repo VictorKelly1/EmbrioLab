@@ -21,7 +21,7 @@
       <li>
         <a href="{% url 'citas:detalle' cita.pk %}">
           <span class="proximas__cuando">{{ cita.fecha_hora|time:'H:i' }}</span>
-          <span class="proximas__nombre">{{ cita.paciente.persona.nombre_completo }}{% if cita.asunto %} <span class="tenue">· {{ cita.asunto }}</span>{% endif %}</span>
+          <span class="proximas__nombre">{{ cita.nombre_paciente }}{% if cita.asunto %} <span class="tenue">· {{ cita.asunto }}</span>{% endif %}</span>
           <span class="etiqueta etiqueta--{{ cita.estado }}">{{ cita.get_estado_display }}</span>
         </a>
       </li>

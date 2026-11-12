@@ -11,7 +11,21 @@
   {% if form.non_field_errors %}
     <div class="aviso aviso--error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
   {% endif %}
-  {% include 'citas/_selector_paciente.html' %}
+  {% with campo=form.tipo %}{% include 'includes/campo.html' %}{% endwith %}
+  <div data-tipo="registrado"{% if form.sin_registro %} hidden{% endif %}>
+    {% include 'citas/_selector_paciente.html' with ayuda_paciente='¿No está registrado? Elija «No, todavía no» arriba: se registra cuando llegue.' %}
+  </div>
+  <fieldset class="sin-registro" data-tipo="sin_registro"{% if not form.sin_registro %} hidden{% endif %}>
+    <legend class="visualmente-oculto">Datos de quien agenda</legend>
+    <p class="campo__ayuda">Solo lo necesario para reconocerlo y mandarle el recordatorio. Al llegar se registra como paciente.</p>
+    <div class="rejilla rejilla--dos">
+      {% with campo=form.nombre %}{% include 'includes/campo.html' %}{% endwith %}
+      {% with campo=form.apellido_paterno %}{% include 'includes/campo.html' %}{% endwith %}
+      {% with campo=form.telefono %}{% include 'includes/campo.html' %}{% endwith %}
+      {% with campo=form.correo %}{% include 'includes/campo.html' %}{% endwith %}
+      {% with campo=form.genero %}{% include 'includes/campo.html' %}{% endwith %}
+    </div>
+  </fieldset>
   <div class="rejilla rejilla--dos">
     {% with campo=form.fecha %}{% include 'includes/campo.html' %}{% endwith %}
     {% with campo=form.hora %}{% include 'includes/campo.html' %}{% endwith %}
@@ -23,4 +37,13 @@
     <a class="boton boton--discreto" href="{% url 'citas:calendario' %}">Cancelar</a>
   </div>
 </form>
+<script>
+  (() => {
+    const secciones = document.querySelectorAll('[data-tipo]');
+    const mostrar = (tipo) => secciones.forEach((seccion) => { seccion.hidden = seccion.dataset.tipo !== tipo; });
+    document.querySelectorAll('input[name=tipo]').forEach((opcion) => {
+      opcion.addEventListener('change', () => mostrar(opcion.value));
+    });
+  })();
+</script>
 {% endblock %}

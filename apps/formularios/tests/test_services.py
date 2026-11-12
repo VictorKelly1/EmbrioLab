@@ -9,7 +9,6 @@ from apps.formularios.models import Formulario, FormularioLlenado, VersionFormul
 from apps.formularios.selectors import respuestas_de, version_para
 from apps.formularios.services import crear_formulario, guardar_respuestas, publicar_version
 from apps.formularios.tests.factories import ESQUEMA_MINIMO, VersionFormularioFactory
-from apps.pacientes.tests.factories import PacienteFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -26,10 +25,8 @@ def test_la_migracion_carga_los_dos_formularios_validos():
 
 
 def test_cada_genero_recibe_su_formulario():
-    hombre = PacienteFactory(persona__genero='masculino')
-    mujer = PacienteFactory(persona__genero='femenino')
-    assert version_para(hombre).formulario.genero_aplicable == 'masculino'
-    assert version_para(mujer).formulario.genero_aplicable == 'femenino'
+    assert version_para('masculino').formulario.genero_aplicable == 'masculino'
+    assert version_para('femenino').formulario.genero_aplicable == 'femenino'
 
 
 # Versiones
@@ -62,16 +59,15 @@ def test_la_bd_permite_una_sola_version_publicada():
 def test_formulario_especifico_gana_sobre_el_general():
     Formulario.objects.all().update(activo=False)
     general = VersionFormularioFactory(formulario__genero_aplicable='')
-    paciente = PacienteFactory(persona__genero='femenino')
-    assert version_para(paciente) == general
+    assert version_para('femenino') == general
 
     especifico = VersionFormularioFactory(formulario__genero_aplicable='femenino')
-    assert version_para(paciente) == especifico
+    assert version_para('femenino') == especifico
 
 
 def test_sin_formulario_disponible():
     Formulario.objects.all().update(activo=False)
-    assert version_para(PacienteFactory()) is None
+    assert version_para('masculino') is None
 
 
 # Respuestas

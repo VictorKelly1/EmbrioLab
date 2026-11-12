@@ -1,6 +1,6 @@
 {% extends 'app.html' %}
 
-{% block titulo %}Cita {{ cita.numero_folio }} · EmbrioLab{% endblock %}
+{% block titulo %}Cita {{ cita.numero_folio|default:cita.nombre_paciente }} · EmbrioLab{% endblock %}
 
 {% block contenido %}
 <a class="volver" href="{% url 'citas:calendario' %}?vista=dia&fecha={{ cita.fecha_hora|date:'Y-m-d' }}">← Calendario</a>
@@ -8,8 +8,13 @@
   <div>
     <h1>{{ cita.fecha_hora|date:'l j \d\e F'|lower|capfirst }}, {{ cita.fecha_hora|time:'H:i' }}–{{ cita.fecha_fin|time:'H:i' }}</h1>
     <p class="ficha__claves">
+      {% if cita.paciente %}
       <span><a href="{% url 'pacientes:detalle' cita.paciente.pk %}">{{ cita.paciente.persona.nombre_completo }}</a></span>
       <span>Folio <strong>{{ cita.numero_folio }}</strong></span>
+      {% else %}
+      <span>{{ cita.nombre_paciente }}</span>
+      <span class="etiqueta etiqueta--inactivo">Sin registro</span>
+      {% endif %}
       <span class="etiqueta etiqueta--{{ cita.estado }}">{{ cita.get_estado_display }}</span>
       {% if cita.origen == 'espontanea' %}<span class="etiqueta etiqueta--inactivo">Sin cita</span>{% endif %}
     </p>
@@ -44,6 +49,10 @@
   <section class="tarjeta">
     <h2>Detalles</h2>
     <dl class="datos">
+      {% if cita.sin_registro %}
+      <dt>Contacto</dt><dd>{% if cita.telefono %}{{ cita.telefono }}{% endif %}{% if cita.telefono and cita.correo %} · {% endif %}{% if cita.correo %}{{ cita.correo }}{% endif %}</dd>
+      <dt>Género</dt><dd>{{ cita.get_genero_display }}</dd>
+      {% endif %}
       <dt>Asunto</dt><dd>{{ cita.asunto|default:"—" }}</dd>
       <dt>Origen</dt><dd>{{ cita.get_origen_display }}</dd>
       <dt>Registró</dt><dd>{{ cita.recepcionista.usuario.persona.nombre_completo }}</dd>
@@ -54,9 +63,11 @@
   <section class="tarjeta">
     <h2>Acciones</h2>
     {% if programada %}
+    {% if cita.sin_registro %}<p class="campo__ayuda">Se agendó sin registro: al llegar, regístrelo como paciente (o elija al que ya existe) y la cita queda atendida.</p>{% endif %}
     <form method="post" action="{% url 'citas:accion' cita.pk %}" class="acciones">
       {% csrf_token %}
-      <button type="submit" name="accion" value="atendida" class="boton boton--principal">Marcar atendida</button>
+      {% if cita.sin_registro %}<a class="boton boton--principal" href="{% url 'citas:llegada' cita.pk %}">Registrar llegada</a>
+      {% else %}<button type="submit" name="accion" value="atendida" class="boton boton--principal">Marcar atendida</button>{% endif %}
       {% if ya_empezo %}<button type="submit" name="accion" value="no_atendida" class="boton boton--secundario">No asistió</button>{% endif %}
     </form>
     {% endif %}
@@ -70,7 +81,7 @@
       {% csrf_token %}
       <button type="submit" class="boton boton--secundario">Enviar link por {% if destinos.correo %}correo{% endif %}{% if destinos.correo and destinos.whatsapp %} y {% endif %}{% if destinos.whatsapp %}WhatsApp{% endif %}</button>
     </form>
-    {% else %}
+    {% elif cita.paciente %}
     <p class="campo__ayuda">Para enviar el link por correo o WhatsApp, agregue un contacto en la <a href="{% url 'pacientes:editar' cita.paciente.pk %}">ficha del paciente</a>.</p>
     {% endif %}
     {% endif %}

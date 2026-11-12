@@ -35,7 +35,7 @@
         {% for llenado in llenados %}
         <tr>
           <td class="tabla__numero">{{ llenado.fecha_llenado|date:'j M Y, H:i' }}</td>
-          <td>{{ llenado.cita.paciente.persona.nombre_completo }}</td>
+          <td>{{ llenado.cita.nombre_paciente }}</td>
           <td class="tabla__opcional">{{ llenado.version_formulario.formulario.nombre }}</td>
           <td class="tabla__accion"><a href="{% url 'citas:detalle' llenado.cita.pk %}">Ver respuestas</a></td>
         </tr>

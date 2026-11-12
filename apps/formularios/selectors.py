@@ -2,21 +2,18 @@ from django.db.models import Count, Q, QuerySet
 
 from apps.formularios.constructor import respuestas_legibles
 from apps.formularios.models import Formulario, FormularioLlenado, VersionFormulario
-from apps.pacientes.models import Paciente
 
 
-def version_para(paciente: Paciente) -> VersionFormulario | None:
+def version_para(genero: str) -> VersionFormulario | None:
     """
-    Versión publicada del formulario activo que corresponde al género del paciente.
-    Si hay uno específico de su género gana sobre uno para todos.
+    Versión publicada del formulario activo que corresponde al género del paciente
+    (`Cita.genero_paciente`, que sirve también sin registro). Si hay uno específico de
+    su género gana sobre uno para todos.
     """
     versiones = (
         VersionFormulario.objects.select_related('formulario')
         .filter(publicada=True, formulario__activo=True)
-        .filter(
-            Q(formulario__genero_aplicable=paciente.persona.genero)
-            | Q(formulario__genero_aplicable='')
-        )
+        .filter(Q(formulario__genero_aplicable=genero) | Q(formulario__genero_aplicable=''))
     )
     return min(
         versiones,
