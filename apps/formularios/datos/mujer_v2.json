@@ -1,0 +1,298 @@
+{
+  "formulario": {
+    "nombre": "Formulario de la visita — mujer",
+    "descripcion": "Formulario del cliente (hoja de papel para mujeres), versión digital.",
+    "genero_aplicable": "femenino"
+  },
+  "esquema": {
+    "secciones": [
+      {
+        "titulo": "Estudios que viene a realizarse",
+        "descripcion": "Marque los estudios que le indicó su médico. Si alguno no aparece en la lista, escríbalo abajo.",
+        "preguntas": [
+          {
+            "clave": "estudios",
+            "etiqueta": "Estudios solicitados",
+            "tipo": "estudios"
+          },
+          {
+            "clave": "estudios_otros",
+            "etiqueta": "Otros estudios que no están en la lista",
+            "tipo": "texto",
+            "ayuda": "Escríbalos como aparecen en la orden de su médico."
+          }
+        ]
+      },
+      {
+        "titulo": "Ciclo menstrual y salud íntima",
+        "preguntas": [
+          {
+            "clave": "dias_abstinencia",
+            "etiqueta": "¿Cuántos días lleva sin tener relaciones sexuales?",
+            "tipo": "numero",
+            "min": 0,
+            "max": 3650,
+            "obligatoria": true,
+            "ayuda": "Escriba 0 si tuvo relaciones hoy."
+          },
+          {
+            "clave": "fecha_inicio_menstruacion",
+            "etiqueta": "Fecha de inicio de su última menstruación",
+            "tipo": "fecha",
+            "no_futura": true,
+            "ayuda": "Si no la recuerda con exactitud, ponga la más aproximada. Déjela en blanco si no menstrúa (por embarazo, menopausia u otra causa)."
+          },
+          {
+            "clave": "fecha_fin_menstruacion",
+            "etiqueta": "Fecha en que terminó su última menstruación",
+            "tipo": "fecha",
+            "no_futura": true,
+            "ayuda": "Déjela en blanco si todavía está menstruando."
+          },
+          {
+            "clave": "embarazo",
+            "etiqueta": "¿Está embarazada o podría estarlo?",
+            "tipo": "opcion",
+            "opciones": ["No", "Sí", "No estoy segura"],
+            "obligatoria": true
+          },
+          {
+            "clave": "ets",
+            "etiqueta": "¿Ha tenido alguna enfermedad de transmisión sexual (ETS)?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "ets_cual",
+            "etiqueta": "¿Cuál y cuándo?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "ets", "valor": true}
+          },
+          {
+            "clave": "aplicacion_vaginal",
+            "etiqueta": "¿Se ha aplicado pomadas, ungüentos u óvulos vaginales, o se ha hecho duchas vaginales recientemente?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "aplicacion_vaginal_tipo",
+            "etiqueta": "¿Qué se aplicó?",
+            "tipo": "opciones",
+            "opciones": ["Pomada o ungüento", "Óvulos", "Ducha vaginal"],
+            "obligatoria": true,
+            "mostrar_si": {"clave": "aplicacion_vaginal", "valor": true}
+          },
+          {
+            "clave": "aplicacion_vaginal_fecha",
+            "etiqueta": "Fecha de la última aplicación",
+            "tipo": "fecha",
+            "no_futura": true,
+            "obligatoria": true,
+            "mostrar_si": {"clave": "aplicacion_vaginal", "valor": true}
+          },
+          {
+            "clave": "sintomas",
+            "etiqueta": "¿Tiene alguno de estos síntomas?",
+            "tipo": "opciones",
+            "opciones": [
+              "Comezón",
+              "Irritación",
+              "Mal olor",
+              "Dolor durante las relaciones sexuales",
+              "Dolor al orinar",
+              "Flujo espeso",
+              "Color anormal del flujo",
+              "Sangrado anormal",
+              "Otro"
+            ],
+            "ayuda": "Marque todos los que tenga. Si no tiene ninguno, deje las casillas sin marcar."
+          },
+          {
+            "clave": "sintomas_otro",
+            "etiqueta": "Si marcó «Otro», describa el síntoma",
+            "tipo": "texto"
+          }
+        ]
+      },
+      {
+        "titulo": "Embarazos",
+        "descripcion": "Escriba 0 si no ha tenido.",
+        "preguntas": [
+          {
+            "clave": "num_embarazos",
+            "etiqueta": "Número de embarazos",
+            "tipo": "numero",
+            "min": 0,
+            "max": 30,
+            "obligatoria": true
+          },
+          {
+            "clave": "num_partos",
+            "etiqueta": "Número de partos",
+            "tipo": "numero",
+            "min": 0,
+            "max": 30,
+            "obligatoria": true
+          },
+          {
+            "clave": "num_cesareas",
+            "etiqueta": "Número de cesáreas",
+            "tipo": "numero",
+            "min": 0,
+            "max": 30,
+            "obligatoria": true
+          },
+          {
+            "clave": "num_abortos",
+            "etiqueta": "Número de abortos o pérdidas",
+            "tipo": "numero",
+            "min": 0,
+            "max": 30,
+            "obligatoria": true
+          }
+        ]
+      },
+      {
+        "titulo": "Su salud",
+        "preguntas": [
+          {
+            "clave": "peso_kg",
+            "etiqueta": "Peso actual (kg)",
+            "tipo": "numero",
+            "decimales": 1,
+            "min": 20,
+            "max": 300,
+            "obligatoria": true,
+            "ayuda": "Si no lo sabe con exactitud, ponga el más aproximado."
+          },
+          {
+            "clave": "enfermedad_cronica",
+            "etiqueta": "¿Tiene o ha tenido alguna enfermedad crónica?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "enfermedades_cronicas",
+            "etiqueta": "¿Cuál o cuáles?",
+            "tipo": "opciones",
+            "opciones": [
+              "Diabetes",
+              "Hipertensión (presión alta)",
+              "Cáncer",
+              "Enfermedad de la tiroides",
+              "Enfermedad de los riñones",
+              "Enfermedad autoinmune (lupus, artritis reumatoide u otra)",
+              "Otra"
+            ],
+            "obligatoria": true,
+            "mostrar_si": {"clave": "enfermedad_cronica", "valor": true}
+          },
+          {
+            "clave": "enfermedad_cronica_otra",
+            "etiqueta": "Si marcó «Otra», escriba cuál",
+            "tipo": "texto",
+            "mostrar_si": {"clave": "enfermedad_cronica", "valor": true}
+          },
+          {
+            "clave": "tratamiento_medico",
+            "etiqueta": "¿Se encuentra bajo tratamiento médico?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "tratamiento_medico_cual",
+            "etiqueta": "¿Qué tratamiento sigue?",
+            "tipo": "texto_largo",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "tratamiento_medico", "valor": true}
+          },
+          {
+            "clave": "antibioticos",
+            "etiqueta": "¿Ha tomado antibióticos en el último mes?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "antibioticos_fecha",
+            "etiqueta": "¿Cuándo fue la última vez que los tomó?",
+            "tipo": "fecha",
+            "no_futura": true,
+            "obligatoria": true,
+            "mostrar_si": {"clave": "antibioticos", "valor": true}
+          },
+          {
+            "clave": "tratamiento_hormonal",
+            "etiqueta": "¿Recibe algún tratamiento hormonal (incluidos anticonceptivos)?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "tratamiento_hormonal_cual",
+            "etiqueta": "¿Cuál tratamiento hormonal?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "tratamiento_hormonal", "valor": true}
+          }
+        ]
+      },
+      {
+        "titulo": "Hábitos",
+        "preguntas": [
+          {
+            "clave": "alcohol",
+            "etiqueta": "¿Con qué frecuencia consume alcohol?",
+            "tipo": "opcion",
+            "opciones": [
+              "No consumo",
+              "Una vez al mes o menos",
+              "Una vez por semana",
+              "Cada tercer día",
+              "Diario"
+            ],
+            "obligatoria": true
+          },
+          {
+            "clave": "tabaco",
+            "etiqueta": "¿Consume tabaco?",
+            "tipo": "opcion",
+            "opciones": ["No", "Ocasionalmente", "Diario"],
+            "obligatoria": true
+          },
+          {
+            "clave": "drogas_medicamentos",
+            "etiqueta": "¿Consume alguna droga u otro medicamento?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "drogas_medicamentos_cuales",
+            "etiqueta": "¿Cuáles?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "drogas_medicamentos", "valor": true}
+          }
+        ]
+      },
+      {
+        "titulo": "Indicaciones y autorización",
+        "descripcion": "Si el formulario no está completo y correctamente llenado, no se realizará el estudio. Si viene a un cultivo: no debe estar menstruando ni tener restos de sangrado menstrual; en las últimas 48 horas no debe haberse aplicado óvulos ni cremas, ni haberse hecho duchas vaginales, ni haber tenido relaciones sexuales; no debe haber tomado antibióticos en los 5 días anteriores, y no debe haber orinado en las 3 horas antes del estudio.",
+        "preguntas": [
+          {
+            "clave": "firma_nombre",
+            "etiqueta": "Su nombre completo",
+            "tipo": "texto",
+            "obligatoria": true,
+            "ayuda": "Al escribir su nombre firma este formulario."
+          },
+          {
+            "clave": "autorizacion",
+            "etiqueta": "Manifiesto que me informaron en qué consisten los procedimientos indicados en este formulario y autorizo al personal de EmbrioLab a realizarlos. Acepto los términos y condiciones.",
+            "tipo": "aceptacion",
+            "obligatoria": true
+          }
+        ]
+      }
+    ]
+  }
+}

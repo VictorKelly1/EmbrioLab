@@ -49,7 +49,9 @@ Para un administrador con datos propios: `docker compose exec web python manage.
 
 Cada versión de un formulario es un archivo JSON en `apps/formularios/datos/` (`hombre_v1.json`,
 `mujer_v1.json`, …). El formato está en `apps/formularios/carga.py` y el de las preguntas en
-`apps/formularios/esquema.py`. Los `_v1` son las preguntas provisionales actuales.
+`apps/formularios/esquema.py`. Los `_v1` eran las preguntas de ejemplo; los `_v2` son los del
+cliente. `datos/pendientes/` guarda los que aún no se publican (el de donantes): se validan en
+las pruebas, pero ninguna migración los usa.
 
 1. Escriba el archivo nuevo, con el siguiente número: `hombre_v2.json`. **No edite uno que ya
    use una migración**: cada cambio es un archivo y una migración nuevos.

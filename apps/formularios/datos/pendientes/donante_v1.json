@@ -1,0 +1,131 @@
+{
+  "formulario": {
+    "nombre": "Formulario de la donación — donante",
+    "descripcion": "PREPARADO, SIN PUBLICAR: Donadores está pendiente (CONTEXTO.md §4). Falta saber qué estudios son los del conjunto de donantes.",
+    "genero_aplicable": "masculino"
+  },
+  "esquema": {
+    "secciones": [
+      {
+        "titulo": "Estudios de la donación",
+        "descripcion": "Marque los estudios que se realizará. Si alguno no aparece en la lista, escríbalo abajo.",
+        "preguntas": [
+          {
+            "clave": "estudios",
+            "etiqueta": "Estudios de la donación",
+            "tipo": "estudios"
+          },
+          {
+            "clave": "estudios_otros",
+            "etiqueta": "Otros estudios que no están en la lista",
+            "tipo": "texto"
+          }
+        ]
+      },
+      {
+        "titulo": "Antes de la donación",
+        "preguntas": [
+          {
+            "clave": "dias_abstinencia",
+            "etiqueta": "¿Cuántos días lleva sin eyacular (por relaciones sexuales o masturbación)?",
+            "tipo": "numero",
+            "min": 0,
+            "max": 3650,
+            "obligatoria": true,
+            "ayuda": "Escriba 0 si eyaculó hoy."
+          },
+          {
+            "clave": "fiebre_diarrea",
+            "etiqueta": "Recientemente, ¿ha tenido fiebre o diarrea?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "fiebre_diarrea_detalle",
+            "etiqueta": "¿Qué tuvo y cuándo?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "fiebre_diarrea", "valor": true}
+          },
+          {
+            "clave": "medicamento_suplemento",
+            "etiqueta": "¿Está tomando algún medicamento o suplemento?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "medicamento_suplemento_cual",
+            "etiqueta": "¿Cuál o cuáles?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "medicamento_suplemento", "valor": true}
+          },
+          {
+            "clave": "ultimo_alcohol",
+            "etiqueta": "¿Cuándo fue la última vez que tomó alcohol?",
+            "tipo": "opcion",
+            "opciones": [
+              "No tomo alcohol",
+              "Hoy o ayer",
+              "Hace 2 a 3 días",
+              "Hace 4 a 7 días",
+              "Hace más de una semana"
+            ],
+            "obligatoria": true
+          },
+          {
+            "clave": "ultimo_tabaco",
+            "etiqueta": "¿Cuándo fue la última vez que fumó?",
+            "tipo": "opcion",
+            "opciones": [
+              "No fumo",
+              "Hoy o ayer",
+              "Hace 2 a 3 días",
+              "Hace 4 a 7 días",
+              "Hace más de una semana"
+            ],
+            "obligatoria": true
+          },
+          {
+            "clave": "droga_reciente",
+            "etiqueta": "Recientemente, ¿ha consumido alguna droga?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "droga_reciente_detalle",
+            "etiqueta": "¿Cuál y cuándo?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "droga_reciente", "valor": true}
+          },
+          {
+            "clave": "situacion_inusual",
+            "etiqueta": "¿Hay alguna situación fuera de lo común que pueda afectar su donación?",
+            "tipo": "texto_largo",
+            "ayuda": "Por ejemplo: desvelo, estrés fuerte, una enfermedad reciente o si se perdió parte de la muestra."
+          }
+        ]
+      },
+      {
+        "titulo": "Autorización",
+        "descripcion": "Si el formulario no está completo y correctamente llenado, no se realizará el estudio.",
+        "preguntas": [
+          {
+            "clave": "firma_nombre",
+            "etiqueta": "Su nombre completo",
+            "tipo": "texto",
+            "obligatoria": true,
+            "ayuda": "Al escribir su nombre firma este formulario."
+          },
+          {
+            "clave": "autorizacion",
+            "etiqueta": "Manifiesto que me informaron en qué consisten los procedimientos indicados en este formulario y autorizo al personal de EmbrioLab a realizarlos. Acepto los términos y condiciones.",
+            "tipo": "aceptacion",
+            "obligatoria": true
+          }
+        ]
+      }
+    ]
+  }
+}

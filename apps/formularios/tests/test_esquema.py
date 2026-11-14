@@ -95,3 +95,43 @@ def test_condicion_con_opcion():
     validar_esquema(esquema)
     esquema['secciones'][0]['preguntas'][-1]['mostrar_si']['valor'] = 'Tal vez'
     assert 'no es una de las opciones' in _errores(esquema)
+
+
+@pytest.mark.parametrize(
+    ('pregunta', 'mensaje'),
+    [
+        ({'clave': 'x', 'etiqueta': 'x', 'tipo': 'estudios', 'claves': 'GLU'}, 'lista de claves'),
+        ({'clave': 'x', 'etiqueta': 'x', 'tipo': 'estudios', 'claves': []}, 'vacía'),
+        ({'clave': 'x', 'etiqueta': 'x', 'tipo': 'estudios', 'claves': ['A', 'A']}, 'repetidas'),
+        ({'clave': 'x', 'etiqueta': 'x', 'tipo': 'estudios', 'opciones': ['a', 'b']}, 'no válidas'),
+        ({'clave': 'x', 'etiqueta': 'x', 'tipo': 'aceptacion'}, '"obligatoria": true'),
+        (
+            {'clave': 'x', 'etiqueta': 'x', 'tipo': 'aceptacion', 'obligatoria': False},
+            '"obligatoria": true',
+        ),
+    ],
+)
+def test_errores_de_estudios_y_aceptacion(pregunta, mensaje):
+    assert mensaje in _errores(_con_pregunta(**pregunta))
+
+
+def test_estudios_y_aceptacion_validos():
+    esquema = _con_pregunta(clave='estudios', etiqueta='Estudios', tipo='estudios')
+    esquema['secciones'][0]['preguntas'] += [
+        {'clave': 'donante', 'etiqueta': 'De donante', 'tipo': 'estudios', 'claves': ['GLU']},
+        {'clave': 'acepto', 'etiqueta': 'Autorizo', 'tipo': 'aceptacion', 'obligatoria': True},
+    ]
+    validar_esquema(esquema)
+
+
+def test_no_se_condiciona_a_estudios():
+    esquema = _con_pregunta(clave='estudios', etiqueta='Estudios', tipo='estudios')
+    esquema['secciones'][0]['preguntas'].append(
+        {
+            'clave': 'otro',
+            'etiqueta': 'Otro',
+            'tipo': 'texto',
+            'mostrar_si': {'clave': 'estudios', 'valor': 'Glucosa'},
+        }
+    )
+    assert 'sí/no u opción' in _errores(esquema)

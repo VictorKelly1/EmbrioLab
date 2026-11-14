@@ -6,9 +6,13 @@ from decimal import Decimal
 from django import forms
 from django.utils import timezone
 
+from apps.estudios.selectors import nombres_para_formulario
 from apps.formularios.esquema import preguntas
 
 SI_NO = [('si', 'Sí'), ('no', 'No')]
+# La aceptación es una lista de casillas con una sola opción, no un BooleanField: así la
+# plantilla genérica de campos le pone la leyenda, el asterisco y el error.
+ACEPTO = [('acepto', 'Sí, acepto')]
 
 
 def _no_futura(fecha: datetime.date) -> None:
@@ -51,6 +55,15 @@ def _campo(pregunta: dict) -> forms.Field:
         return forms.MultipleChoiceField(
             choices=opciones, widget=forms.CheckboxSelectMultiple, **comunes
         )
+    if tipo == 'estudios':
+        opciones = [(n, n) for n in nombres_para_formulario(pregunta.get('claves'))]
+        return forms.MultipleChoiceField(
+            choices=opciones, widget=forms.CheckboxSelectMultiple, **comunes
+        )
+    if tipo == 'aceptacion':
+        return forms.MultipleChoiceField(
+            choices=ACEPTO, widget=forms.CheckboxSelectMultiple, **comunes
+        )
     if tipo == 'fecha':
         atributos = {'type': 'date'}
         validadores = []
@@ -70,6 +83,8 @@ def _a_json(pregunta: dict, valor):
         return None
     if tipo == 'si_no':
         return valor == 'si'
+    if tipo == 'aceptacion':
+        return True
     if tipo == 'numero':
         return float(valor) if isinstance(valor, Decimal) else valor
     if tipo == 'fecha':

@@ -34,11 +34,16 @@ def token(hombre):
 
 
 RESPUESTAS_HOMBRE = {
-    'estudio_esperma': 'si',
     'dias_abstinencia': '3',
-    'muestra_completa': 'Sí, completa',
-    'medicamentos': 'no',
-    'enfermedad_reciente': 'no',
+    'infertilidad': 'Mi estudio no es por infertilidad',
+    'enfermedad_cronica': 'no',
+    'fiebre_diarrea': 'no',
+    'tratamiento_medico': 'no',
+    'alcohol': 'No consumo',
+    'tabaco': 'No',
+    'drogas_medicamentos': 'no',
+    'firma_nombre': 'Raúl Zamora',
+    'autorizacion': 'acepto',
 }
 
 
@@ -48,7 +53,7 @@ RESPUESTAS_HOMBRE = {
 def test_muestra_el_formulario_de_su_genero_sin_datos_del_paciente(client, hombre, token):
     respuesta = client.get(_url(token))
     assert respuesta.status_code == 200
-    assert 'días de abstinencia' in respuesta.text
+    assert 'sin eyacular' in respuesta.text
     assert 'menstruación' not in respuesta.text
     for dato in (hombre.persona.nombre, hombre.persona.apellido_paterno, hombre.folio):
         assert dato not in respuesta.text
@@ -85,7 +90,7 @@ def test_enviar_guarda_y_el_link_ya_no_sirve(client, hombre, token):
     llenado = FormularioLlenado.objects.get()
     assert llenado.cita.paciente == hombre
     assert llenado.respuestas['dias_abstinencia'] == 3
-    assert llenado.respuestas['estudio_esperma'] is True
+    assert llenado.respuestas['autorizacion'] is True
     assert llenado.version_formulario.formulario.genero_aplicable == 'masculino'
 
     assert client.get(_url(token)).status_code == 404
@@ -187,7 +192,7 @@ def test_la_cita_muestra_las_respuestas(client, recepcion, hombre, token):
     cita = FormularioLlenado.objects.get().cita
 
     detalle = recepcion.get(reverse('citas:detalle', args=[cita.pk]))
-    assert '¿Cuántos días de abstinencia sexual tiene?' in detalle.text
+    assert '¿Cuántos días lleva sin eyacular' in detalle.text
     assert 'Respondido el' in detalle.text
     assert 'Generar un link nuevo' not in detalle.text
 
@@ -205,11 +210,9 @@ def test_fecha_futura_rechazada_en_formulario_de_mujer(client):
     respuesta = client.post(
         _url(token),
         {
-            'fecha_ultima_menstruacion': manana,
+            'fecha_inicio_menstruacion': manana,
             'embarazo': 'No',
-            'medicamentos': 'no',
-            'enfermedad_reciente': 'no',
         },
     )
     assert respuesta.status_code == 200
-    assert 'fecha_ultima_menstruacion' in respuesta.context['form'].errors
+    assert 'fecha_inicio_menstruacion' in respuesta.context['form'].errors

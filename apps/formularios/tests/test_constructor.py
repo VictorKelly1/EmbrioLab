@@ -2,6 +2,7 @@ import datetime
 
 import pytest
 
+from apps.estudios.tests.factories import EstudioFactory
 from apps.formularios.constructor import construir_formulario, respuestas_legibles
 from apps.formularios.tests.factories import ESQUEMA_MINIMO
 
@@ -130,3 +131,69 @@ def test_respuestas_legibles():
         {'seccion': 'Todo', 'etiqueta': 'Varias', 'valor': 'A, C'},
         {'seccion': 'Todo', 'etiqueta': 'Fecha', 'valor': '01/10/2026'},
     ]
+
+
+ESTUDIOS_Y_ACEPTACION = {
+    'secciones': [
+        {
+            'titulo': 'Visita',
+            'preguntas': [
+                {'clave': 'estudios', 'etiqueta': 'Estudios', 'tipo': 'estudios'},
+                {
+                    'clave': 'solo_uno',
+                    'etiqueta': 'Solo uno',
+                    'tipo': 'estudios',
+                    'claves': ['PRB_GLU'],
+                },
+                {
+                    'clave': 'autorizo',
+                    'etiqueta': 'Autorizo',
+                    'tipo': 'aceptacion',
+                    'obligatoria': True,
+                },
+            ],
+        }
+    ]
+}
+
+
+@pytest.fixture
+def catalogo():
+    glucosa = EstudioFactory(clave='PRB_GLU', nombre='Glucosa de prueba')
+    EstudioFactory(clave='PRB_CUL', nombre='Cultivo de prueba', categoria=glucosa.categoria)
+    EstudioFactory(clave='PRB_OFF', nombre='Inactivo de prueba', activo=False)
+    return glucosa
+
+
+@pytest.mark.django_db
+def test_estudios_salen_del_catalogo_activo(catalogo):
+    form = construir_formulario(ESTUDIOS_Y_ACEPTACION)()
+    nombres = [valor for valor, _ in form.fields['estudios'].choices]
+    assert 'Glucosa de prueba' in nombres
+    assert 'Cultivo de prueba' in nombres
+    assert 'Inactivo de prueba' not in nombres
+    assert [v for v, _ in form.fields['solo_uno'].choices] == ['Glucosa de prueba']
+
+
+@pytest.mark.django_db
+def test_estudios_y_aceptacion_a_json(catalogo):
+    form = _form(
+        ESTUDIOS_Y_ACEPTACION,
+        {'estudios': ['Glucosa de prueba', 'Cultivo de prueba'], 'autorizo': ['acepto']},
+    )
+    assert form.is_valid(), form.errors
+    assert form.respuestas() == {
+        'estudios': ['Glucosa de prueba', 'Cultivo de prueba'],
+        'autorizo': True,
+    }
+    assert respuestas_legibles(ESTUDIOS_Y_ACEPTACION, form.respuestas())[1]['valor'] == 'Sí'
+
+
+@pytest.mark.django_db
+def test_aceptacion_es_obligatoria_y_no_se_eligen_estudios_ajenos(catalogo):
+    form = _form(ESTUDIOS_Y_ACEPTACION, {'estudios': ['Inactivo de prueba']})
+    assert not form.is_valid()
+    assert 'autorizo' in form.errors
+    assert 'estudios' in form.errors
+    # La plantilla genérica le pone asterisco.
+    assert form.fields['autorizo'].required

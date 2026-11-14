@@ -17,15 +17,33 @@ Formato del esquema JSON de un formulario y su validador.
     }
 
 Tipos: texto, texto_largo, numero (con `decimales`, `min`, `max`), si_no, opcion y
-opciones (con `opciones`), fecha (con `no_futura`). `mostrar_si` muestra la pregunta
-solo si otra pregunta anterior tiene ese valor; si no se muestra, no es obligatoria.
+opciones (con `opciones`), fecha (con `no_futura`), y además:
+
+- `estudios`: casillas con los estudios activos del catálogo, que se leen de la BD al
+  mostrar el formulario (el catálogo cambia sin publicar otra versión). Con `claves`
+  muestra solo esos estudios. Se guarda la lista de nombres que marcó el paciente.
+- `aceptacion`: una casilla que hay que marcar (la autorización al pie del formulario).
+  Siempre lleva `"obligatoria": true` y se guarda como `true`.
+
+`mostrar_si` muestra la pregunta solo si otra pregunta anterior (sí/no u opción) tiene
+ese valor; si no se muestra, no es obligatoria.
 """
 
 import re
 
 from django.core.exceptions import ValidationError
 
-TIPOS = ('texto', 'texto_largo', 'numero', 'si_no', 'opcion', 'opciones', 'fecha')
+TIPOS = (
+    'texto',
+    'texto_largo',
+    'numero',
+    'si_no',
+    'opcion',
+    'opciones',
+    'fecha',
+    'estudios',
+    'aceptacion',
+)
 CLAVE_REGEX = re.compile(r'^[a-z][a-z0-9_]{0,49}$')
 
 _LLAVES = {
@@ -37,6 +55,8 @@ _LLAVES = {
     'opcion': {'opciones'},
     'opciones': {'opciones'},
     'fecha': {'no_futura'},
+    'estudios': {'claves'},
+    'aceptacion': set(),
 }
 
 
@@ -98,6 +118,18 @@ def _validar_pregunta(pregunta, ruta: str, anteriores: dict, errores: list[str])
 
     if tipo == 'fecha' and 'no_futura' in pregunta and not isinstance(pregunta['no_futura'], bool):
         errores.append(f'{ruta}: "no_futura" debe ser true o false.')
+
+    if tipo == 'estudios' and 'claves' in pregunta:
+        claves = pregunta['claves']
+        if not isinstance(claves, list) or not all(
+            isinstance(c, str) and c.strip() for c in claves
+        ):
+            errores.append(f'{ruta}: "claves" debe ser una lista de claves de estudio.')
+        elif not claves or len(set(claves)) != len(claves):
+            errores.append(f'{ruta}: "claves" no puede estar vacía ni tener repetidas.')
+
+    if tipo == 'aceptacion' and pregunta.get('obligatoria') is not True:
+        errores.append(f'{ruta}: una aceptación lleva "obligatoria": true.')
 
     if 'mostrar_si' in pregunta:
         _validar_condicion(pregunta['mostrar_si'], ruta, anteriores, errores)

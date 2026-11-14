@@ -1,0 +1,177 @@
+{
+  "formulario": {
+    "nombre": "Formulario de la visita — hombre",
+    "descripcion": "Formulario del cliente (hoja de papel para hombres), versión digital.",
+    "genero_aplicable": "masculino"
+  },
+  "esquema": {
+    "secciones": [
+      {
+        "titulo": "Estudios que viene a realizarse",
+        "descripcion": "Marque los estudios que le indicó su médico. Si alguno no aparece en la lista, escríbalo abajo.",
+        "preguntas": [
+          {
+            "clave": "estudios",
+            "etiqueta": "Estudios solicitados",
+            "tipo": "estudios"
+          },
+          {
+            "clave": "estudios_otros",
+            "etiqueta": "Otros estudios que no están en la lista",
+            "tipo": "texto",
+            "ayuda": "Escríbalos como aparecen en la orden de su médico."
+          }
+        ]
+      },
+      {
+        "titulo": "Abstinencia y fertilidad",
+        "preguntas": [
+          {
+            "clave": "dias_abstinencia",
+            "etiqueta": "¿Cuántos días lleva sin eyacular (por relaciones sexuales o masturbación)?",
+            "tipo": "numero",
+            "min": 0,
+            "max": 3650,
+            "obligatoria": true,
+            "ayuda": "Escriba 0 si eyaculó hoy."
+          },
+          {
+            "clave": "infertilidad",
+            "etiqueta": "Si su estudio es por infertilidad, ¿conoce la causa?",
+            "tipo": "opcion",
+            "opciones": [
+              "Mi estudio no es por infertilidad",
+              "No conozco la causa",
+              "Sí conozco la causa"
+            ],
+            "obligatoria": true
+          },
+          {
+            "clave": "infertilidad_causa",
+            "etiqueta": "¿Cuál es la causa?",
+            "tipo": "texto_largo",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "infertilidad", "valor": "Sí conozco la causa"}
+          }
+        ]
+      },
+      {
+        "titulo": "Su salud",
+        "preguntas": [
+          {
+            "clave": "enfermedad_cronica",
+            "etiqueta": "¿Tiene o ha tenido alguna enfermedad crónica?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "enfermedades_cronicas",
+            "etiqueta": "¿Cuál o cuáles?",
+            "tipo": "opciones",
+            "opciones": [
+              "Diabetes",
+              "Hipertensión (presión alta)",
+              "Cáncer",
+              "Enfermedad de la tiroides",
+              "Enfermedad de los riñones",
+              "Varicocele",
+              "Otra"
+            ],
+            "obligatoria": true,
+            "mostrar_si": {"clave": "enfermedad_cronica", "valor": true}
+          },
+          {
+            "clave": "enfermedad_cronica_otra",
+            "etiqueta": "Si marcó «Otra», escriba cuál",
+            "tipo": "texto",
+            "mostrar_si": {"clave": "enfermedad_cronica", "valor": true}
+          },
+          {
+            "clave": "fiebre_diarrea",
+            "etiqueta": "En los últimos 3 meses, ¿ha tenido fiebre o diarrea?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "fiebre_diarrea_detalle",
+            "etiqueta": "¿Qué tuvo y cuándo?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "fiebre_diarrea", "valor": true}
+          },
+          {
+            "clave": "tratamiento_medico",
+            "etiqueta": "¿Se encuentra bajo tratamiento médico?",
+            "tipo": "si_no",
+            "obligatoria": true,
+            "ayuda": "Incluya antibióticos y tratamientos hormonales."
+          },
+          {
+            "clave": "tratamiento_medico_cual",
+            "etiqueta": "¿Qué tratamiento sigue?",
+            "tipo": "texto_largo",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "tratamiento_medico", "valor": true}
+          }
+        ]
+      },
+      {
+        "titulo": "Hábitos",
+        "preguntas": [
+          {
+            "clave": "alcohol",
+            "etiqueta": "¿Con qué frecuencia consume alcohol?",
+            "tipo": "opcion",
+            "opciones": [
+              "No consumo",
+              "Una vez al mes o menos",
+              "Una vez por semana",
+              "Cada tercer día",
+              "Diario"
+            ],
+            "obligatoria": true
+          },
+          {
+            "clave": "tabaco",
+            "etiqueta": "¿Consume tabaco?",
+            "tipo": "opcion",
+            "opciones": ["No", "Ocasionalmente", "Diario"],
+            "obligatoria": true
+          },
+          {
+            "clave": "drogas_medicamentos",
+            "etiqueta": "¿Consume alguna droga u otro medicamento?",
+            "tipo": "si_no",
+            "obligatoria": true
+          },
+          {
+            "clave": "drogas_medicamentos_cuales",
+            "etiqueta": "¿Cuáles?",
+            "tipo": "texto",
+            "obligatoria": true,
+            "mostrar_si": {"clave": "drogas_medicamentos", "valor": true}
+          }
+        ]
+      },
+      {
+        "titulo": "Autorización",
+        "descripcion": "Si el formulario no está completo y correctamente llenado, no se realizará el estudio.",
+        "preguntas": [
+          {
+            "clave": "firma_nombre",
+            "etiqueta": "Su nombre completo",
+            "tipo": "texto",
+            "obligatoria": true,
+            "ayuda": "Al escribir su nombre firma este formulario."
+          },
+          {
+            "clave": "autorizacion",
+            "etiqueta": "Manifiesto que me informaron en qué consisten los procedimientos indicados en este formulario y autorizo al personal de EmbrioLab a realizarlos. Acepto los términos y condiciones.",
+            "tipo": "aceptacion",
+            "obligatoria": true
+          }
+        ]
+      }
+    ]
+  }
+}

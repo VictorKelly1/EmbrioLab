@@ -4,7 +4,7 @@
 > **Léelo completo antes de escribir código.** Contiene las decisiones de negocio, el diseño de la base de datos, la arquitectura y el plan de trabajo de 10 semanas.
 > Si algo de aquí contradice al código, manda este documento: consulta antes de cambiar una decisión (ver §9).
 
-Última actualización: 2026-11-12
+Última actualización: 2026-11-14
 
 ---
 
@@ -303,7 +303,13 @@ Las decide el cliente. Mientras no responda, el código usa el valor provisional
 - **Corregir el estado de una cita.** Provisional: una cita atendida o no atendida ya no se puede cambiar. ¿Se permiten correcciones?
 
 ### Formularios (semana 4)
-- **Preguntas reales de los 2 formularios** (hombre y mujer): tipos, opciones y cuáles son obligatorias. Provisional: preguntas de ejemplo en la migración `formularios/0002`. Las reales se cargan publicando una versión nueva con otra migración de datos, desde un archivo de `apps/formularios/datos/` (ver README, «Formularios del cliente»).
+- **Preguntas reales de los formularios.** Entregadas (2026-11-14) en papel: hombre, mujer y donante. Publicadas como `hombre_v2.json` y `mujer_v2.json` (migración `formularios/0003`); el de donante está listo en `datos/pendientes/donante_v1.json`, sin publicar, hasta que se implemente Donadores. El encabezado del papel (datos del paciente) no se pregunta: ya está en el sistema. Se mejoraron redacción y opciones (el cliente dio libertad); conviene que el cliente apruebe las vistas previas (`revisar_formulario --html`). Provisional:
+  - **Estudios solicitados:** casillas con los estudios activos del catálogo (tipo `estudios`, se leen al abrir el formulario) más un texto para los que no están. Ninguno es obligatorio. Decidido (2026-11-14): solo informan a la recepción, no arman el pedido.
+  - **Firma:** el paciente escribe su nombre completo y marca la casilla de autorización (tipo `aceptacion`). No hay firma dibujada ni se muestra su nombre (la página pública no muestra datos del paciente). Decidido (2026-11-14): así le sirve al cliente.
+  - **Términos y condiciones:** la declaración dice «acepto los términos y condiciones», pero falta el texto. Decidido (2026-11-14): se agrega cuando el cliente lo entregue.
+  - **Nota e indicaciones:** las del formulario de mujer (cultivo) van al final, como en el papel; en hombre y donante solo «si no está completo no se realiza el estudio». Decidido (2026-11-14): por ahora no se mandan en el recordatorio de 24 h (el cliente no lo desea).
+  - **Agregadas por nosotros:** embarazo posible, cesáreas, duchas vaginales, fechas y cuál de cada «sí», y en donante «cuándo» por rangos (hoy o ayer, 2 a 3 días…). Las enfermedades crónicas son una lista con «Otra».
+  - **Estudios de donantes:** el formulario muestra todo el catálogo; cuáles son se define cuando se trabajen los estudios reales; entonces se ponen sus `claves` en la pregunta.
 - **Corregir respuestas.** Provisional: una vez enviado, el formulario no se puede editar ni volver a llenar en esa cita. ¿Hace falta que la recepción pueda reabrirlo?
 
 ### Catálogo de estudios (semana 5)
@@ -378,3 +384,4 @@ Si al implementar algo encuentras que una decisión de este documento no funcion
 - 2026-11-11: cambio del cliente — **quién envió y detalle de la cita para químicos**: `Notificaciones` agrega `IdUsuario` (nulo en el recordatorio automático y en los envíos anteriores al cambio) y la lista de envíos muestra quién los hizo. El químico ya puede abrir el detalle de la cita desde el calendario, en solo lectura (antes solo veía el calendario).
 - 2026-11-12: **CI y matriz de permisos** — GitHub Actions en cada PR y protección de `main`; prueba con la matriz de permisos por URL y rol. `RolRequerido` carga el objeto de la URL en `cargar()`, después de revisar el rol (antes 8 vistas lo buscaban primero y respondían 404 en vez de 403 o del login).
 - 2026-11-12: **formularios desde archivos** — cada versión de un formulario es un JSON en `apps/formularios/datos/` (los provisionales quedan como `hombre_v1.json` y `mujer_v1.json`). Se siguen publicando con migraciones de datos, ahora de pocas líneas (`carga.publicar()`), y el comando `revisar_formulario` los valida, muestra los cambios y genera una vista previa para el cliente.
+- 2026-11-14: **formularios del cliente** — se publican los de hombre y mujer (v2) y queda preparado, sin publicar, el de donante (`datos/pendientes/`). El esquema agrega los tipos `estudios` (casillas del catálogo vigente) y `aceptacion` (autorización obligatoria). Sin cambios de BD ni de plantillas.
