@@ -29,6 +29,8 @@ TIPOS = {
     'opcion': 'una opción',
     'opciones': 'varias opciones',
     'fecha': 'fecha',
+    'estudios': 'estudios del catálogo',
+    'aceptacion': 'aceptación',
 }
 PARA = {'masculino': 'para hombres', 'femenino': 'para mujeres', '': 'para todos'}
 
@@ -82,7 +84,10 @@ class Command(BaseCommand):
         escribir(self.style.SUCCESS(f'{Path(archivo).name}: válido.'))
         escribir(f'«{definicion.nombre}», {PARA[definicion.genero_aplicable]}.')
         self._resumen(definicion.esquema)
-        self._comparar(definicion)
+        if 'pendientes' in Path(archivo).resolve().parts:
+            escribir('\nArchivo pendiente: no lo publica ninguna migración; no se compara.')
+        else:
+            self._comparar(definicion)
 
         if html:
             Path(html).write_text(vista_previa(definicion.esquema), encoding='utf-8')

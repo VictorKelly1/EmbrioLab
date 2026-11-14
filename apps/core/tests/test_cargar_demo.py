@@ -8,6 +8,7 @@ from apps.cuentas.models import Usuario
 from apps.cuentas.tests.factories import QuimicoFactory, RecepcionistaFactory
 from apps.estudios.models import EstudioAlias
 from apps.estudios.services import registrar_alias
+from apps.formularios.models import FormularioLlenado
 from apps.pacientes.models import Doctor, Paciente
 from apps.pedidos.models import EstudioPedido, Pedido
 from apps.pedidos.selectors import cola_por_paciente, encargado_del_paciente
@@ -56,6 +57,13 @@ def test_borra_todo_menos_los_usuarios_y_carga_el_ejemplo(en_desarrollo, persona
     assert not Paciente.objects.filter(pk=viejo.pedido.cita.paciente_id).exists()
     assert not EstudioAlias.objects.filter(alias='azucar').exists()
     assert EstudioAlias.objects.count() == alias_de_migracion
+    # Las respuestas de ejemplo siguen siendo válidas para los formularios publicados.
+    generos = set(
+        FormularioLlenado.objects.values_list(
+            'version_formulario__formulario__genero_aplicable', flat=True
+        )
+    )
+    assert generos == {'masculino', 'femenino'}
     # Las personas que quedan son las de los usuarios y las de los pacientes nuevos.
     assert Persona.objects.count() == len(usuarios) + Paciente.objects.count()
 

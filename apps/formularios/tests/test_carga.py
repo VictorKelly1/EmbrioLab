@@ -11,6 +11,7 @@ from django.core.management import CommandError, call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
+from apps.estudios.tests.factories import EstudioFactory
 from apps.formularios.carga import DATOS, diferencias, leer, publicar
 from apps.formularios.models import Formulario, VersionFormulario
 from apps.formularios.tests.factories import ESQUEMA_MINIMO, FormularioFactory
@@ -121,7 +122,7 @@ def test_publica_una_version_nueva_y_despublica_la_anterior(tmp_path):
 
 
 def test_publicar_lo_mismo_no_crea_otra_version(tmp_path):
-    definicion = leer(DATOS / 'hombre_v1.json')
+    definicion = leer(DATOS / 'hombre_v2.json')
     antes = VersionFormulario.objects.count()
     version, nueva = publicar(definicion, **MODELOS)
     assert not nueva
@@ -175,6 +176,17 @@ def test_lo_publicado_coincide_con_el_ultimo_archivo_de_cada_genero():
         assert publicada.numero_version == numero, genero
 
 
+def test_los_archivos_pendientes_son_validos_y_no_se_publican(capsys):
+    """El de donantes está listo para cuando se implemente Donadores (CONTEXTO.md §4)."""
+    pendientes = sorted((DATOS / 'pendientes').glob('*.json'))
+    assert pendientes
+    for ruta in pendientes:
+        definicion = leer(ruta)
+        assert not VersionFormulario.objects.filter(esquema=definicion.esquema).exists()
+        call_command('revisar_formulario', str(ruta))
+        assert 'no se compara' in capsys.readouterr().out
+
+
 # Diferencias
 
 
@@ -194,7 +206,7 @@ def test_diferencias_por_clave():
 
 
 def test_revisar_sin_cambios(capsys):
-    call_command('revisar_formulario', str(DATOS / 'hombre_v1.json'))
+    call_command('revisar_formulario', str(DATOS / 'hombre_v2.json'))
     salida = capsys.readouterr().out
     assert 'válido' in salida
     assert 'Sin cambios' in salida
@@ -215,10 +227,12 @@ def test_revisar_un_archivo_con_errores(tmp_path):
 
 def test_vista_previa_en_un_solo_archivo(tmp_path):
     destino = tmp_path / 'vista.html'
-    call_command('revisar_formulario', str(DATOS / 'mujer_v1.json'), '--html', str(destino))
+    EstudioFactory(nombre='Cultivo vaginal')
+    call_command('revisar_formulario', str(DATOS / 'mujer_v2.json'), '--html', str(destino))
     html = destino.read_text(encoding='utf-8')
     assert 'Vista previa' in html
     assert '¿Está embarazada o podría estarlo?' in html
+    assert 'Cultivo vaginal' in html
     # Sin archivos externos: se abre igual en cualquier computadora.
     assert '<style>' in html
     assert 'rel="stylesheet"' not in html

@@ -31,6 +31,17 @@ def catalogo(termino: str = '', *, incluir_inactivos: bool = False) -> list[Estu
     ]
 
 
+def nombres_para_formulario(claves: list[str] | None = None) -> list[str]:
+    """
+    Nombres de los estudios activos para la lista del formulario de la visita, en el
+    orden del catálogo (categoría y nombre). Con `claves`, solo esos.
+    """
+    estudios = Estudio.objects.filter(activo=True)
+    if claves is not None:
+        estudios = estudios.filter(clave__in=claves)
+    return list(estudios.values_list('nombre', flat=True))
+
+
 def categorias() -> QuerySet[CategoriaEstudio]:
     return CategoriaEstudio.objects.all()
 
